@@ -4,21 +4,15 @@ export interface RequestPayload {
     requestId: string;
 }
 
-export interface UserInfoResponse {
-    requestId: string;
-    data: {
-        id: string;
-        name: string;
-        email: string;
-    };
+export interface UserInfoResponsePayload {
+    id: string;
+    name: string;
+    email: string;
 }
 
-export interface CommunityInfoResponse {
-    requestId: string;
-    data: {
-        id: string;
-        name: string;
-    };
+export interface CommunityInfoResponsePayload {
+    id: string;
+    name: string;
 }
 
-export type AnyResponse = UserInfoResponse | CommunityInfoResponse;
+export type AnyResponsePayload = UserInfoResponsePayload | CommunityInfoResponsePayload;

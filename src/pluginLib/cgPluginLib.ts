@@ -1,9 +1,9 @@
-import { RequestType, RequestPayload, UserInfoResponse, CommunityInfoResponse, AnyResponse } from './types';
+import { RequestType, RequestPayload, UserInfoResponsePayload, CommunityInfoResponsePayload, AnyResponsePayload } from './types';
 
 class CgPluginLib {
   private targetOrigin: string;
   private parentWindow: Window;
-  private listeners: Record<string, (payload: AnyResponse) => void>;
+  private listeners: Record<string, (payload: AnyResponsePayload) => void>;
 
   constructor(targetOrigin = '*') {
     this.targetOrigin = targetOrigin; // Restrict communication to specific origins for security.
@@ -37,14 +37,23 @@ class CgPluginLib {
    */
   private __handleMessage(event: MessageEvent) {
     // Validate the origin of the message.
+    console.log('New message received');
+    console.log('event.origin', event.origin);
+
     if (this.targetOrigin !== '*' && event.origin !== this.targetOrigin) {
       console.warn('Message origin mismatch:', event.origin);
       return;
     }
 
     const { type, payload } = event.data;
+    console.log('event.data', event.data);
+
+    console.log('type', type);
+    console.log('payload', payload);
+    console.log('this.listeners', this.listeners);
 
     if (type && this.listeners[type]) {
+      console.log('found listener for type', type);
       this.listeners[type](payload);
     }
   }
@@ -54,7 +63,7 @@ class CgPluginLib {
    * @param {string} type - The type of message to listen for.
    * @param {function} callback - The callback to invoke when the message is received.
    */
-  private __on(type: string, callback: (payload: AnyResponse) => void) {
+  private __on(type: string, callback: (payload: AnyResponsePayload) => void) {
     this.listeners[type] = callback;
   }
 
@@ -66,16 +75,14 @@ class CgPluginLib {
     delete this.listeners[type];
   }
 
-  private __request(type: RequestType): Promise<AnyResponse['data']> {
+  private __request(type: RequestType): Promise<AnyResponsePayload> {
     return new Promise((resolve) => {
       const requestId = `req_${type}_${Date.now()}`; // Unique ID for the request.
 
       // Listener for the response.
-      const responseListener = (payload: AnyResponse) => {
-        if (payload.requestId === requestId) {
-          resolve(payload.data);
-          this.__off(requestId);
-        }
+      const responseListener = (payload: AnyResponsePayload) => {
+        resolve(payload);
+        this.__off(requestId);
       };
 
       // Set up the listener for the response.
@@ -89,16 +96,16 @@ class CgPluginLib {
    * Get the user info from the parent.
    * @returns {Promise<CgPluginLib.Response.UserInfo>} A promise that resolves to the user info.
    */
-  public async getUserInfo(): Promise<UserInfoResponse['data']> {
-    return this.__request('userInfo') as Promise<UserInfoResponse['data']>;
+  public async getUserInfo(): Promise<UserInfoResponsePayload> {
+    return this.__request('userInfo') as Promise<UserInfoResponsePayload>;
   }
 
   /**
    * Get the community info from the parent.
    * @returns {Promise<CgPluginLib.Response.CommunityInfo>} A promise that resolves to the community info.
    */
-  public async getCommunityInfo(): Promise<CommunityInfoResponse['data']> {
-    return this.__request('communityInfo') as Promise<CommunityInfoResponse['data']>;
+  public async getCommunityInfo(): Promise<CommunityInfoResponsePayload> {
+    return this.__request('communityInfo') as Promise<CommunityInfoResponsePayload>;
   }
 }
 

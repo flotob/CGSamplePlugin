@@ -1,20 +1,25 @@
 'use client';
-import { CgPluginLib, CommunityInfoResponse, UserInfoResponse } from '@/pluginLib';
+import { CgPluginLib, CommunityInfoResponsePayload, UserInfoResponsePayload } from '@/pluginLib';
 import React, { useEffect, useState } from 'react';
 
 const MyInfo = () => {
-  const [userInfo, setUserInfo] = useState<UserInfoResponse['data'] | null>(null);
-  const [communityInfo, setCommunityInfo] = useState<CommunityInfoResponse['data'] | null>(null);
+  const [userInfo, setUserInfo] = useState<UserInfoResponsePayload | null>(null);
+  const [communityInfo, setCommunityInfo] = useState<CommunityInfoResponsePayload | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
+      console.log('fetching data');
       const cgPluginLibInstance = new CgPluginLib();
 
-      const userInfo = await cgPluginLibInstance.getUserInfo();
-      const communityInfo = await cgPluginLibInstance.getCommunityInfo();
+      cgPluginLibInstance.getUserInfo().then((userInfo) => {
+        console.log('userInfo', userInfo);
+        setUserInfo(userInfo);
+      });
 
-      setUserInfo(userInfo);
-      setCommunityInfo(communityInfo);
+      cgPluginLibInstance.getCommunityInfo().then((communityInfo) => {
+        console.log('communityInfo', communityInfo);
+        setCommunityInfo(communityInfo);
+      });
     };
 
     fetchData();
