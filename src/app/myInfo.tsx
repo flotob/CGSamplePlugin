@@ -1,16 +1,17 @@
 'use client';
 import { CgPluginLib, CommunityInfoResponsePayload, UserInfoResponsePayload } from '@/pluginLib';
-import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import React, { useEffect, useMemo, useState } from 'react';
 
 const MyInfo = () => {
   const [userInfo, setUserInfo] = useState<UserInfoResponsePayload | null>(null);
   const [communityInfo, setCommunityInfo] = useState<CommunityInfoResponsePayload | null>(null);
+  const searchParams = useSearchParams();
+  const iframeUid = searchParams.get('iframeUid');
+  const cgPluginLibInstance = useMemo(() => new CgPluginLib(iframeUid || ''), [iframeUid]);
 
   useEffect(() => {
     const fetchData = async () => {
-      console.log('fetching data');
-      const cgPluginLibInstance = new CgPluginLib();
-
       cgPluginLibInstance.getUserInfo().then((userInfo) => {
         console.log('userInfo', userInfo);
         setUserInfo(userInfo);
@@ -23,8 +24,16 @@ const MyInfo = () => {
     };
 
     fetchData();
-  }, []);
 
+    // const testAttemptLimit = async () => {
+    //   await cgPluginLibInstance.getUserInfo();
+    //   setTimeout(() => {
+    //     testAttemptLimit();
+    //   }, 20);
+    // }
+
+    // testAttemptLimit();
+  }, [cgPluginLibInstance, iframeUid]);
 
   return (<div className='flex flex-col gap-2'>
     <p className='font-bold'>Your username is: {userInfo?.name}</p>
