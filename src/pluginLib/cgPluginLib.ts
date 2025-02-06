@@ -1,4 +1,4 @@
-import { RequestType, RequestPayload, UserInfoResponsePayload, CommunityInfoResponsePayload, AnyResponsePayload, MAX_REQUESTS_PER_MINUTE } from './types';
+import { UserInfoResponsePayload, CommunityInfoResponsePayload, AnyResponsePayload, MAX_REQUESTS_PER_MINUTE, AnyRequestPayload, AnyRequestType, ActionResponsePayload } from './types';
 
 class CgPluginLib {
   static instance: CgPluginLib | null = null;
@@ -38,7 +38,7 @@ class CgPluginLib {
    * @param {string} type - The type of message.
    * @param {object} payload - The data to send.
    */
-  private __sendMessage(type: RequestType, payload: RequestPayload | undefined = undefined) {
+  private __sendMessage(type: AnyRequestType, payload: AnyRequestPayload | undefined = undefined) {
     if (!CgPluginLib.parentWindow) {
       console.error('No parent window available to send messages.');
       return;
@@ -93,7 +93,7 @@ class CgPluginLib {
     delete CgPluginLib.listeners[type];
   }
 
-  private __request(type: RequestType, timeout: number = 2000, maxAttempts: number = 3): Promise<AnyResponsePayload> {
+  private __request(type: AnyRequestType, payload: Omit<AnyRequestPayload, 'requestId' | 'iframeUid'> = {}, timeout: number = 2000, maxAttempts: number = 3): Promise<AnyResponsePayload> {
     return new Promise((resolve, reject) => {
       const requestId = `req_${type}_${Date.now()}`; // Unique ID for the request.
       let timeoutId: NodeJS.Timeout | undefined;
@@ -116,10 +116,10 @@ class CgPluginLib {
         this.__sendMessage(type, {
           requestId,
           iframeUid: CgPluginLib.iframeUid,
+          ...payload,
         });
 
         timeoutId = setTimeout(() => {
-          console.log('timeout attempts', attempts);
           if (attempts < maxAttempts) {
             attemptSend();
           } else {
@@ -146,6 +146,19 @@ class CgPluginLib {
    */
   public async getCommunityInfo(): Promise<CommunityInfoResponsePayload> {
     return this.__request('communityInfo') as Promise<CommunityInfoResponsePayload>;
+  }
+
+  /**
+   * Give a role to a user in the community.
+   * @param {string} roleId - The ID of the role to give.
+   * @param {string} userId - The ID of the user to give the role to.
+   * @returns {Promise<ActionResponsePayload>} A promise that resolves to the action response.
+   */
+  public async giveRole(roleId: string, userId: string): Promise<ActionResponsePayload> {
+    return this.__request('action', {
+      action: 'giveRole',
+      payload: { roleId, userId },
+    }) as Promise<ActionResponsePayload>;
   }
 }
 
