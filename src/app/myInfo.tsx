@@ -21,9 +21,20 @@ const MyInfo = () => {
         console.log('communityInfo', communityInfo);
         setCommunityInfo(communityInfo);
       });
-    };
+    }
 
     fetchData();
+
+    const signAction = async () => {
+      const response = await fetch('/api/signAction', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'giveRole', role: 'admin', userId: 'asdf' }),
+      });
+
+      console.log('response', response);
+    };
+
+    signAction();
 
     // const testAttemptLimit = async () => {
     //   await cgPluginLibInstance.getUserInfo();
