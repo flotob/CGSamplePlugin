@@ -1,4 +1,4 @@
-import { UserInfoResponsePayload, CommunityInfoResponsePayload, AnyResponsePayload, MAX_REQUESTS_PER_MINUTE, AnyRequestPayload, AnyRequestType, ActionResponsePayload } from './types';
+import { UserInfoResponsePayload, CommunityInfoResponsePayload, AnyResponsePayload, MAX_REQUESTS_PER_MINUTE, ActionResponsePayload, RequestPayload, RequestType, ActionRequestPayload } from './types';
 
 class CgPluginLib {
   static instance: CgPluginLib | null = null;
@@ -8,8 +8,9 @@ class CgPluginLib {
   private static targetOrigin: string;
   private static parentWindow: Window;
   private static listeners: Record<string, (payload: AnyResponsePayload) => void>;
+  private static signUrl: string;
 
-  constructor(iframeUid: string) {
+  constructor(iframeUid: string, signUrl: string) {
     if (CgPluginLib.instance && CgPluginLib.iframeUid === iframeUid) {
       return CgPluginLib.instance;
     }
@@ -22,6 +23,7 @@ class CgPluginLib {
     CgPluginLib.targetOrigin = '*'; // Restrict communication to specific origins for security.
     CgPluginLib.parentWindow = window.parent; // Reference to the parent window.
     CgPluginLib.listeners = {}; // Store custom message listeners.
+    CgPluginLib.signUrl = signUrl; // The URL for the action signing route.
 
     // Listen for messages from the parent.
     window.addEventListener('message', this.__handleMessage.bind(this));
@@ -38,7 +40,7 @@ class CgPluginLib {
    * @param {string} type - The type of message.
    * @param {object} payload - The data to send.
    */
-  private __sendMessage(type: AnyRequestType, payload: AnyRequestPayload | undefined = undefined) {
+  private __sendMessage(type: RequestType, payload: RequestPayload | undefined = undefined) {
     if (!CgPluginLib.parentWindow) {
       console.error('No parent window available to send messages.');
       return;
@@ -93,7 +95,15 @@ class CgPluginLib {
     delete CgPluginLib.listeners[type];
   }
 
-  private __request(type: AnyRequestType, payload: Omit<AnyRequestPayload, 'requestId' | 'iframeUid'> = {}, timeout: number = 2000, maxAttempts: number = 3): Promise<AnyResponsePayload> {
+  private __request(
+    type: RequestType,
+    actionPayload: {
+      payload: ActionRequestPayload;
+      signature: string;
+    } | undefined = undefined,
+    timeout: number = 2000,
+    maxAttempts: number = 3
+  ): Promise<AnyResponsePayload> {
     return new Promise((resolve, reject) => {
       const requestId = `req_${type}_${Date.now()}`; // Unique ID for the request.
       let timeoutId: NodeJS.Timeout | undefined;
@@ -113,11 +123,24 @@ class CgPluginLib {
         attempts++;
 
         // Send the request to the parent.
-        this.__sendMessage(type, {
-          requestId,
-          iframeUid: CgPluginLib.iframeUid,
-          ...payload,
-        });
+        let requestPayload: RequestPayload;
+        if (!!actionPayload) {
+          requestPayload = {
+            type: 'action',
+            requestId,
+            iframeUid: CgPluginLib.iframeUid,
+            payload: actionPayload.payload,
+            signature: actionPayload.signature,
+          };
+        } else {
+          requestPayload = {
+            type: 'basic',
+            requestId,
+            iframeUid: CgPluginLib.iframeUid,
+          };
+        }
+
+        this.__sendMessage(type, requestPayload);
 
         timeoutId = setTimeout(() => {
           if (attempts < maxAttempts) {
@@ -130,6 +153,23 @@ class CgPluginLib {
 
       attemptSend();
     });
+  }
+
+  /**
+   * Sends the action to the plugin server, the server will sign the payload
+   * with the given private key. This can be used by the CG server to validate
+   * the authenticity of the action.
+   * @param {ActionRequestPayload} action - The action to sign.
+   * @returns {Promise<string>} A promise that resolves to the signature.
+   */
+  private async __signAction(action: ActionRequestPayload): Promise<string> {
+    const response = await fetch(CgPluginLib.signUrl, {
+      method: 'POST',
+      body: JSON.stringify(action),
+    });
+
+    const { signature } = await response.json();
+    return signature;
   }
 
   /**
@@ -155,11 +195,15 @@ class CgPluginLib {
    * @returns {Promise<ActionResponsePayload>} A promise that resolves to the action response.
    */
   public async giveRole(roleId: string, userId: string): Promise<ActionResponsePayload> {
+    const payload: ActionRequestPayload = { type: 'giveRole', roleId, userId };
+    const signature = await this.__signAction(payload);
+    console.log('signature for giveRole', signature);
+
     return this.__request('action', {
-      action: 'giveRole',
-      payload: { roleId, userId },
+      payload,
+      signature,
     }) as Promise<ActionResponsePayload>;
-  }
+  }  
 }
 
 // Export the library as a global variable or as a module.

@@ -1,6 +1,39 @@
+import CgPluginLibHost from "../../../pluginLib/cgPluginLibHost";
+
+const privateKey = `-----BEGIN RSA PRIVATE KEY-----
+MIIEogIBAAKCAQEA3dAyUd5Oe9Wu8ZPrvbEhUrX27aApYd/auTfzT+LVukUcQ+1I
+4W6nCUSIzLyu2XlZjyWQf9GRk3xhaShB9eHzIAl4x7VK34wIEcvAjWCThFHVSRJC
+7Ri2RtzlOO936hjwi54daXMqAYzzMlekcc+2NRHBry8yfRA8esB1Z/f9iuuofMXp
+pCKVoTgXt8Z+GUwqMjW/LbMgaQ7AAK17n0GDn2bLGQkhXwE19+tdMkdyEiSB9m5p
+Ercq2qwQOq0oRQa6Nrp6IyybxZXI8yjfviyWZtub62M7JHo/Yc+ajjjn9dZOsPZi
+TDI5APie3VPS9K5gyeewBJjU0jR1ajcRRwx31wIDAQABAoIBAB1oGyu4Zb5MI3/a
+hP/mikztW9nACIx1wYkZrlOydnRV8jvdKvLcGSAE6n/+Kc4iJOnx6HjRn1Omw0FO
+OYRwGqvuJYmQcuc1KOK3GQWFPrllofmohp/pTU0Svv7v3H14JffUlAClaHXBKoLL
+lL0T9QuPGZbwkmh7LRF3D3mjqoTunvRtLs7avn7OIU47pbKwa5U+KMD04L2YqI8s
+u6Pn9IbwIKjeycea889oTrsdjmRd8og08iw/aeMa70T5ITXnUtBxG8fzaAsoAldy
+rEL2gpVAgZ25tj8iZtB36tbI0586zleWczUjEgJ7E390hToP6LrEoy7/9UoFRhks
+OUDPOpECgYEA9qy6bGMHxoXiCo6Dr3Fn8HefnXiXpWL9KtOfhmOGepzkYcr7ly/X
+k+L5KAG0CGsZuRyM3sABGklNaxjtlei/ERNaHRRFCdl4fBT769xEyMqudH0manFx
+L241ay90QIkiM5Gwj7a09MH+ASrZZ4oFFO2GjGwrGY4LCSI+//D9TocCgYEA5jLd
+Jlz58jJ9x9nAzGCOG7b4Tn1bbUeGxaoQCmY3GKiQtp595bBEn/brKWgE4RaKHgNO
+8c99W1j3NuxvjmG+mfTPezaO0usnwpfutAtPOKVaE33Ba3rBHLaiSxrVYLGuclqp
+/gbBok8fcmnN22DYgRFrQu01MiPtE6O506MYEDECgYARt3gwPrCZRpZkkbXNjQSd
+FcpmAfpKS6DJSafEfDN1bP1ONMj7I9mE6qFgiTbIAAE59V38xaeOnsMrtP+ja7MF
+Y/Ft8z2+Jltr9gnd99UM4tnCzhZLQNiTQoQdravY0sCdGZKnz8SRa7l1lgFFWXlh
+9mlafo5d6IDMaCREN6fJ0wKBgDl7aAfFXdCh1RDLij4+uh2nkdefq+3c14WSUtEV
+9xocNY60gwGRA4HiWZSMWfOO+kxGTTdKtaXS0GCRp8WpGLw/CnRdCksW12XbJIsm
+69BcUeLeGydojsJJxLr2Z2Pu2n3Jr/sz2rRaB6M9Ul8+jrGkFOGwdAEiQXgPAT8c
+0cxxAoGAGHuTlQ/PCDaAQJNW6S88XLwpsuh/C6qZl6BTANPTTw5ofURq6kDD1v32
+4BN5Cj75clSGd/BQJ2Cn+IN3carsU7WtvYX0S9p0wRiyHQv4wSECS5zOUFbro1vi
+N0VTOI8rKgiLmR2yQuQfEY1WsRUjjDUfoyTK4w4GX9w1o7T6XGs=
+-----END RSA PRIVATE KEY-----`;
+
 
 export async function POST(req: Request) {
     const body = await req.json();
-    console.log("message", body);
-    return Response.json({ success: true });
+
+    const cgPluginLibHost = new CgPluginLibHost(privateKey);
+    const signature = await cgPluginLibHost.signAction(body);
+
+    return Response.json({ signature });
 }

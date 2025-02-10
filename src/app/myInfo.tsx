@@ -8,7 +8,7 @@ const MyInfo = () => {
   const [communityInfo, setCommunityInfo] = useState<CommunityInfoResponsePayload | null>(null);
   const searchParams = useSearchParams();
   const iframeUid = searchParams.get('iframeUid');
-  const cgPluginLibInstance = useMemo(() => new CgPluginLib(iframeUid || ''), [iframeUid]);
+  const cgPluginLibInstance = useMemo(() => new CgPluginLib(iframeUid || '', '/api/signAction'), [iframeUid]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -26,11 +26,7 @@ const MyInfo = () => {
     fetchData();
 
     const signAction = async () => {
-      const response = await fetch('/api/signAction', {
-        method: 'POST',
-        body: JSON.stringify({ action: 'giveRole', role: 'admin', userId: 'asdf' }),
-      });
-
+      const response = await cgPluginLibInstance.giveRole('admin', 'asdf');
       console.log('response', response);
     };
 
