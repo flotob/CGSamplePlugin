@@ -8,7 +8,7 @@ const MyInfo = () => {
   const [communityInfo, setCommunityInfo] = useState<CommunityInfoResponsePayload | null>(null);
   const searchParams = useSearchParams();
   const iframeUid = searchParams.get('iframeUid');
-  const cgPluginLibInstance = useMemo(() => new CgPluginLib(iframeUid || '', '/api/signAction'), [iframeUid]);
+  const cgPluginLibInstance = useMemo(() => new CgPluginLib(iframeUid || '', '/api/sign'), [iframeUid]);
 
   useEffect(() => {
     const fetchData = async () => {

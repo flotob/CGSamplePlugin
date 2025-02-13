@@ -1,31 +1,38 @@
-export type RequestType = 'userInfo' | 'communityInfo' | 'action';
+export type RequestType = 'request' | 'action';
 
 export const MAX_REQUESTS_PER_MINUTE = 100;
 
 export type PluginRequest = {
-    type: RequestType;
-    payload: RequestPayload;
-}
-
-export type RequestPayload = {
-    type: 'basic';
+    type: 'request';
     requestId: string;
     iframeUid: string;
+    payload: RequestPayload;
+    signature: string;
 } | {
     type: 'action';
     requestId: string;
     iframeUid: string;
-    payload: ActionRequestPayload;
+    payload: ActionPayload;
     signature: string;
 }
+
+export type RequestPayload = UserInfoRequestPayload | CommunityInfoRequestPayload;
+
+export type UserInfoRequestPayload = {
+    type: 'userInfo';
+}
+
+export type CommunityInfoRequestPayload = {
+    type: 'communityInfo';
+}
+
+export type ActionPayload = GiveRoleActionPayload;
 
 export type GiveRoleActionPayload = {
     type: 'giveRole';
     roleId: string;
     userId: string;
 }
-
-export type ActionRequestPayload = GiveRoleActionPayload;
 
 export interface UserInfoResponsePayload {
     id: string;
