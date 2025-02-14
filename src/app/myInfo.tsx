@@ -1,36 +1,33 @@
 'use client';
 import { CgPluginLib, CommunityInfoResponsePayload, UserInfoResponsePayload } from '@/pluginLib';
 import { useSearchParams } from 'next/navigation';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 const MyInfo = () => {
   const [userInfo, setUserInfo] = useState<UserInfoResponsePayload | null>(null);
   const [communityInfo, setCommunityInfo] = useState<CommunityInfoResponsePayload | null>(null);
   const searchParams = useSearchParams();
   const iframeUid = searchParams.get('iframeUid');
-  const cgPluginLibInstance = useMemo(() => new CgPluginLib(iframeUid || '', '/api/sign'), [iframeUid]);
 
   useEffect(() => {
     const fetchData = async () => {
+      const cgPluginLibInstance = await CgPluginLib.initialize(iframeUid || '', '/api/sign');
+
       cgPluginLibInstance.getUserInfo().then((userInfo) => {
         console.log('userInfo', userInfo);
-        setUserInfo(userInfo);
+        setUserInfo(userInfo.data);
       });
 
       cgPluginLibInstance.getCommunityInfo().then((communityInfo) => {
         console.log('communityInfo', communityInfo);
-        setCommunityInfo(communityInfo);
+        setCommunityInfo(communityInfo.data);
       });
+
+      const response = await cgPluginLibInstance.giveRole('admin', 'asdf');
+      console.log('response', response);
     }
 
     fetchData();
-
-    const signAction = async () => {
-      const response = await cgPluginLibInstance.giveRole('admin', 'asdf');
-      console.log('response', response);
-    };
-
-    signAction();
 
     // const testAttemptLimit = async () => {
     //   await cgPluginLibInstance.getUserInfo();
@@ -40,7 +37,7 @@ const MyInfo = () => {
     // }
 
     // testAttemptLimit();
-  }, [cgPluginLibInstance, iframeUid]);
+  }, [iframeUid]);
 
   return (<div className='flex flex-col gap-2'>
     <p className='font-bold'>Your username is: {userInfo?.name}</p>

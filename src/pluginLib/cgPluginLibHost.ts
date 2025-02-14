@@ -1,4 +1,4 @@
-import { ActionPayload } from "./types";
+import { PluginRequestInner } from "./types";
 import crypto from 'crypto';
 
 class CgPluginLibHost {
@@ -20,27 +20,18 @@ class CgPluginLibHost {
     CgPluginLibHost.instance = this;
   }
 
-  public async signAction(action: ActionPayload): Promise<{requestId: string, signature: string}> {
-    const requestId = `actionId-${new Date().getTime()}-${crypto.randomUUID()}`;
-    const sign = crypto.createSign('SHA256');
-    sign.update(JSON.stringify({
-      requestId,
-      action
-    }));
-    sign.end();
-
-    const signature = sign.sign(CgPluginLibHost.privateKey, 'base64');
-    return { requestId, signature };
-  }
-
-  public async signRequest(): Promise<{requestId: string, signature: string}> {
+  public async signRequest(preRequest: Omit<PluginRequestInner, 'requestId'>): Promise<{request: string, signature: string}> {
     const requestId = `requestId-${new Date().getTime()}-${crypto.randomUUID()}`;
     const sign = crypto.createSign('SHA256');
-    sign.update(requestId);
+    const request = JSON.stringify({
+      ...preRequest,
+      requestId,
+    });
+    sign.update(request);
     sign.end();
-
+    
     const signature = sign.sign(CgPluginLibHost.privateKey, 'base64');
-    return { requestId, signature };
+    return { request, signature };
   }
 }
 

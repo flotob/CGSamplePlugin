@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     const body = await req.json();
 
     const cgPluginLibHost = new CgPluginLibHost(privateKey);
-    const { requestId, signature } = await cgPluginLibHost.signAction(body);
+    const { request, signature } = await cgPluginLibHost.signRequest(body);
 
-    return Response.json({ requestId, signature });
+    return Response.json({ request, signature });
 }
