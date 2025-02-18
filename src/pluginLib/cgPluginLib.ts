@@ -2,7 +2,6 @@ import { UserInfoResponsePayload, CommunityInfoResponsePayload, MAX_REQUESTS_PER
 
 // Convert Base64 to Uint8Array
 function base64ToArrayBuffer(base64: string) {
-  console.log('base64', base64);
   const binaryString = atob(base64);
   const len = binaryString.length;
   const bytes = new Uint8Array(len);
@@ -140,8 +139,6 @@ class CgPluginLib {
       const encodedMessage = new TextEncoder().encode(response);
 
       const isValid = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', CgPluginLib.publicKey, signatureBuffer, encodedMessage);
-      console.log('signature', signature);
-      console.log('isValid', isValid);
 
       if (!isValid) {
         console.error('Invalid signature');

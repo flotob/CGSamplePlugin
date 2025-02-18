@@ -32,25 +32,16 @@ const MyInfo = () => {
         setCommunityInfo(communityInfo.data);
       });
 
-      const response = await cgPluginLibInstance.giveRole('admin', 'asdf');
-      console.log('response', response);
+      // const response = await cgPluginLibInstance.giveRole('admin', 'asdf');
+      // console.log('response', response);
     }
 
     fetchData();
-
-    // const testAttemptLimit = async () => {
-    //   await cgPluginLibInstance.getUserInfo();
-    //   setTimeout(() => {
-    //     testAttemptLimit();
-    //   }, 20);
-    // }
-
-    // testAttemptLimit();
   }, [iframeUid]);
 
   return (<div className='flex flex-col gap-2'>
     <p className='font-bold'>Your username is: {userInfo?.name}</p>
-    <p className='font-bold'>Your community is: {communityInfo?.name}</p>
+    <p className='font-bold'>Your community is: {communityInfo?.title}</p>
   </div>);
 }
 
