@@ -54,6 +54,12 @@ export type PluginRequestInner = {
     data: RequestPayload;
 })
 
+export type PluginResponseInner = {
+    data: AnyResponsePayload | SafeRequestResponse;
+    pluginId: string;
+    requestId: string;
+}
+
 export type RequestPayload = UserInfoRequestPayload | CommunityInfoRequestPayload;
 export type ActionPayload = GiveRoleActionPayload;
 

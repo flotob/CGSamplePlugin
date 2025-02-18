@@ -1,15 +1,16 @@
-import { UserInfoResponsePayload, CommunityInfoResponsePayload, AnyResponsePayload, MAX_REQUESTS_PER_MINUTE, ActionResponsePayload, ActionPayload, PluginRequest, PluginRequestInner, PluginContextData, SafeRequest, SafeRequestInner, PluginResponse, CGPluginResponse, InitResponse } from './types';
-import crypto from 'crypto';
+import { UserInfoResponsePayload, CommunityInfoResponsePayload, MAX_REQUESTS_PER_MINUTE, ActionResponsePayload, ActionPayload, PluginRequest, PluginRequestInner, PluginContextData, SafeRequest, SafeRequestInner, PluginResponse, CGPluginResponse, InitResponse, PluginResponseInner } from './types';
 
-const publicKey = `-----BEGIN RSA PUBLIC KEY-----
-MIIBCgKCAQEA23Mcgykbnnikfo2JyZTAziUrO0ZvCANXmRuGpj2aozuev9UtQUhm
-VEbwaCyeHUCKAqoTw9pBbKzR+cgt6VTAMXmD4N+xbPIEryyLMjIz6nKHypfYOCw+
-Hco232nDsu0eKNUF1+WkdcIuQ+4PMMZCUViaPzn3dE5XCRRWTSg8H0WDseWSeNaY
-pa19g3KNradv7AY7CMb4S+/8PKvuS5d4zbd7yo1Zs/Sh/LY/lsoq83aRvdnodv8t
-sGrZAshcTqYdTfcFCcfNH8xy28B4DRxsRcW6bf2EknvPGJilMSwNCDDgd6ZG9h17
-mX0vRj1I5fWgZwsfmnb4/v2aFvDYBAWN9wIDAQAB
------END RSA PUBLIC KEY-----`;
-
+// Convert Base64 to Uint8Array
+function base64ToArrayBuffer(base64: string) {
+  console.log('base64', base64);
+  const binaryString = atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
 class CgPluginLib {
   static instance: CgPluginLib | null = null;
 
@@ -19,6 +20,8 @@ class CgPluginLib {
   private static parentWindow: Window;
   private static listeners: Record<string, (payload: CGPluginResponse<object>) => void>;
   private static signUrl: string;
+  private static publicKeyString: string;
+  private static publicKey: CryptoKey;
 
   private static contextData: PluginContextData;
 
@@ -26,11 +29,12 @@ class CgPluginLib {
     // The constructor is disabled. Use initialize() to create an instance.
   }
 
-  public static async initialize(iframeUid: string, signUrl: string): Promise<CgPluginLib> {
+  public static async initialize(iframeUid: string, signUrl: string, publicKey: string): Promise<CgPluginLib> {
     if (
       CgPluginLib.instance &&
       CgPluginLib.iframeUid === iframeUid &&
-      CgPluginLib.signUrl === signUrl
+      CgPluginLib.signUrl === signUrl &&
+      CgPluginLib.publicKeyString === publicKey
     ) {
       return CgPluginLib.instance;
     }
@@ -39,11 +43,24 @@ class CgPluginLib {
       CgPluginLib.instance.__destroy();
     }
 
+    // Convert PEM to binary ArrayBuffer
+    function convertPemToBinary(pem: string) {
+      const base64String = pem
+          .replace(/-----BEGIN PUBLIC KEY-----/, "")
+          .replace(/-----END PUBLIC KEY-----/, "")
+          .replace(/\n/g, "")
+          .trim();
+      return base64ToArrayBuffer(base64String);
+    }
+
     CgPluginLib.iframeUid = iframeUid;
     CgPluginLib.targetOrigin = '*'; // Restrict communication to specific origins for security.
     CgPluginLib.parentWindow = window.parent; // Reference to the parent window.
     CgPluginLib.listeners = {}; // Store custom message listeners.
     CgPluginLib.signUrl = signUrl; // The URL for the request signing route.
+    CgPluginLib.publicKeyString = publicKey;
+
+    CgPluginLib.publicKey = await crypto.subtle.importKey('spki', convertPemToBinary(publicKey), { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);
 
     // Create a new instance using the private constructor.
     const instance = new CgPluginLib();
@@ -106,7 +123,7 @@ class CgPluginLib {
    * Handle incoming messages from the parent.
    * @param {MessageEvent} event - The incoming message event.
    */
-  private __handleMessage(event: MessageEvent) {
+  private async __handleMessage(event: MessageEvent) {
     // Validate the origin of the message.
     if (CgPluginLib.targetOrigin !== '*' && event.origin !== CgPluginLib.targetOrigin) {
       console.warn('Message origin mismatch:', event.origin);
@@ -114,18 +131,18 @@ class CgPluginLib {
     }
 
     console.log('iframe got message', event.data);
-    console.log('payload', event.data.payload);
-
-    const { type, payload } = event.data;
-    const { response, signature } = payload as PluginResponse;
-    const responsePayload = JSON.parse(response) as AnyResponsePayload;
+    const { type, payload } = event.data as { type: string, payload: PluginResponse };
+    const { response, signature } = payload;
+    const responsePayload = JSON.parse(response) as PluginResponseInner;
     
     if (signature) {
-      const verify = crypto.createVerify('SHA256');
-      verify.update(response);
-      verify.end();
+      const signatureBuffer = base64ToArrayBuffer(signature);
+      const encodedMessage = new TextEncoder().encode(response);
 
-      const isValid = verify.verify(publicKey, Buffer.from(signature, 'base64'));
+      const isValid = await crypto.subtle.verify('RSASSA-PKCS1-v1_5', CgPluginLib.publicKey, signatureBuffer, encodedMessage);
+      console.log('signature', signature);
+      console.log('isValid', isValid);
+
       if (!isValid) {
         console.error('Invalid signature');
       }
@@ -133,7 +150,7 @@ class CgPluginLib {
 
     if (type && CgPluginLib.listeners[type]) {
       CgPluginLib.listeners[type]({
-        data: responsePayload,
+        data: responsePayload.data,
         __rawResponse: response,
       });
     }
