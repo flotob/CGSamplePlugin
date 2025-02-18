@@ -301,7 +301,7 @@ class CgPluginLib {
    * @returns {Promise<ActionResponsePayload>} A promise that resolves to the action response.
    */
   public async giveRole(roleId: string, userId: string): Promise<CGPluginResponse<ActionResponsePayload>> {
-    const payload: ActionPayload = { type: 'giveRole', roleId, userId };
+    const payload: ActionPayload = { type: 'giveRole', roleId, userId, communityId: CgPluginLib.contextData.communityId };
     return this.__request<ActionResponsePayload>({
       type: 'action',
       data: payload,

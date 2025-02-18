@@ -74,6 +74,7 @@ export type CommunityInfoRequestPayload = {
 
 export type GiveRoleActionPayload = {
     type: 'giveRole';
+    communityId: string;
     roleId: string;
     userId: string;
 }
@@ -86,7 +87,19 @@ export interface UserInfoResponsePayload {
 
 export interface CommunityInfoResponsePayload {
     id: string;
-    name: string;
+    title: string;
+    roles: {
+        id: string;
+        title: string;
+        type: string;
+        permissions: string[];
+        assignmentRules: {
+            type: 'free'
+        } | {
+            type: 'token';
+            rules: object;
+        } | null;
+    }[];
 }
 
 export interface ActionResponsePayload {
