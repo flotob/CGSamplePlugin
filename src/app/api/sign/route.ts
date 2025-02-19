@@ -1,4 +1,4 @@
-import CgPluginLibHost from "../../../pluginLib/cgPluginLibHost";
+import { CgPluginLibHost } from "@common-ground-dao/cg-plugin-lib-host";
 
 const privateKey = `-----BEGIN PRIVATE KEY-----
 MIIEuwIBADANBgkqhkiG9w0BAQEFAASCBKUwggShAgEAAoIBAQDMUr7MyVWQLK4T

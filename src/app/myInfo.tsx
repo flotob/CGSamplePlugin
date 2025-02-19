@@ -1,5 +1,5 @@
 'use client';
-import { CgPluginLib, CommunityInfoResponsePayload, UserInfoResponsePayload } from '@/pluginLib';
+import { CgPluginLib, CommunityInfoResponsePayload, UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
 import { useSearchParams } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 

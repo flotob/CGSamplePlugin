@@ -12,7 +12,9 @@
     "crypto": "^1.0.1",
     "next": "15.1.6",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "@common-ground-dao/cg-plugin-lib": "file:../CGPluginLib/clientLib",
+    "@common-ground-dao/cg-plugin-lib-host": "file:../CGPluginLib/hostLib"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
