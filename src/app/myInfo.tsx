@@ -1,7 +1,7 @@
 'use client';
 import { CgPluginLib, CommunityInfoResponsePayload, UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
 import { useSearchParams } from 'next/navigation';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 const publicKey = `-----BEGIN PUBLIC KEY-----
 MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzFK+zMlVkCyuE0Jglpp4
@@ -39,9 +39,23 @@ const MyInfo = () => {
     fetchData();
   }, [iframeUid]);
 
+  const assignableRoles = useMemo(() => {
+    return communityInfo?.roles.filter((role) => role.assignmentRules?.type === 'free' || role.assignmentRules === null);
+  }, [communityInfo]);
+
   return (<div className='flex flex-col gap-2'>
     <p className='font-bold'>Your username is: {userInfo?.name}</p>
     <p className='font-bold'>Your community is: {communityInfo?.title}</p>
+
+    {assignableRoles && assignableRoles.length > 0 && <div className='flex flex-col gap-2 p-2 border border-gray-300 rounded-md'>
+      <p className='font-bold'>Assignable roles</p>
+      {assignableRoles?.map((role) => (
+        <div className='grid grid-cols-2 items-center gap-2' key={role.id}>
+          <p>{role.title}</p>
+          <button className='bg-blue-500 text-white px-2 py-1 rounded-md' onClick={() => CgPluginLib.getInstance().giveRole(role.id, userInfo?.id || '')}>Give role</button>
+        </div>
+      ))}
+    </div>}
   </div>);
 }
 
