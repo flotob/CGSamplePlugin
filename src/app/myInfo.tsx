@@ -4,13 +4,13 @@ import { useSearchParams } from 'next/navigation';
 import React, { useEffect, useMemo, useState } from 'react';
 
 const publicKey = `-----BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzFK+zMlVkCyuE0Jglpp4
-BXTXFZN/yNuXdSUosiR0uLTJq9G04Nzpf1Y9OHEJJzPotxqYIGrq/8sS/WspaSDH
-H1/OkTNoZXCOzQ/dNJykHF4ICP7YrH3FHKHWnL+nnGh2MpLkxiN4NrfXDsr+rwii
-OmWn/OM2nTOBBmg5n1EkjQaEQ1F3+19N4JAjcNhgsdK0+UF8fK3spjYpY9rrA9Vj
-7bea2M0OOvgQ/xyXnm+pY8132o5NOC9A0ThCkw7d7xC09Krwo8GaEiDXch3TwJol
-THDPhiV2FXbZhy7M1pVwE/ah/qVY2kMy5sqMIoDxFQ4LtJKpKvwF4p4+rQQPNfC2
-EQIDAQAB
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2flPngWzLjtXO5gsL8cF
+FWX1OnN4Oc3xJ6uNLt47U3vSLZISu5zfXEzOS3kj2VqkqmWan05cG+UngNaOrpzC
+BKZSaNZZR1MYg1DYIFGBxG5e/SnkW/sXj+Fq3ytrXJHVlKBZ7K3O17vi2a8nsJyW
+u7Ks+bqELYczdqBRYbneKwbjhnAjYwUleY4gHb5U/fjCl0bBSUXyOJbsdZM+KjRs
+wwfr2eU9gL2cT4xXc7okZqDPrzfJI/aHbWBTZN76MWM7j4CCiV+8Kg/Xa8nNcwWj
+xsbYLKHnJebkfQCSjWJNrHvuaNIVTcxqjmao89mFe6TtlMU0/iloGPMW9shjjPHo
+pQIDAQAB
 -----END PUBLIC KEY-----`;
 
 const MyInfo = () => {
@@ -52,7 +52,7 @@ const MyInfo = () => {
       {assignableRoles?.map((role) => (
         <div className='grid grid-cols-2 items-center gap-2' key={role.id}>
           <p>{role.title}</p>
-          <button className='bg-blue-500 text-white px-2 py-1 rounded-md' onClick={() => CgPluginLib.getInstance().giveRole(role.id, userInfo?.id || '')}>Give role</button>
+          {userInfo?.roles.includes(role.id) ? <span>Has Role</span> : <button className='bg-blue-500 text-white px-2 py-1 rounded-md' onClick={() => CgPluginLib.getInstance().giveRole(role.id, userInfo?.id || '')}>Give role</button>}
         </div>
       ))}
     </div>}
