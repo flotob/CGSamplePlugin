@@ -3,15 +3,10 @@ import { CgPluginLib, CommunityInfoResponsePayload, UserInfoResponsePayload } fr
 import { useSearchParams } from 'next/navigation';
 import React, { useEffect, useMemo, useState } from 'react';
 
-const publicKey = `-----BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2flPngWzLjtXO5gsL8cF
-FWX1OnN4Oc3xJ6uNLt47U3vSLZISu5zfXEzOS3kj2VqkqmWan05cG+UngNaOrpzC
-BKZSaNZZR1MYg1DYIFGBxG5e/SnkW/sXj+Fq3ytrXJHVlKBZ7K3O17vi2a8nsJyW
-u7Ks+bqELYczdqBRYbneKwbjhnAjYwUleY4gHb5U/fjCl0bBSUXyOJbsdZM+KjRs
-wwfr2eU9gL2cT4xXc7okZqDPrzfJI/aHbWBTZN76MWM7j4CCiV+8Kg/Xa8nNcwWj
-xsbYLKHnJebkfQCSjWJNrHvuaNIVTcxqjmao89mFe6TtlMU0/iloGPMW9shjjPHo
-pQIDAQAB
------END PUBLIC KEY-----`;
+const publicKey = process.env.NEXT_PUBLIC_PUBKEY as string;
+if (!publicKey) {
+  throw new Error("Public key is not set in the .env file, please set it and try again.");
+}
 
 const MyInfo = () => {
   const [userInfo, setUserInfo] = useState<UserInfoResponsePayload | null>(null);
