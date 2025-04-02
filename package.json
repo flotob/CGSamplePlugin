@@ -9,8 +9,8 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@common-ground-dao/cg-plugin-lib": "^0.9.0",
-    "@common-ground-dao/cg-plugin-lib-host": "^0.9.0",
+    "@common-ground-dao/cg-plugin-lib": "^0.9.6",
+    "@common-ground-dao/cg-plugin-lib-host": "^0.9.6",
     "crypto": "^1.0.1",
     "next": "15.1.6",
     "react": "^19.0.0",

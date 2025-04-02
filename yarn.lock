@@ -7,17 +7,17 @@
   resolved "https://registry.yarnpkg.com/@alloc/quick-lru/-/quick-lru-5.2.0.tgz#7bf68b20c0a350f936915fcae06f58e32007ce30"
   integrity sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw==
 
-"@common-ground-dao/cg-plugin-lib-host@^0.9.0":
-  version "0.9.5"
-  resolved "https://registry.yarnpkg.com/@common-ground-dao/cg-plugin-lib-host/-/cg-plugin-lib-host-0.9.5.tgz#67afd02c0e8b2c32f6de4eb431ebe3e7c199eb51"
-  integrity sha512-qgJDnHJWWpo+4hHLt+de6R5VyrwZbEJET6pMWJSSZIXWMua/HePNfUoDMCHEKA3U/8M9FqpHVFN1mQmg15BZ9g==
+"@common-ground-dao/cg-plugin-lib-host@^0.9.6":
+  version "0.9.6"
+  resolved "https://registry.yarnpkg.com/@common-ground-dao/cg-plugin-lib-host/-/cg-plugin-lib-host-0.9.6.tgz#08fc8fb7dbd1b8de4311a4bde89fbcef925bc6cb"
+  integrity sha512-PrZvgjBYt8LxXTudV6aTt+9hdIQVanlklsB7tcGiYO4VzqntKSAaN4iTWEUdVmIHdQLdlGIB42iI29jkQsz3pA==
   dependencies:
     "@types/node" "^22.13.4"
 
-"@common-ground-dao/cg-plugin-lib@^0.9.0":
-  version "0.9.5"
-  resolved "https://registry.yarnpkg.com/@common-ground-dao/cg-plugin-lib/-/cg-plugin-lib-0.9.5.tgz#e1b6e17ae2232c3e9ceb07d5c69bffbadaf08f20"
-  integrity sha512-pQq2Jl70tNjVbi2Oa9tkneMtLe4a10YGnYhJ2O2sn6Fsu9t2NCiYwjjVCqhvxRXp+qwh/mbinaFZEgklSaS9WA==
+"@common-ground-dao/cg-plugin-lib@^0.9.6":
+  version "0.9.6"
+  resolved "https://registry.yarnpkg.com/@common-ground-dao/cg-plugin-lib/-/cg-plugin-lib-0.9.6.tgz#bcf79a1fb14431d4897bd97ac3371998bf548150"
+  integrity sha512-cqbPIBFY8muQlM3YtLJfDJ2lHW+asa3yHWYAAgZQNY98SNnEYIOKU30Oyd++q7OBQUOAGBraH/z8zyxanNyI0w==
 
 "@emnapi/core@^1.4.0":
   version "1.4.0"
