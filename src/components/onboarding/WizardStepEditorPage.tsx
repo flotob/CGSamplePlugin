@@ -4,40 +4,70 @@ import { StepEditor } from './steps/StepEditor';
 import { useStepsQuery, useCreateStep, Step } from '@/hooks/useStepsQuery';
 import { useStepTypesQuery, StepType } from '@/hooks/useStepTypesQuery';
 import { Button } from '@/components/ui/button';
+import { CommunityInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
+import { UseMutationResult } from '@tanstack/react-query';
 
 interface WizardStepEditorPageProps {
   wizardId: string;
+  assignableRoles: CommunityInfoResponsePayload['roles'] | undefined;
 }
 
-export const WizardStepEditorPage: React.FC<WizardStepEditorPageProps> = ({ wizardId }) => {
-  const { data, isLoading } = useStepsQuery(wizardId);
+interface CreateStepPayload {
+  step_type_id: string;
+  config: Record<string, any>;
+  target_role_id: string;
+  is_mandatory: boolean;
+  is_active: boolean;
+}
+
+export const WizardStepEditorPage: React.FC<WizardStepEditorPageProps> = ({ wizardId, assignableRoles }) => {
+  const { data, isLoading, refetch: refetchSteps } = useStepsQuery(wizardId);
   const [activeStepId, setActiveStepId] = React.useState<string | null>(null);
-  const createStep = useCreateStep(wizardId);
+  const createStep: UseMutationResult<any, Error, CreateStepPayload, unknown> = useCreateStep(wizardId);
   const { data: stepTypesData, isLoading: isLoadingStepTypes } = useStepTypesQuery();
   const [showTypeMenu, setShowTypeMenu] = React.useState(false);
+  const [stepTypeToCreate, setStepTypeToCreate] = React.useState<StepType | null>(null);
 
   React.useEffect(() => {
-    if (data && data.steps.length > 0 && !activeStepId) {
+    if (data && data.steps.length > 0 && !activeStepId && !stepTypeToCreate) {
       setActiveStepId(data.steps[0].id);
     }
-  }, [data, activeStepId]);
+    if (stepTypeToCreate && activeStepId) {
+      setActiveStepId(null);
+    }
+  }, [data, activeStepId, stepTypeToCreate]);
 
-  const handleAddStep = (type: StepType) => {
+  const handleAddStepClick = (type: StepType) => {
     setShowTypeMenu(false);
+    setStepTypeToCreate(type);
+    setActiveStepId(null);
+  };
+
+  const handleSaveNewStep = (formData: Omit<CreateStepPayload, 'step_type_id' | 'config'>) => {
+    if (!stepTypeToCreate) return;
+
     createStep.mutate({
-      step_type_id: type.id,
+      ...formData,
+      step_type_id: stepTypeToCreate.id,
       config: {},
-      target_role_id: 'default',
-      is_mandatory: true,
-      is_active: true,
     }, {
       onSuccess: (res) => {
+        setStepTypeToCreate(null);
+        refetchSteps();
         setActiveStepId(res.step.id);
       }
     });
   };
 
-  const activeStep: Step | null = data?.steps.find(s => s.id === activeStepId) || null;
+  const handleCancelCreate = () => {
+    setStepTypeToCreate(null);
+    if (data && data.steps.length > 0) {
+      setActiveStepId(data.steps[0].id);
+    }
+  };
+
+  const activeStep: Step | null = !stepTypeToCreate && data?.steps.find(s => s.id === activeStepId) || null;
+  const isCreating = !!stepTypeToCreate;
 
   return (
     <div className="flex h-[80vh] border rounded-lg overflow-hidden bg-background">
@@ -57,7 +87,7 @@ export const WizardStepEditorPage: React.FC<WizardStepEditorPageProps> = ({ wiza
                     <button
                       key={type.id}
                       className="w-full text-left px-4 py-2 hover:bg-accent text-sm"
-                      onClick={() => handleAddStep(type)}
+                      onClick={() => handleAddStepClick(type)}
                       disabled={createStep.isPending}
                     >
                       <span className="font-medium">{type.name.replace(/_/g, ' ')}</span>
@@ -71,10 +101,34 @@ export const WizardStepEditorPage: React.FC<WizardStepEditorPageProps> = ({ wiza
             )}
           </div>
         </div>
-        <StepSidebar wizardId={wizardId} activeStepId={activeStepId} setActiveStepId={setActiveStepId} />
+        <StepSidebar
+          wizardId={wizardId}
+          activeStepId={activeStepId}
+          setActiveStepId={(id) => {
+              setActiveStepId(id);
+              setStepTypeToCreate(null);
+          }}
+          steps={data?.steps}
+          isLoading={isLoading}
+          isCreating={isCreating}
+          stepTypeToCreate={stepTypeToCreate}
+        />
       </div>
       <div className="flex-1 min-w-0">
-        <StepEditor wizardId={wizardId} step={activeStep} />
+        <StepEditor
+          wizardId={wizardId}
+          step={activeStep}
+          roles={assignableRoles}
+          isCreating={isCreating}
+          stepTypeForCreate={stepTypeToCreate}
+          onCreate={handleSaveNewStep}
+          onCancelCreate={handleCancelCreate}
+          createStepMutation={createStep}
+          onDelete={() => {
+            setActiveStepId(null);
+            refetchSteps();
+          }}
+        />
       </div>
     </div>
   );

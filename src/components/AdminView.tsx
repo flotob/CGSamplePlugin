@@ -381,7 +381,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
             >
               ×
             </button>
-            <WizardStepEditorPage wizardId={editingWizardId} />
+            <WizardStepEditorPage wizardId={editingWizardId} assignableRoles={assignableRoles} />
           </div>
         </div>
       )}
