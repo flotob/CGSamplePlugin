@@ -28,6 +28,14 @@ interface UserViewProps {
   handleAssignRoleClick: (roleId: string | undefined) => void;
   isAssigningRole: boolean;
   assignRoleError: Error | null;
+  activeSection: string; // Receive activeSection prop
+  // Add loading/error props for specific data
+  isLoadingUserInfo: boolean;
+  userInfoError: Error | null;
+  isLoadingCommunityInfo: boolean;
+  communityInfoError: Error | null;
+  isLoadingFriends: boolean;
+  friendsError: Error | null;
 }
 
 export const UserView: React.FC<UserViewProps> = ({
@@ -38,7 +46,31 @@ export const UserView: React.FC<UserViewProps> = ({
   handleAssignRoleClick,
   isAssigningRole,
   assignRoleError,
+  activeSection,
+  // Destructure loading/error states
+  isLoadingUserInfo,
+  userInfoError,
+  isLoadingCommunityInfo,
+  communityInfoError,
+  isLoadingFriends,
+  friendsError,
 }) => {
+
+  // Only render content if the active section is 'profile'
+  if (activeSection !== 'profile') {
+    return null; 
+  }
+
+  // Optional: Add specific loading/error handling for this view
+  if (isLoadingUserInfo || isLoadingCommunityInfo || isLoadingFriends) {
+      // Could return a specific skeleton for the user view
+      // return <UserViewSkeleton />;
+  }
+  if (userInfoError || communityInfoError || friendsError) {
+      // Could return a specific error message for this view
+      // return <p>Error loading profile data.</p>;
+  }
+
   return (
     // Wrap content in a div with max-width and grid layout
     <div className="w-full max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -48,17 +80,22 @@ export const UserView: React.FC<UserViewProps> = ({
           <CardTitle>Your Info</CardTitle>
         </CardHeader>
         <CardContent className='flex flex-col gap-1 text-sm'>
-          <p><span className='font-semibold'>Username:</span> {userInfo?.name}</p>
-          {!!userInfo?.twitter && <p><span className='font-semibold'>Twitter:</span> {userInfo?.twitter?.username || 'Not connected'}</p>}
-          {!!userInfo?.lukso && <p><span className='font-semibold'>Lukso:</span> {userInfo?.lukso?.username || 'Not connected'}</p>}
-          {!!userInfo?.farcaster && <p><span className='font-semibold'>Farcaster:</span> {userInfo?.farcaster?.username || 'Not connected'}</p>}
-          {!!userInfo?.email && <p><span className='font-semibold'>Email:</span> {userInfo?.email || 'Not connected'}</p>}
-          <p><span className='font-semibold'>Community:</span> {communityInfo?.title}</p>
+          {/* Check for loading/error specifically for userInfo */}
+          {isLoadingUserInfo ? <p>Loading...</p> : userInfoError ? <p className='text-red-500'>Error</p> : (
+            <>
+              <p><span className='font-semibold'>Username:</span> {userInfo?.name}</p>
+              {!!userInfo?.twitter && <p><span className='font-semibold'>Twitter:</span> {userInfo?.twitter?.username || 'Not connected'}</p>}
+              {!!userInfo?.lukso && <p><span className='font-semibold'>Lukso:</span> {userInfo?.lukso?.username || 'Not connected'}</p>}
+              {!!userInfo?.farcaster && <p><span className='font-semibold'>Farcaster:</span> {userInfo?.farcaster?.username || 'Not connected'}</p>}
+              {!!userInfo?.email && <p><span className='font-semibold'>Email:</span> {userInfo?.email || 'Not connected'}</p>}
+              <p><span className='font-semibold'>Community:</span> {communityInfo?.title}</p>
+            </>
+          )}
         </CardContent>
       </Card>
 
       {/* Friends list Card - Span 1 column */}
-      {friends && friends.friends.length > 0 && (
+      {!isLoadingFriends && !friendsError && friends && friends.friends.length > 0 && (
         <Card className="md:col-span-1">
           <CardHeader>
             <CardTitle>Some of your friends</CardTitle>
@@ -75,7 +112,7 @@ export const UserView: React.FC<UserViewProps> = ({
       )}
 
       {/* Assignable roles Card - Span full width on medium screens */}
-      {assignableRoles && assignableRoles.length > 0 && (
+      {!isLoadingCommunityInfo && !communityInfoError && assignableRoles && assignableRoles.length > 0 && (
         <Card className="md:col-span-2"> {/* Span 2 columns */} 
           <CardHeader>
             <CardTitle>Manually Assignable Roles</CardTitle>

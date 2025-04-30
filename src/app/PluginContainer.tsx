@@ -1,23 +1,45 @@
 'use client';
-import React from 'react';
+import React, { useState } from 'react';
 import type { CommunityInfoResponsePayload, UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
 import type { UserFriendsResponsePayload } from '@common-ground-dao/cg-plugin-lib-host';
 import { useCgLib } from '../context/CgLibContext';
 import { useCgQuery } from '../hooks/useCgQuery';
 import { useCgMutation } from '../hooks/useCgMutation';
 import { useAdminStatus } from '../hooks/useAdminStatus';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { Sidebar } from '@/components/layout/Sidebar';
 import { AdminView } from '../components/AdminView';
 import { UserView } from '../components/UserView';
 
 // Removed targetRoleIdFromEnv constant
 // const targetRoleIdFromEnv = process.env.NEXT_PUBLIC_TARGET_ROLE_ID;
 
-// Renamed component from MyInfo to PluginContainer
+// Define link structures
+const adminLinks = [
+  { id: 'dashboard', label: 'Dashboard' },
+  { id: 'config', label: 'Wizard Config' },
+];
+const userLinks = [
+  { id: 'profile', label: 'Profile' },
+];
+
 const PluginContainer = () => {
   const { isInitializing, initError, iframeUid } = useCgLib();
   const { isAdmin, isLoading: isLoadingAdminStatus, error: adminStatusError } = useAdminStatus();
 
-  // ... (rest of the hooks and logic remain the same)
+  // State for current active section - Initialize AFTER isAdmin status is known
+  const [activeSection, setActiveSection] = useState<string | null>(null);
+
+  // Determine sidebar links based on admin status only when status is loaded
+  const sidebarLinks = !isLoadingAdminStatus ? (isAdmin ? adminLinks : userLinks) : [];
+
+  // Effect to set initial active section once admin status is known
+  React.useEffect(() => {
+    if (!isLoadingAdminStatus) {
+      setActiveSection(isAdmin ? 'dashboard' : 'profile');
+    }
+  }, [isAdmin, isLoadingAdminStatus]);
+
   const { data: userInfoResponse, isLoading: isLoadingUserInfo, error: userInfoError } = useCgQuery<
     UserInfoResponsePayload,
     Error
@@ -54,7 +76,7 @@ const PluginContainer = () => {
     { roleId: string; userId: string }
   >(
     async (instance, { roleId, userId }) => {
-      if (!roleId) throw new Error("Target Role ID is missing or invalid."); // Keep check, as roleId comes from button click
+      if (!roleId) throw new Error("Role ID is missing or invalid.");
       await instance.giveRole(roleId, userId);
     },
     {
@@ -66,19 +88,20 @@ const PluginContainer = () => {
     return communityInfo?.roles?.filter((role) => role.assignmentRules?.type === 'free' || role.assignmentRules === null);
   }, [communityInfo]);
 
-  const isLoading = isInitializing || isLoadingAdminStatus || isLoadingUserInfo || isLoadingCommunityInfo || isLoadingFriends;
-  const error = initError || adminStatusError || userInfoError || communityInfoError || friendsError;
+  // Wait for iframeUid AND admin status before proceeding
+  const isLoading = isInitializing || isLoadingAdminStatus || !activeSection;
+  const error = initError || adminStatusError;
 
   if (isLoading) {
-    return <div>Loading Plugin Data...</div>;
+    return <div>Loading Plugin...</div>;
   }
 
   if (error) {
-    return <div className='text-red-500'>Error loading plugin: {error.message}</div>;
+    return <div className='text-red-500 p-4'>Error loading plugin base: {error.message}</div>;
   }
 
-  if (!iframeUid) {
-    return <div className='text-yellow-500'>Waiting for plugin context...</div>;
+  if (!iframeUid || !activeSection) {
+    return <div className='text-yellow-500 p-4'>Initializing...</div>;
   }
 
   const handleAssignRoleClick = (roleId: string | undefined) => {
@@ -95,27 +118,38 @@ const PluginContainer = () => {
 
   const viewProps = {
     userInfo,
+    isLoadingUserInfo,
+    userInfoError,
     communityInfo,
+    isLoadingCommunityInfo,
+    communityInfoError,
     friends,
+    isLoadingFriends,
+    friendsError,
     assignableRoles,
     handleAssignRoleClick,
     isAssigningRole,
-    assignRoleError
+    assignRoleError,
+    activeSection
   };
 
   return (
-    <div className='flex flex-col gap-6 w-full'>
-      <h2 className="text-xl font-semibold">
-        {isAdmin ? "Plugin Admin View" : "Plugin User View"} 
-      </h2>
+    <AppLayout
+      sidebar={(
+        <Sidebar 
+          links={sidebarLinks} 
+          activeSection={activeSection} 
+          setActiveSection={setActiveSection} 
+        />
+      )}
+    >
       {isAdmin ? (
         <AdminView {...viewProps} />
       ) : (
         <UserView {...viewProps} />
       )}
-    </div>
+    </AppLayout>
   );
 }
 
-// Update the export name as well
 export default PluginContainer; 
