@@ -2,6 +2,12 @@
 
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { WagmiProvider } from 'wagmi';
+import { TransactionProvider } from 'ethereum-identity-kit';
+import { config } from '../lib/wagmi';
+import 'ethereum-identity-kit/css';
+import { RainbowKitProvider } from '@rainbow-me/rainbowkit';
+import '@rainbow-me/rainbowkit/styles.css';
 import { CgLibProvider } from '../context/CgLibContext';
 import { ThemeProvider } from '../components/ThemeProvider';
 import { useSearchParams } from 'next/navigation';
@@ -23,12 +29,18 @@ function ThemeAndCgLibLoader({ children }: { children: React.ReactNode }) {
       disableTransitionOnChange
       forcedTheme={forcedTheme}
     >
-      <QueryClientProvider client={queryClient}>
-        <CgLibProvider>
-          {/* CgLibProvider will eventually wrap children here */}
-          {children}
-        </CgLibProvider>
-      </QueryClientProvider>
+      <WagmiProvider config={config}>
+        <QueryClientProvider client={queryClient}>
+          <RainbowKitProvider>
+            <TransactionProvider>
+              <CgLibProvider>
+                {/* CgLibProvider will eventually wrap children here */}
+                {children}
+              </CgLibProvider>
+            </TransactionProvider>
+          </RainbowKitProvider>
+        </QueryClientProvider>
+      </WagmiProvider>
     </ThemeProvider>
   );
 }

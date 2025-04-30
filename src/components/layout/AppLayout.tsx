@@ -4,10 +4,11 @@ import React, { useState } from 'react';
 
 interface AppLayoutProps {
   sidebar: React.ReactNode; // Slot for the sidebar component
+  header?: React.ReactNode; // Optional slot for the header
   children: React.ReactNode; // Slot for the main content
 }
 
-export const AppLayout: React.FC<AppLayoutProps> = ({ sidebar, children }) => {
+export const AppLayout: React.FC<AppLayoutProps> = ({ sidebar, header, children }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
@@ -39,12 +40,18 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ sidebar, children }) => {
         </div>
       </div>
       
-      {/* Main Content Area - with improved spacing and layout */}
-      <main className="flex-grow p-4 pt-6 md:p-6 md:ml-60 transition-all duration-200">
-        <div className="max-w-6xl mx-auto space-y-8">
-          {children}
-        </div>
-      </main>
+      {/* Right side container for Header and Main Content */}
+      <div className="flex flex-col flex-grow md:ml-60 transition-all duration-200">
+        {/* Render Header if provided */}
+        {header && <header>{header}</header>}
+
+        {/* Main Content Area - with improved spacing and layout */}
+        <main className="flex-grow p-4 pt-6 md:p-6">
+          <div className="max-w-6xl mx-auto space-y-8">
+            {children}
+          </div>
+        </main>
+      </div>
       
       {/* Mobile menu button - positioned in bottom right for mobile */}
       <div className="fixed bottom-4 right-4 md:hidden z-30">

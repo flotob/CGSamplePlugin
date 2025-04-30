@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useTransition } from 'react';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
 import type { CommunityInfoResponsePayload, UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
 import type { UserFriendsResponsePayload } from '@common-ground-dao/cg-plugin-lib-host';
 import { useCgLib } from '../context/CgLibContext';
@@ -194,6 +195,11 @@ const PluginContainer = () => {
           setActiveSection={handleSetActiveSection} 
         />
       )}
+      header={
+        <div className="flex justify-end p-4 border-b">
+          <ConnectButton />
+        </div>
+      }
     >
       {activeSection && renderView()}
     </AppLayout>
