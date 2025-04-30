@@ -12,86 +12,52 @@ The goal is to create a universal Common Ground (CG) plugin that functions as a 
 
 ## 2. Development Roadmap (Iterative Approach)
 
-This roadmap prioritizes building the core functionality and admin experience first, allowing for iterative development and feedback.
+This roadmap prioritizes building the core functionality and structural/visual foundation first.
 
-**Phase 1: Foundation & Core Role Assignment**
+**Phase 1: Foundation & Core Setup (Completed)**
 
-*   **Goal:** Establish the basic structure and enable assigning a *pre-defined* role via a simple user interaction.
+*   **(1.1)** Code refactored into hooks (`useCgQuery`, `useCgMutation`, `CgLibContext`).
+*   **(1.2)** React Query provider set up.
+*   **(1.3)** Admin/User distinction implemented (`useAdminStatus` based on role titles/env var).
+
+**Phase 2: Structural & Visual Foundation**
+
+*   **Goal:** Establish a clear structure for Admin vs. User views and integrate a UI component library for consistency and faster development later.
 *   **Steps:**
-    1.  **Refactor Existing Code:**
-        *   Extract CG interaction logic from `myInfo.tsx` into reusable React hooks (e.g., `useCgLib()`, `useUserInfo()`, `useCommunityInfo()`, `useGiveRole()`).
-        *   **Use React Query (`@tanstack/react-query`)** within these hooks for better data fetching state management (caching, background updates, loading/error states).
-        *   **Detailed Sub-steps:**
-            1.  **Install React Query:**
-                *   `npm install @tanstack/react-query`
-            2.  **Set up React Query Provider:**
-                *   Create a client (`const queryClient = new QueryClient()`).
-                *   Wrap the application in `src/app/layout.tsx` (or a new client component layout) with `<QueryClientProvider client={queryClient}>`.
-            3.  **Create Hooks Directory:**
-                *   Create `src/hooks`.
-            4.  **Create `CgLibContext.tsx`:**
-                *   **Purpose:** Manages the initialization and provides access to the `CgPluginLib` instance via React Context.
-                *   **Action:** Create `src/context/CgLibContext.tsx`.
-                *   **Implementation:**
-                    *   Define `CgLibContext`.
-                    *   Create `CgLibProvider` component:
-                        *   Uses `useSearchParams` to get `iframeUid`.
-                        *   Uses `useEffect` to initialize `CgPluginLib.initialize(iframeUid, '/api/sign', publicKey)`.
-                        *   Stores `{ cgInstance, isInitializing, initError }` in state and provides it via context value.
-                    *   Create `useCgLib` hook that consumes `CgLibContext`.
-                *   **Action:** Wrap the `<QueryClientProvider>`'s children (or the relevant part of the layout) with `<CgLibProvider>`.
-            5.  **Create `useCgQuery.ts` Hook:**
-                *   **Purpose:** A generic hook using React Query's `useQuery` to fetch data from the `CgPluginLib`.
-                *   **Action:** Create `src/hooks/useCgQuery.ts`.
-                *   **Implementation:**
-                    *   Takes a `queryKey` (e.g., `['userInfo']`) and a `queryFn` (an async function that calls the `CgPluginLib` method, e.g., `async () => (await cgInstance.getUserInfo()).data`).
-                    *   Gets `{ cgInstance, isInitializing }` from `useCgLib()`.
-                    *   Uses `useQuery` from `@tanstack/react-query`.
-                    *   `queryKey` includes the instance availability (or something unique per iframeUid) to ensure query runs for the right instance.
-                    *   The `queryFn` uses the `cgInstance`.
-                    *   Set `enabled: !!cgInstance` in `useQuery` options to only run when the instance is ready.
-                    *   Returns the result object from `useQuery` (`{ data, error, isLoading, ... }`).
-            6.  **Create `useCgMutation.ts` Hook (for Actions):**
-                *   **Purpose:** Provides functions to trigger actions (mutations) on `CgPluginLib` using React Query's `useMutation`.
-                *   **Action:** Create `src/hooks/useCgMutation.ts`.
-                *   **Implementation:**
-                    *   Takes a `mutationFn` (e.g., `async ({ roleId, userId }) => cgInstance.giveRole(roleId, userId)`) and optionally related `queryKeys` to invalidate.
-                    *   Gets `{ cgInstance }` from `useCgLib()`.
-                    *   Gets `queryClient` using `useQueryClient()`.
-                    *   Uses `useMutation`.
-                    *   The `mutationFn` uses the `cgInstance`.
-                    *   In `onSuccess` option, invalidate relevant queries using `queryClient.invalidateQueries({ queryKey: [...] })` (e.g., invalidate `['userInfo']` after `giveRole`).
-                    *   Returns the result object from `useMutation` (`{ mutate, mutateAsync, isPending, isError, isSuccess, ... }`).
-            7.  **Refactor `myInfo.tsx`:**
-                *   Remove direct `useState` for CG data and the `useEffect` for initialization.
-                *   Use `useCgQuery` to fetch `userInfo`, `communityInfo`, `friends`. Handle loading/error states.
-                    *   Example: `const { data: userInfo, ... } = useCgQuery(['userInfo', iframeUid], async () => (await cgInstance.getUserInfo()).data);`
-                *   Use `useCgMutation` for the `giveRole` action.
-                    *   Example: `const { mutate: assignRole, isPending: isAssigningRole } = useCgMutation(async ({ roleId, userId }) => cgInstance.giveRole(roleId, userId), { onSuccess: () => queryClient.invalidateQueries(['userInfo']) });`
-                *   Update button `onClick` to call `assignRole({ roleId: ..., userId: ... })`.
-            8.  **Ensure Providers Wrap Correctly:**
-                *   Verify `QueryClientProvider` and `CgLibProvider` are correctly placed in the component tree (likely in `layout.tsx` or a client component wrapper).
-    2.  **Basic Admin/User Distinction:**
-        *   Implement a simple way to differentiate views using `useAdminStatus` hook (checks `NEXT_PUBLIC_ADMIN_ROLE_IDS` env var or default "Admin" role).
+    1.  **(New Step 2.1) Component Structure Refinement:**
+        *   Create `src/components/AdminView.tsx` and `src/components/UserView.tsx`.
+        *   Move admin/user specific rendering logic from `myInfo.tsx` into these components.
+        *   Modify `myInfo.tsx` to act as a container, fetching data and conditionally rendering `<AdminView />` or `<UserView />`, passing props.
+    2.  **(New Step 2.2) Install & Set up UI Component Library & Theming:**
+        *   **Recommendation:** Use **Shadcn/UI**.
+        *   Initialize Shadcn/UI: `npx shadcn-ui@latest init` (follow prompts).
+        *   **Set up Theme Support:** Install `next-themes` (`npm install next-themes`). Configure Shadcn/UI and `next-themes` provider for light/dark mode detection (following system preference) as per their documentation.
+        *   Add initial components: `npx shadcn-ui@latest add button card checkbox`.
+    3.  **(New Step 2.3) Basic UI Styling with Component Library:**
+        *   Refactor UI in `AdminView.tsx` and `UserView.tsx` to use basic Shadcn/UI components (e.g., `<Card>`, `<Button>`).
+    4.  **(New Step 2.4) Basic Admin Navigation:**
+        *   **Goal:** Set up a tabbed interface within the admin view.
+        *   Add Shadcn/UI `<Tabs>` component: `npx shadcn@latest add tabs`.
+        *   Install dependencies if needed (e.g., `@radix-ui/react-tabs`).
+        *   Modify `AdminView.tsx` to use `<Tabs>` with "Current Info" and "Configuration" tabs.
+        *   Move existing info cards into the "Current Info" tab content.
 
-**Phase 2: Admin Configuration UI & Storage**
+**Phase 3: Admin Configuration & Storage (Previously Phase 2)**
 
-*   **Goal:** Allow admins to *select* which role(s) are assigned upon completion of the (future) onboarding flow. Introduce configuration persistence.
+*   **Goal:** Allow admins to configure the onboarding flow, starting with role selection, and persist this configuration.
 *   **Steps:**
-    1.  **Admin UI - Role Selection:**
-        *   Build an admin-only component using `useCommunityInfo()` to list available roles.
-        *   Allow admin to select role(s) to be assigned (e.g., using checkboxes).
-    2.  **Configuration Storage Strategy:**
-        *   **Research:** Investigate `cg-plugin-lib` for community-specific data storage.
-        *   **Fallback/Initial:** Plan for external storage (backend API + DB) or use `localStorage` for rapid prototyping.
-    3.  **Save/Load Configuration:**
-        *   Implement saving/loading the selected role IDs via the chosen storage method.
-    4.  **Update User Logic:**
-        *   Use the loaded configuration to determine which role(s) to assign.
+    1.  **(Was 2.1) Admin UI - Role Selection:**
+        *   Inside `AdminView.tsx`, use `useCgQuery` to fetch `communityInfo`.
+        *   Display the list of roles using Shadcn/UI components (e.g., `<Checkbox>` inside `<Card>`).
+        *   Manage selected role IDs in local state.
+    2.  **(Was 2.2) Configuration Storage Strategy:**
+        *   Research/Decide on storage (CG plugin storage, external DB via API routes, etc.).
+        *   Implement saving/loading.
+    *   *(Further steps...)*
 
-**Phase 3: Basic Workflow Engine (Static Steps)**
+**Phase 4: Basic Workflow Engine (Previously Phase 3)**
 
-*   **Goal:** Introduce a multi-step workflow concept using predefined, simple step types.
+*   **Goal:** Introduce a multi-step workflow concept using predefined step types.
 *   **Steps:**
     1.  **Data Structure:** Define a model for workflows (e.g., an array of step objects with `id`, `type`, `title`, `content`).
     2.  **Admin UI - Workflow Builder:**
@@ -107,4 +73,4 @@ This roadmap prioritizes building the core functionality and admin experience fi
         *   Advance to the next step upon completion.
         *   Trigger `useGiveRole()` only after the final step.
 
-*(Further phases will involve adding Questionnaire/OAuth steps, UI refinement, error handling, etc.)* 
+*(Further phases will involve adding Questionnaire/OAuth steps, advanced workflow logic, error handling refinement, etc.)* 
