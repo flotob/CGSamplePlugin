@@ -1,7 +1,8 @@
 import React from 'react';
-import { Step, useStepsQuery, useDeleteStep } from '@/hooks/useStepsQuery';
-import { Button } from '@/components/ui/button';
+import { Step } from '@/hooks/useStepsQuery';
 import { useStepTypesQuery, StepType } from '@/hooks/useStepTypesQuery';
+import { StepSidebarItem } from './StepSidebarItem';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface StepSidebarProps {
   wizardId: string;
@@ -23,7 +24,7 @@ export const StepSidebar: React.FC<StepSidebarProps> = ({
   stepTypeToCreate
 }) => {
   const { data: stepTypesData } = useStepTypesQuery();
-  const [deletingId, setDeletingId] = React.useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   if (isLoading) return <div className="p-4">Loading steps...</div>;
 
@@ -35,36 +36,26 @@ export const StepSidebar: React.FC<StepSidebarProps> = ({
     return <div className="p-4 text-muted-foreground">No steps yet.</div>;
   }
 
+  const handleStepDeleted = () => {
+    queryClient.invalidateQueries({ queryKey: ['steps', wizardId] });
+    setActiveStepId(null);
+  };
+
   return (
     <div className="flex flex-col gap-3 p-2 w-full border-r bg-muted/30 h-full overflow-y-auto">
-      {combinedSteps.map((step, idx) => {
+      {combinedSteps.map((step) => {
         const stepType = getStepType(step);
         const isActive = step.id === activeStepId && !isCreating;
         return (
-          <div
+          <StepSidebarItem
             key={step.id}
-            className={`relative group flex flex-col items-center rounded-lg shadow-sm px-2 py-3 cursor-pointer transition-colors border ${isActive ? 'bg-white border-primary ring-2 ring-primary/30' : 'bg-white hover:bg-accent border-border'}`}
-            onClick={() => setActiveStepId(step.id)}
-            style={{ minHeight: 64 }}
-          >
-            <button
-              className="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity text-destructive bg-white rounded-full p-1 hover:bg-destructive/10"
-              onClick={e => { e.stopPropagation(); setDeletingId(step.id); useDeleteStep(wizardId, step.id).mutateAsync(undefined, { onSettled: () => setDeletingId(null) }); }}
-              disabled={deletingId === step.id}
-              aria-label="Remove step"
-              tabIndex={-1}
-            >
-              {deletingId === step.id ? <span className="animate-spin">⏳</span> : <span className="text-lg">–</span>}
-            </button>
-            <div className="w-40 h-10 flex flex-col items-center justify-center bg-white rounded border border-dashed border-border mb-1">
-              <span className="font-semibold text-sm text-primary">
-                {stepType ? stepType.name.replace(/_/g, ' ') : 'Step'}
-              </span>
-            </div>
-            <div className="text-xs text-muted-foreground text-center truncate w-full">
-              {stepType?.description || 'No description'}
-            </div>
-          </div>
+            wizardId={wizardId}
+            step={step}
+            stepType={stepType}
+            isActive={isActive}
+            setActiveStepId={setActiveStepId}
+            onDeleted={handleStepDeleted}
+          />
         );
       })}
 

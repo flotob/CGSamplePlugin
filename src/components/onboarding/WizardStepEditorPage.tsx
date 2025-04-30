@@ -12,9 +12,15 @@ interface WizardStepEditorPageProps {
   assignableRoles: CommunityInfoResponsePayload['roles'] | undefined;
 }
 
-interface CreateStepPayload {
+export interface CreateStepPayload {
   step_type_id: string;
-  config: Record<string, any>;
+  config: Record<string, unknown>;
+  target_role_id: string;
+  is_mandatory: boolean;
+  is_active: boolean;
+}
+
+interface StepFormData {
   target_role_id: string;
   is_mandatory: boolean;
   is_active: boolean;
@@ -23,7 +29,7 @@ interface CreateStepPayload {
 export const WizardStepEditorPage: React.FC<WizardStepEditorPageProps> = ({ wizardId, assignableRoles }) => {
   const { data, isLoading, refetch: refetchSteps } = useStepsQuery(wizardId);
   const [activeStepId, setActiveStepId] = React.useState<string | null>(null);
-  const createStep: UseMutationResult<any, Error, CreateStepPayload, unknown> = useCreateStep(wizardId);
+  const createStep: UseMutationResult<{ step: Step }, Error, CreateStepPayload, unknown> = useCreateStep(wizardId);
   const { data: stepTypesData, isLoading: isLoadingStepTypes } = useStepTypesQuery();
   const [showTypeMenu, setShowTypeMenu] = React.useState(false);
   const [stepTypeToCreate, setStepTypeToCreate] = React.useState<StepType | null>(null);
@@ -43,14 +49,16 @@ export const WizardStepEditorPage: React.FC<WizardStepEditorPageProps> = ({ wiza
     setActiveStepId(null);
   };
 
-  const handleSaveNewStep = (formData: Omit<CreateStepPayload, 'step_type_id' | 'config'>) => {
+  const handleSaveNewStep = (formData: StepFormData) => {
     if (!stepTypeToCreate) return;
 
-    createStep.mutate({
+    const payload: CreateStepPayload = {
       ...formData,
       step_type_id: stepTypeToCreate.id,
       config: {},
-    }, {
+    };
+
+    createStep.mutate(payload, {
       onSuccess: (res) => {
         setStepTypeToCreate(null);
         refetchSteps();

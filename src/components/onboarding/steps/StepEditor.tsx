@@ -3,6 +3,7 @@ import { Step, useUpdateStep, useDeleteStep } from '@/hooks/useStepsQuery';
 import { Button } from '@/components/ui/button';
 import { useStepTypesQuery, StepType } from '@/hooks/useStepTypesQuery';
 import { UseMutationResult } from '@tanstack/react-query';
+import { CreateStepPayload } from '../WizardStepEditorPage';
 
 interface CommunityRole {
   id: string;
@@ -25,7 +26,7 @@ interface StepEditorProps {
   stepTypeForCreate: StepType | null;
   onCreate: (formData: StepFormData) => void;
   onCancelCreate: () => void;
-  createStepMutation: UseMutationResult<any, Error, any, unknown>;
+  createStepMutation: UseMutationResult<{ step: Step }, Error, CreateStepPayload, unknown>;
 }
 
 const INITIAL_FORM_STATE: StepFormData = {
