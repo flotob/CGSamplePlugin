@@ -25,22 +25,30 @@ export const POST = withAuth(async (req) => {
     return NextResponse.json({ error: 'Missing community ID in token' }, { status: 400 });
   }
 
-  let body: { name?: string; description?: string };
+  let body: { name?: string; description?: string; is_active?: boolean; communityTitle?: string };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { name, description } = body;
+  const { name, description, is_active, communityTitle } = body;
   if (!name) {
     return NextResponse.json({ error: 'Wizard name is required' }, { status: 400 });
   }
 
+  // Ensure community exists
+  await query(
+    `INSERT INTO communities (id, title)
+     VALUES ($1, $2)
+     ON CONFLICT (id) DO NOTHING`,
+    [user.cid, communityTitle || 'Untitled Community']
+  );
+
   // Insert new wizard
   const result = await query(
-    `INSERT INTO onboarding_wizards (community_id, name, description) VALUES ($1, $2, $3) RETURNING *`,
-    [user.cid, name, description || null]
+    `INSERT INTO onboarding_wizards (community_id, name, description, is_active) VALUES ($1, $2, $3, $4) RETURNING *`,
+    [user.cid, name, description || null, is_active !== undefined ? is_active : true]
   );
 
   return NextResponse.json({ wizard: result.rows[0] }, { status: 201 });
