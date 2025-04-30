@@ -1,6 +1,7 @@
 import { useAuth } from '../context/AuthContext';
 
 // Define a generic type for fetch options
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface AuthFetchOptions extends RequestInit {
     // We might add specific options later if needed
 }

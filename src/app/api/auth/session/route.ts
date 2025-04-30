@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import type { UserInfoResponsePayload, CommunityInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
     let body: SessionRequestBody;
     try {
         body = await req.json();
-    } catch (error) {
+    } catch {
         return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
     }
 

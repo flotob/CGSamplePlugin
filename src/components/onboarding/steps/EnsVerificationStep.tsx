@@ -5,6 +5,7 @@ import { useAccount } from 'wagmi';
 import { useProfileDetails } from 'ethereum-identity-kit';
 import { Loader2, CheckCircle } from 'lucide-react';
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface EnsVerificationStepProps {
   // Props TBD
 }

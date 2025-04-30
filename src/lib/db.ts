@@ -16,6 +16,7 @@ const pool = new Pool({
 });
 
 // Optional: Add a listener for connection errors
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 pool.on('error', (err, client) => {
   console.error('Unexpected error on idle client', err);
   // Recommended action: terminate the process or attempt to reconnect
@@ -28,6 +29,7 @@ console.log('Database connection pool created.');
 export default pool;
 
 // Optional: Function to test connection or perform a simple query
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const query = async (text: string, params?: any[]) => {
   const start = Date.now();
   try {

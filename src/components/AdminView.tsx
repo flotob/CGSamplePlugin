@@ -12,6 +12,7 @@ import type { UserFriendsResponsePayload } from '@common-ground-dao/cg-plugin-li
 import { Shield, Users, BadgeCheck, Cog, Plug } from 'lucide-react';
 // Import the new UserAvatar component
 import { UserAvatar } from './UserAvatar';
+import { useWizardsQuery } from '@/hooks/useWizardsQuery';
 
 // Define props expected from PluginContainer
 interface AdminViewProps {
@@ -30,9 +31,9 @@ interface AdminViewProps {
   communityInfoError: Error | null;
   isLoadingFriends: boolean;
   friendsError: Error | null;
-  // Add JWT state props
-  jwt: string | null;
-  isAuthenticating: boolean;
+  // Remove JWT state props that are unused
+  // jwt: string | null;
+  // isAuthenticating: boolean;
   authError: Error | null;
 }
 
@@ -52,9 +53,9 @@ export const AdminView: React.FC<AdminViewProps> = ({
   communityInfoError,
   isLoadingFriends,
   friendsError,
-  // Destructure JWT state
-  jwt,
-  isAuthenticating,
+  // Remove JWT state destructuring
+  // jwt,
+  // isAuthenticating,
   authError,
 }) => {
 
@@ -327,12 +328,8 @@ export const AdminView: React.FC<AdminViewProps> = ({
                    <CardDescription>Setup roles and steps for the onboarding wizard here.</CardDescription>
                </CardHeader>
                <CardContent>
-                   <div className="flex items-center justify-center p-12 text-muted-foreground border border-dashed border-border rounded-md">
-                     <div className="text-center">
-                       <Cog className="h-8 w-8 mx-auto mb-3 opacity-50" />
-                       <p>Role selection UI coming soon...</p>
-                     </div>
-                   </div>
+                 {/* Wizard List UI */}
+                 <WizardList />
                </CardContent>
            </Card>
          </div>
@@ -358,5 +355,37 @@ export const AdminView: React.FC<AdminViewProps> = ({
          </div>
       )}
     </>
+  );
+};
+
+// WizardList component for listing wizards
+const WizardList: React.FC = () => {
+  const { data, isLoading, error } = useWizardsQuery();
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center p-8">Loading wizards...</div>;
+  }
+  if (error) {
+    return <div className="text-destructive p-4 bg-destructive/10 rounded-md">Error loading wizards: {error.message}</div>;
+  }
+  if (!data || data.wizards.length === 0) {
+    return <div className="text-muted-foreground p-8 text-center">No onboarding wizards found for this community.</div>;
+  }
+  return (
+    <div className="space-y-4">
+      {data.wizards.map((wizard) => (
+        <Card key={wizard.id} className="border border-border">
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-lg">{wizard.name}</CardTitle>
+              <CardDescription>{wizard.description || <span className="italic text-muted-foreground">No description</span>}</CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`text-xs px-2 py-1 rounded ${wizard.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'}`}>{wizard.is_active ? 'Active' : 'Inactive'}</span>
+            </div>
+          </CardHeader>
+        </Card>
+      ))}
+    </div>
   );
 };

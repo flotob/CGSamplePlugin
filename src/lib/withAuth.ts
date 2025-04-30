@@ -10,6 +10,7 @@ export interface AuthenticatedRequest extends NextRequest {
 }
 
 // Define the type for the handler function that receives the authenticated request
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AuthenticatedHandler = (req: AuthenticatedRequest, params?: any) => Promise<NextResponse> | NextResponse;
 
 /**
@@ -23,6 +24,7 @@ export function withAuth(
     handler: AuthenticatedHandler,
     adminOnly: boolean = false
 ) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return async (req: NextRequest, params?: any): Promise<NextResponse> => {
         if (!JWT_SECRET) {
             console.error('JWT_SECRET is not configured for verification.');

@@ -176,7 +176,8 @@ const PluginContainer = () => {
     handleAssignRoleClick,
     isAssigningRole,
     assignRoleError,
-    activeSection
+    activeSection,
+    authError
   };
 
   // Render appropriate view based on active section with a wrapper div for animations
@@ -189,8 +190,7 @@ const PluginContainer = () => {
     if (activeSection === 'help') {
       view = <HelpView isAdmin={isAdmin} />;
     } else if (isAdmin) {
-      // Pass JWT specific state if AdminView needs it, e.g., for making authenticated calls
-      view = <AdminView {...viewProps} jwt={jwt} isAuthenticating={isAuthenticating} authError={authError} />;
+      view = <AdminView {...viewProps} />;
     } else {
       // User views
       switch (activeSection) {
