@@ -3,7 +3,6 @@
 import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { CgPluginLib } from '@common-ground-dao/cg-plugin-lib';
-import { useTheme } from "next-themes";
 
 // Define the shape of the context data
 interface CgLibContextType {
@@ -27,8 +26,6 @@ export function CgLibProvider({ children }: { children: React.ReactNode }) {
 
   const searchParams = useSearchParams();
   const iframeUid = useMemo(() => searchParams.get('iframeUid'), [searchParams]);
-  const cgThemeParam = useMemo(() => searchParams.get('cg_theme'), [searchParams]);
-  const { setTheme } = useTheme();
 
   useEffect(() => {
     if (!publicKey) {
@@ -74,20 +71,6 @@ export function CgLibProvider({ children }: { children: React.ReactNode }) {
       // instance?.destroy(); 
     };
   }, [iframeUid]); // Re-run effect if iframeUid changes
-
-  // Effect to set theme based on URL parameter
-  useEffect(() => {
-    if (cgThemeParam === 'light' || cgThemeParam === 'dark') {
-      console.log(`Setting theme from URL parameter: ${cgThemeParam}`);
-      setTheme(cgThemeParam);
-    } else if (cgThemeParam) {
-      // Optional: Handle invalid theme param? Default to light/dark?
-      console.warn(`Invalid cg_theme parameter received: ${cgThemeParam}. Defaulting might be needed.`);
-      // setTheme('light'); // Example default
-    }
-    // If no cgThemeParam is present, next-themes will use the theme stored in localStorage
-    // or the default set in ThemeProvider (which we will remove).
-  }, [cgThemeParam, setTheme]); // Dependencies: cgThemeParam and setTheme
 
   const value = useMemo(() => ({
     cgInstance,
