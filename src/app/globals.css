@@ -147,4 +147,72 @@
   .input-enhanced:focus {
     @apply border-primary/50 ring-1 ring-primary/30;
   }
+  
+  /* Sidebar inset shadow */
+  .sidebar-inset-shadow {
+    box-shadow: inset -1px 0 3px rgba(0, 0, 0, 0.05), inset 0 -1px 3px rgba(0, 0, 0, 0.05);
+  }
+  
+  .dark .sidebar-inset-shadow {
+    box-shadow: inset -1px 0 3px rgba(0, 0, 0, 0.2), inset 0 -1px 3px rgba(0, 0, 0, 0.2);
+  }
+  
+  /* Fixed animations that prevent flashing */
+  .animate-in {
+    animation-duration: var(--animation-duration, 0.4s);
+    animation-timing-function: var(--animation-timing, cubic-bezier(0.16, 1, 0.3, 1));
+    animation-fill-mode: forwards;
+    will-change: transform, opacity;
+  }
+
+  /* Set initial state before animation begins */
+  .fade-in {
+    opacity: 0;
+  }
+  
+  .slide-in-from-bottom-5 {
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+  
+  /* View transition wrapper */
+  .view-transition {
+    width: 100%;
+    position: relative;
+    opacity: 0;
+    animation: view-fade-in 0.2s ease forwards;
+    will-change: opacity;
+  }
+}
+
+/* Animation keyframes to ensure proper transition */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-in-from-bottom-5 {
+  from { 
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* View transition animation */
+@keyframes view-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Apply animations */
+.animate-in.fade-in {
+  animation-name: fade-in;
+}
+
+.animate-in.slide-in-from-bottom-5 {
+  animation-name: slide-in-from-bottom-5;
 }

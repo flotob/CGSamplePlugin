@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useTransition } from 'react';
 import type { CommunityInfoResponsePayload, UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
 import type { UserFriendsResponsePayload } from '@common-ground-dao/cg-plugin-lib-host';
 import { useCgLib } from '../context/CgLibContext';
@@ -10,7 +10,8 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { AdminView } from '../components/AdminView';
 import { UserView } from '../components/UserView';
-import { LayoutDashboard, Settings, Plug, User } from 'lucide-react';
+import { HelpView } from '../components/HelpView';
+import { LayoutDashboard, Settings, Plug, User, BookOpen } from 'lucide-react';
 
 // Removed targetRoleIdFromEnv constant
 // const targetRoleIdFromEnv = process.env.NEXT_PUBLIC_TARGET_ROLE_ID;
@@ -28,19 +29,33 @@ const userLinks = [
 const PluginContainer = () => {
   const { isInitializing, initError, iframeUid } = useCgLib();
   const { isAdmin, isLoading: isLoadingAdminStatus, error: adminStatusError } = useAdminStatus();
+  const [isPending, startTransition] = useTransition();
 
   // State for current active section
   const [activeSection, setActiveSection] = useState<string | null>(null);
+  const [previousSection, setPreviousSection] = useState<string | null>(null);
+
+  // Custom section setter with transition
+  const handleSetActiveSection = (section: string) => {
+    if (section !== activeSection) {
+      setPreviousSection(activeSection);
+      startTransition(() => {
+        setActiveSection(section);
+      });
+    }
+  };
 
   // Determine sidebar links based on admin status only when status is loaded
   const sidebarLinks = !isLoadingAdminStatus ? (isAdmin ? adminLinks : userLinks) : [];
 
   // Effect to set initial active section once admin status is known
   React.useEffect(() => {
-    if (!isLoadingAdminStatus) {
-      setActiveSection(isAdmin ? 'dashboard' : 'profile');
+    if (!isLoadingAdminStatus && !activeSection) {
+      startTransition(() => {
+        setActiveSection(isAdmin ? 'dashboard' : 'profile');
+      });
     }
-  }, [isAdmin, isLoadingAdminStatus]);
+  }, [isAdmin, isLoadingAdminStatus, activeSection]);
 
   const { data: userInfoResponse, isLoading: isLoadingUserInfo, error: userInfoError } = useCgQuery<
     UserInfoResponsePayload,
@@ -135,21 +150,39 @@ const PluginContainer = () => {
     activeSection
   };
 
+  // Render appropriate view based on active section with a wrapper div for animations
+  const renderView = () => {
+    // Only render the view when it's not in a pending transition state
+    if (isPending && previousSection === activeSection) {
+      return null;
+    }
+    
+    // Render the correct view based on section
+    let view;
+    if (activeSection === 'help') {
+      view = <HelpView isAdmin={isAdmin} />;
+    } else {
+      view = isAdmin ? <AdminView {...viewProps} /> : <UserView {...viewProps} />;
+    }
+
+    return (
+      <div className="view-transition">
+        {view}
+      </div>
+    );
+  };
+
   return (
     <AppLayout
       sidebar={(
         <Sidebar 
           links={sidebarLinks} 
           activeSection={activeSection ?? ''}
-          setActiveSection={setActiveSection} 
+          setActiveSection={handleSetActiveSection} 
         />
       )}
     >
-      {activeSection && (isAdmin ? (
-        <AdminView {...viewProps} />
-      ) : (
-        <UserView {...viewProps} />
-      ))}
+      {activeSection && renderView()}
     </AppLayout>
   );
 }
