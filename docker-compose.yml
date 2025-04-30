@@ -1,0 +1,28 @@
+# docker-compose.yml
+version: '3.8'
+services:
+  postgres:
+    image: postgres:15 # Use a specific version
+    container_name: cg-plugin-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-user} # Use env var or default
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password} # Use env var or default
+      POSTGRES_DB: ${POSTGRES_DB:-cgplugindb} # Use env var or default
+    ports:
+      - "${POSTGRES_PORT:-5433}:5432" # Changed host port mapping to 5433 to avoid conflict
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # Persist data locally
+    restart: unless-stopped
+
+  adminer:
+    image: adminer # Official Adminer image
+    container_name: cg-plugin-adminer
+    ports:
+      - "8082:8080" # Changed host port mapping to 8082
+    depends_on:
+      - postgres # Ensure postgres starts before adminer
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local 

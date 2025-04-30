@@ -1,0 +1,118 @@
+-- Adminer 5.2.1 PostgreSQL 15.12 dump
+
+DROP TABLE IF EXISTS "communities";
+CREATE TABLE "public"."communities" (
+    "id" text NOT NULL,
+    "title" text NOT NULL,
+    "created_at" timestamptz DEFAULT now() NOT NULL,
+    "updated_at" timestamptz DEFAULT now() NOT NULL,
+    CONSTRAINT "communities_pkey" PRIMARY KEY ("id")
+) WITH (oids = false);
+
+
+DROP TABLE IF EXISTS "onboarding_steps";
+CREATE TABLE "public"."onboarding_steps" (
+    "id" uuid DEFAULT gen_random_uuid() NOT NULL,
+    "wizard_id" uuid NOT NULL,
+    "step_type_id" uuid NOT NULL,
+    "step_order" integer NOT NULL,
+    "config" jsonb DEFAULT '{}' NOT NULL,
+    "target_role_id" text NOT NULL,
+    "is_mandatory" boolean DEFAULT true NOT NULL,
+    "is_active" boolean DEFAULT true NOT NULL,
+    "created_at" timestamptz DEFAULT now() NOT NULL,
+    "updated_at" timestamptz DEFAULT now() NOT NULL,
+    CONSTRAINT "onboarding_steps_pkey" PRIMARY KEY ("id")
+) WITH (oids = false);
+
+CREATE UNIQUE INDEX uniq_step_order_per_wizard ON public.onboarding_steps USING btree (wizard_id, step_order);
+
+CREATE INDEX onboarding_steps_wizard_id_step_order_index ON public.onboarding_steps USING btree (wizard_id, step_order);
+
+
+DROP TABLE IF EXISTS "onboarding_wizards";
+CREATE TABLE "public"."onboarding_wizards" (
+    "id" uuid DEFAULT gen_random_uuid() NOT NULL,
+    "community_id" text NOT NULL,
+    "name" text NOT NULL,
+    "description" text,
+    "is_active" boolean DEFAULT true NOT NULL,
+    "created_at" timestamptz DEFAULT now() NOT NULL,
+    "updated_at" timestamptz DEFAULT now() NOT NULL,
+    CONSTRAINT "onboarding_wizards_pkey" PRIMARY KEY ("id")
+) WITH (oids = false);
+
+CREATE UNIQUE INDEX uniq_wizard_name_per_community ON public.onboarding_wizards USING btree (community_id, name);
+
+CREATE INDEX onboarding_wizards_community_id_index ON public.onboarding_wizards USING btree (community_id);
+
+
+DROP TABLE IF EXISTS "pgmigrations";
+DROP SEQUENCE IF EXISTS pgmigrations_id_seq;
+CREATE SEQUENCE pgmigrations_id_seq INCREMENT 1 MINVALUE 1 MAXVALUE 2147483647 CACHE 1;
+
+CREATE TABLE "public"."pgmigrations" (
+    "id" integer DEFAULT nextval('pgmigrations_id_seq') NOT NULL,
+    "name" character varying(255) NOT NULL,
+    "run_on" timestamp NOT NULL,
+    CONSTRAINT "pgmigrations_pkey" PRIMARY KEY ("id")
+) WITH (oids = false);
+
+
+DROP TABLE IF EXISTS "step_types";
+CREATE TABLE "public"."step_types" (
+    "id" uuid DEFAULT gen_random_uuid() NOT NULL,
+    "name" text NOT NULL,
+    "requires_credentials" boolean DEFAULT false NOT NULL,
+    "description" text,
+    "created_at" timestamptz DEFAULT now() NOT NULL,
+    "updated_at" timestamptz DEFAULT now() NOT NULL,
+    CONSTRAINT "step_types_pkey" PRIMARY KEY ("id")
+) WITH (oids = false);
+
+CREATE UNIQUE INDEX step_types_name_key ON public.step_types USING btree (name);
+
+
+DROP TABLE IF EXISTS "user_linked_credentials";
+CREATE TABLE "public"."user_linked_credentials" (
+    "id" uuid DEFAULT gen_random_uuid() NOT NULL,
+    "user_id" text NOT NULL,
+    "platform" platform_enum NOT NULL,
+    "external_id" text NOT NULL,
+    "username" text,
+    "created_at" timestamptz DEFAULT now() NOT NULL,
+    "updated_at" timestamptz DEFAULT now() NOT NULL,
+    CONSTRAINT "user_linked_credentials_pkey" PRIMARY KEY ("id")
+) WITH (oids = false);
+
+CREATE UNIQUE INDEX uniq_user_platform ON public.user_linked_credentials USING btree (user_id, platform);
+
+CREATE UNIQUE INDEX uniq_platform_id ON public.user_linked_credentials USING btree (platform, external_id);
+
+CREATE INDEX user_linked_credentials_user_id_index ON public.user_linked_credentials USING btree (user_id);
+
+CREATE INDEX user_linked_credentials_platform_external_id_index ON public.user_linked_credentials USING btree (platform, external_id);
+
+
+DROP TABLE IF EXISTS "user_wizard_progress";
+CREATE TABLE "public"."user_wizard_progress" (
+    "user_id" text NOT NULL,
+    "wizard_id" uuid NOT NULL,
+    "step_id" uuid NOT NULL,
+    "verified_data" jsonb,
+    "completed_at" timestamptz DEFAULT now() NOT NULL,
+    CONSTRAINT "user_wizard_progress_pkey" PRIMARY KEY ("user_id", "wizard_id", "step_id")
+) WITH (oids = false);
+
+CREATE INDEX user_wizard_progress_user_id_wizard_id_index ON public.user_wizard_progress USING btree (user_id, wizard_id);
+
+
+ALTER TABLE ONLY "public"."onboarding_steps" ADD CONSTRAINT "onboarding_steps_step_type_id_fkey" FOREIGN KEY (step_type_id) REFERENCES step_types(id) ON DELETE RESTRICT NOT DEFERRABLE;
+ALTER TABLE ONLY "public"."onboarding_steps" ADD CONSTRAINT "onboarding_steps_wizard_id_fkey" FOREIGN KEY (wizard_id) REFERENCES onboarding_wizards(id) ON DELETE CASCADE NOT DEFERRABLE;
+
+ALTER TABLE ONLY "public"."onboarding_wizards" ADD CONSTRAINT "onboarding_wizards_community_id_fkey" FOREIGN KEY (community_id) REFERENCES communities(id) ON DELETE CASCADE NOT DEFERRABLE;
+
+ALTER TABLE ONLY "public"."user_wizard_progress" ADD CONSTRAINT "user_wizard_progress_step_id_fkey" FOREIGN KEY (step_id) REFERENCES onboarding_steps(id) ON DELETE CASCADE NOT DEFERRABLE;
+ALTER TABLE ONLY "public"."user_wizard_progress" ADD CONSTRAINT "user_wizard_progress_wizard_id_fkey" FOREIGN KEY (wizard_id) REFERENCES onboarding_wizards(id) ON DELETE CASCADE NOT DEFERRABLE;
+
+-- 2025-04-30 19:28:22 UTC

@@ -6,7 +6,10 @@
     "dev": "next dev --turbopack -p 3000",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "db:migrate": "./node_modules/.bin/node-pg-migrate --ts-node",
+    "db:migrate:up": "yarn db:migrate up",
+    "db:migrate:create": "yarn db:migrate create"
   },
   "dependencies": {
     "@common-ground-dao/cg-plugin-lib": "^0.9.6",
@@ -19,10 +22,13 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "crypto": "^1.0.1",
+    "dotenv": "^16.5.0",
     "ethereum-identity-kit": "^0.2.38",
     "lucide-react": "^0.503.0",
     "next": "15.1.6",
     "next-themes": "^0.4.6",
+    "node-pg-migrate": "^7.9.1",
+    "pg": "^8.15.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tailwind-merge": "^3.2.0",
@@ -33,6 +39,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@types/node": "^20",
+    "@types/pg": "^8.11.14",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
