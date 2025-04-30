@@ -12,7 +12,7 @@ import { AdminView } from '../components/AdminView';
 import { UserView } from '../components/UserView';
 import { HelpView } from '../components/HelpView';
 import { WizardView } from '../components/WizardView';
-import { LayoutDashboard, Settings, Plug, User, ListChecks, Wand2 } from 'lucide-react';
+import { LayoutDashboard, Settings, Plug, User, Wand2 } from 'lucide-react';
 
 // Removed targetRoleIdFromEnv constant
 // const targetRoleIdFromEnv = process.env.NEXT_PUBLIC_TARGET_ROLE_ID;

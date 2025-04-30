@@ -11,6 +11,7 @@ import {
 import { Wand2, CheckCircle } from 'lucide-react';
 
 // Define props - adjust later as needed when data is available
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface WizardViewProps {
   // Props will be added here later, e.g., list of wizards
 }
@@ -105,7 +106,7 @@ export const WizardView: React.FC<WizardViewProps> = ({ /* props */ }) => {
                 </div>
               ))
             ) : (
-              <p className="text-sm text-muted-foreground p-4 text-center">You haven't completed any wizards yet.</p>
+              <p className="text-sm text-muted-foreground p-4 text-center">You haven&apos;t completed any wizards yet.</p>
             )}
           </CardContent>
         </Card>
