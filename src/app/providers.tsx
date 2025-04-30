@@ -5,18 +5,16 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CgLibProvider } from '../context/CgLibContext';
 import { ThemeProvider } from '../components/ThemeProvider';
 import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 
 // Create a client
 const queryClient = new QueryClient();
 
-export function Providers({ children }: { children: React.ReactNode }) {
-  // Read theme param here
+// Extracted component that uses useSearchParams
+function ThemeAndCgLibLoader({ children }: { children: React.ReactNode }) {
   const searchParams = useSearchParams();
   const cgThemeParam = searchParams.get('cg_theme');
-
-  // Determine the theme to force
   const forcedTheme = (cgThemeParam === 'light' || cgThemeParam === 'dark') ? cgThemeParam : undefined;
-  // If param is invalid or missing, forcedTheme will be undefined, letting ThemeProvider fallback
 
   return (
     <ThemeProvider
@@ -32,5 +30,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
         </CgLibProvider>
       </QueryClientProvider>
     </ThemeProvider>
+  );
+}
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ThemeAndCgLibLoader>{children}</ThemeAndCgLibLoader>
+    </Suspense>
   );
 } 

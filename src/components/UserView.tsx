@@ -11,12 +11,9 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-// Import Checkbox for later use maybe
-import { Checkbox } from "@/components/ui/checkbox";
 
 // Define props expected from PluginContainer
 interface UserViewProps {

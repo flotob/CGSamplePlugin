@@ -1,11 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import Image from 'next/image';
 // Shadcn components
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 // Icons
 import { BookOpen, HelpCircle, LifeBuoy, MessageCircle, Shield, Users, Zap } from 'lucide-react';
 
@@ -33,7 +31,7 @@ export const HelpView: React.FC<HelpViewProps> = ({ isAdmin }) => {
       icon: Shield,
       content: (
         <div className="space-y-4">
-          <p>Welcome to the Onboarding Wizard admin panel! As an admin, you have special privileges to manage your community's onboarding process.</p>
+          <p>Welcome to the Onboarding Wizard admin panel! As an admin, you have special privileges to manage your community&apos;s onboarding process.</p>
           
           <h3 className="text-lg font-medium mt-6 mb-2">Key Admin Features:</h3>
           <ul className="space-y-2 list-disc pl-5">
@@ -49,7 +47,7 @@ export const HelpView: React.FC<HelpViewProps> = ({ isAdmin }) => {
               <p className="text-sm text-muted-foreground">Dashboard preview image</p>
             </div>
           </div>
-          <p className="text-sm text-muted-foreground">The admin dashboard gives you an overview of your community's onboarding statistics and quick access to key functions.</p>
+          <p className="text-sm text-muted-foreground">The admin dashboard gives you an overview of your community&apos;s onboarding statistics and quick access to key functions.</p>
         </div>
       )
     },
@@ -75,7 +73,7 @@ export const HelpView: React.FC<HelpViewProps> = ({ isAdmin }) => {
               <Zap className="h-4 w-4 text-primary" />
               Pro Tip
             </h4>
-            <p className="text-sm mt-2">Use role dependencies to create progression paths. For example, a "Senior Member" role might require a user to already have the "Member" role.</p>
+            <p className="text-sm mt-2">Use role dependencies to create progression paths. For example, a &quot;Senior Member&quot; role might require a user to already have the &quot;Member&quot; role.</p>
           </div>
         </div>
       )
@@ -93,11 +91,11 @@ export const HelpView: React.FC<HelpViewProps> = ({ isAdmin }) => {
           <ol className="space-y-4 list-decimal pl-5">
             <li>
               <strong>Create Onboarding Paths</strong>
-              <p className="text-sm text-muted-foreground mt-1">Define different paths for different types of members (e.g., "Developer", "Designer", "Community Manager")</p>
+              <p className="text-sm text-muted-foreground mt-1">Define different paths for different types of members (e.g., &quot;Developer&quot;, &quot;Designer&quot;, &quot;Community Manager&quot;)</p>
             </li>
             <li>
               <strong>Add Requirements</strong>
-              <p className="text-sm text-muted-foreground mt-1">For each path, add requirements like "Complete Discord verification", "Join a meeting", etc.</p>
+              <p className="text-sm text-muted-foreground mt-1">For each path, add requirements like &quot;Complete Discord verification&quot;, &quot;Join a meeting&quot;, etc.</p>
             </li>
             <li>
               <strong>Set Verification Methods</strong>
@@ -185,7 +183,7 @@ export const HelpView: React.FC<HelpViewProps> = ({ isAdmin }) => {
       icon: Zap,
       content: (
         <div className="space-y-4">
-          <p>The onboarding process consists of various tasks that help you become an active community member. Here's how to complete them effectively.</p>
+          <p>The onboarding process consists of various tasks that help you become an active community member. Here&apos;s how to complete them effectively.</p>
           
           <h3 className="text-lg font-medium mt-6 mb-2">Types of Tasks:</h3>
           <div className="space-y-4">
@@ -237,7 +235,7 @@ export const HelpView: React.FC<HelpViewProps> = ({ isAdmin }) => {
               <Zap className="h-4 w-4 text-primary" />
               Pro Tip
             </h4>
-            <p className="text-sm mt-2">Don't rush through tasks just to complete them. The onboarding process is designed to help you genuinely connect with the community and understand how it works.</p>
+            <p className="text-sm mt-2">Don&apos;t rush through tasks just to complete them. The onboarding process is designed to help you genuinely connect with the community and understand how it works.</p>
           </div>
         </div>
       )
@@ -297,7 +295,7 @@ export const HelpView: React.FC<HelpViewProps> = ({ isAdmin }) => {
                 <p className="text-sm text-muted-foreground mt-1">It varies by path, but most members complete it within 1-2 weeks.</p>
               </div>
               <div className="p-4">
-                <p className="font-medium text-sm">What if I can't complete a specific task?</p>
+                <p className="font-medium text-sm">What if I can&apos;t complete a specific task?</p>
                 <p className="text-sm text-muted-foreground mt-1">Reach out to an admin to discuss alternative options or exemptions.</p>
               </div>
               <div className="p-4">
@@ -345,7 +343,7 @@ export const HelpView: React.FC<HelpViewProps> = ({ isAdmin }) => {
             </CardHeader>
             <CardContent className="px-3 pb-6">
               <div className="space-y-1.5">
-                {articles.map((article, index) => (
+                {articles.map((article) => (
                   <Button
                     key={article.id}
                     variant={selectedArticleId === article.id ? "secondary" : "ghost"}

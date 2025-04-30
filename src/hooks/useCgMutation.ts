@@ -35,7 +35,8 @@ export function useCgMutation<TData = unknown, TError = Error, TVariables = void
       }
       return mutationFn(cgInstance, variables);
     },
-    onSuccess: (data, variables, context) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    onSuccess: (_data, _variables, _context) => {
       // Invalidate specified queries on success
       if (invalidateQueryKeys.length > 0) {
         console.log('Invalidating queries:', invalidateQueryKeys);

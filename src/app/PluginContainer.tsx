@@ -11,7 +11,7 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { AdminView } from '../components/AdminView';
 import { UserView } from '../components/UserView';
 import { HelpView } from '../components/HelpView';
-import { LayoutDashboard, Settings, Plug, User, BookOpen } from 'lucide-react';
+import { LayoutDashboard, Settings, Plug, User } from 'lucide-react';
 
 // Removed targetRoleIdFromEnv constant
 // const targetRoleIdFromEnv = process.env.NEXT_PUBLIC_TARGET_ROLE_ID;
