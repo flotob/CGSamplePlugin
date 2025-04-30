@@ -9,6 +9,7 @@ import 'ethereum-identity-kit/css';
 import { RainbowKitProvider } from '@rainbow-me/rainbowkit';
 import '@rainbow-me/rainbowkit/styles.css';
 import { CgLibProvider } from '../context/CgLibContext';
+import { AuthProvider } from '../context/AuthContext';
 import { ThemeProvider } from '../components/ThemeProvider';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
@@ -34,8 +35,10 @@ function ThemeAndCgLibLoader({ children }: { children: React.ReactNode }) {
           <RainbowKitProvider>
             <TransactionProvider>
               <CgLibProvider>
-                {/* CgLibProvider will eventually wrap children here */}
-                {children}
+                <AuthProvider>
+                  {/* CgLibProvider will eventually wrap children here */}
+                  {children}
+                </AuthProvider>
               </CgLibProvider>
             </TransactionProvider>
           </RainbowKitProvider>

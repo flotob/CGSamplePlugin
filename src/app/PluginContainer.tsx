@@ -1,9 +1,10 @@
 'use client';
-import React, { useState, useTransition } from 'react';
+import React, { useState, useTransition, useEffect } from 'react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import type { CommunityInfoResponsePayload, UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
 import type { UserFriendsResponsePayload } from '@common-ground-dao/cg-plugin-lib-host';
 import { useCgLib } from '../context/CgLibContext';
+import { useAuth } from '../context/AuthContext';
 import { useCgQuery } from '../hooks/useCgQuery';
 import { useCgMutation } from '../hooks/useCgMutation';
 import { useAdminStatus } from '../hooks/useAdminStatus';
@@ -32,6 +33,7 @@ const userLinks = [
 const PluginContainer = () => {
   const { isInitializing, initError, iframeUid } = useCgLib();
   const { isAdmin, isLoading: isLoadingAdminStatus, error: adminStatusError } = useAdminStatus();
+  const { jwt, login, isAuthenticating, authError } = useAuth();
   const [isPending, startTransition] = useTransition();
 
   // State for current active section
@@ -81,6 +83,16 @@ const PluginContainer = () => {
   );
   const communityInfo = communityInfoResponse;
 
+  // Effect to trigger JWT login once CG Lib and user/community/admin status are ready
+  useEffect(() => {
+    // Only attempt login if CG is initialized, basic info is loaded, and not already authenticated/authenticating
+    if (!isInitializing && !isLoadingUserInfo && !isLoadingCommunityInfo && !isLoadingAdminStatus && userInfo && communityInfo && !jwt && !isAuthenticating) {
+        console.log('Attempting JWT login for user:', userInfo.id);
+        login(); // login function already uses the correct isAdmin status internally
+    }
+    // Add dependencies including userInfo and communityInfo now
+  }, [isInitializing, isLoadingUserInfo, isLoadingCommunityInfo, isLoadingAdminStatus, userInfo, communityInfo, jwt, isAuthenticating, login]);
+
   const { data: friendsResponse, isLoading: isLoadingFriends, error: friendsError } = useCgQuery<
     UserFriendsResponsePayload,
     Error
@@ -109,21 +121,34 @@ const PluginContainer = () => {
     return communityInfo?.roles?.filter((role) => role.assignmentRules?.type === 'free' || role.assignmentRules === null);
   }, [communityInfo]);
 
-  // Wait for iframeUid AND admin status before proceeding
-  const isLoading = isInitializing || isLoadingAdminStatus || !activeSection;
-  const error = initError || adminStatusError;
+  // Combined loading and error states
+  // We also consider `isAuthenticating` as part of the loading phase now.
+  // The JWT is needed for backend calls, so the app isn't fully ready until it's attempted.
+  const isLoading = isInitializing || isLoadingAdminStatus || !activeSection || (isAuthenticating && !jwt);
+  const error = initError || adminStatusError || authError;
 
+  // Display loading indicator
   if (isLoading) {
-    return <div>Loading Plugin...</div>;
+    return <div>Loading Plugin...</div>; // Consider a more detailed loading state if needed
   }
 
+  // Display error messages
   if (error) {
-    return <div className='text-red-500 p-4'>Error loading plugin base: {error.message}</div>;
+    return <div className='text-red-500 p-4'>Error loading plugin: {error.message}</div>;
   }
 
+  // This check might be redundant now given the combined loading state, but keep for safety
   if (!iframeUid || !activeSection) {
     return <div className='text-yellow-500 p-4'>Initializing...</div>;
   }
+
+  // Check if JWT is missing after attempting login (could indicate login failure)
+  // Only gate essential functionality if JWT is strictly required for *all* backend calls
+  // If only needed for admin actions, this check might be too strict here.
+  // Let's comment out for now, admin checks can happen within AdminView.
+  // if (!jwt) {
+  //   return <div className='text-red-500 p-4'>Error: Could not establish secure session.</div>;
+  // }
 
   const handleAssignRoleClick = (roleId: string | undefined) => {
     if (!roleId) {
@@ -164,7 +189,8 @@ const PluginContainer = () => {
     if (activeSection === 'help') {
       view = <HelpView isAdmin={isAdmin} />;
     } else if (isAdmin) {
-      view = <AdminView {...viewProps} />;
+      // Pass JWT specific state if AdminView needs it, e.g., for making authenticated calls
+      view = <AdminView {...viewProps} jwt={jwt} isAuthenticating={isAuthenticating} authError={authError} />;
     } else {
       // User views
       switch (activeSection) {

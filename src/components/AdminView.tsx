@@ -30,6 +30,10 @@ interface AdminViewProps {
   communityInfoError: Error | null;
   isLoadingFriends: boolean;
   friendsError: Error | null;
+  // Add JWT state props
+  jwt: string | null;
+  isAuthenticating: boolean;
+  authError: Error | null;
 }
 
 export const AdminView: React.FC<AdminViewProps> = ({
@@ -48,10 +52,28 @@ export const AdminView: React.FC<AdminViewProps> = ({
   communityInfoError,
   isLoadingFriends,
   friendsError,
+  // Destructure JWT state
+  jwt,
+  isAuthenticating,
+  authError,
 }) => {
 
   // Render loading/error specifically for the data needed by the active section if desired
   // Or rely on the global loading state in PluginContainer
+
+  // Display JWT auth errors if they occur
+  if (authError) {
+    return (
+      <div className="text-destructive p-4 bg-destructive/10 rounded-md border border-destructive">
+        Error establishing backend session: {authError.message}
+      </div>
+    )
+  }
+
+  // Optionally show a loading state while authenticating
+  // if (isAuthenticating) {
+  //   return <div>Establishing session...</div>;
+  // }
 
   return (
     <>
