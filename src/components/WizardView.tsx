@@ -9,6 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Wand2, CheckCircle } from 'lucide-react';
+import { EnsVerificationStep } from './onboarding/steps/EnsVerificationStep';
 
 // Define props - adjust later as needed when data is available
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
@@ -77,6 +78,18 @@ export const WizardView: React.FC<WizardViewProps> = ({ /* props */ }) => {
             )}
           </CardContent>
         </Card>
+
+        {/* --- TEMPORARY: Add ENS Verification Step for testing --- */}
+        <Card className="animate-in fade-in slide-in-from-bottom-5 duration-500 delay-200">
+          <CardHeader>
+            <CardTitle>Test ENS Step</CardTitle>
+            <CardDescription>Connect wallet above and check ENS status.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <EnsVerificationStep />
+          </CardContent>
+        </Card>
+        {/* --- END TEMPORARY --- */}
 
         {/* Completed Wizards Card */}
         <Card className="animate-in fade-in slide-in-from-bottom-5 duration-500 delay-300" interactive>
