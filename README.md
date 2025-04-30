@@ -2,7 +2,9 @@
     <h1>CG Sample Plugin</h1>
 </div>
 
-This sample plugin demonstrates the core capabilities of the [Common Ground Plugin Library](https://github.com/Common-Ground-DAO/CGPluginLib). It provides a practical example of integrating the plugin library, showcasing essential frontend-backend interactions and common use cases.
+This sample plugin demonstrates the core capabilities of the [Common Ground Plugin Library](https://github.com/Common-Ground-DAO/CGPluginLib).
+
+It provides a practical example of integrating the plugin library, showcasing essential frontend-backend interactions and common use cases.
 
 Use this as a reference implementation to understand how to leverage the full feature set of CG plugins in your own applications.
 
