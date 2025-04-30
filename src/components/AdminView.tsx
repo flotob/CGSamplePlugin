@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import Image from 'next/image';
+// Removed Image import
 // Shadcn components
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,8 @@ import type { CommunityInfoResponsePayload, UserInfoResponsePayload } from '@com
 import type { UserFriendsResponsePayload } from '@common-ground-dao/cg-plugin-lib-host';
 // Icons
 import { Shield, Users, BadgeCheck, Cog, Plug } from 'lucide-react';
+// Import the new UserAvatar component
+import { UserAvatar } from './UserAvatar';
 
 // Define props expected from PluginContainer
 interface AdminViewProps {
@@ -103,16 +105,16 @@ export const AdminView: React.FC<AdminViewProps> = ({
                 ) : (
                   <>
                     <div className="flex items-center gap-3 mb-1">
-                      {userInfo?.imageUrl ? (
-                        <Image src={userInfo.imageUrl} alt={userInfo.name || 'User'} width={36} height={36} className="rounded-full ring-2 ring-primary/20" />
-                      ) : (
-                        <div className="h-9 w-9 rounded-full bg-primary/20 flex items-center justify-center text-primary font-medium">
-                          {userInfo?.name?.charAt(0) || '?'}
-                        </div>
-                      )}
+                      <UserAvatar 
+                        imageUrl={userInfo?.imageUrl} 
+                        name={userInfo?.name} 
+                        userId={userInfo?.id} 
+                        size={36} 
+                        className="ring-2 ring-primary/20"
+                      />
                       <div>
                         <p className="font-medium">{userInfo?.name}</p>
-                        <p className="text-xs text-muted-foreground">{userInfo?.id?.substring(0, 10)}...</p>
+                        <p className="text-xs text-muted-foreground">ID: {userInfo?.id?.substring(0, 10)}...</p>
                       </div>
                     </div>
                     
@@ -172,13 +174,12 @@ export const AdminView: React.FC<AdminViewProps> = ({
                       className='flex items-center gap-3 p-2 rounded-md transition-colors hover:bg-secondary/40'
                       style={{ animationDelay: `${150 + (index * 50)}ms` }}
                     >
-                      {friend.imageUrl ? (
-                        <Image src={friend.imageUrl} alt={friend.name} width={32} height={32} className='rounded-full ring-1 ring-border' />
-                      ) : (
-                        <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center">
-                          {friend.name.charAt(0)}
-                        </div>
-                      )}
+                      <UserAvatar 
+                        imageUrl={friend.imageUrl} 
+                        name={friend.name} 
+                        userId={friend.id} 
+                        size={32}
+                      />
                       <span className="font-medium">{friend.name}</span>
                     </div>
                   ))}
