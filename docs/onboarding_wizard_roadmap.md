@@ -72,19 +72,11 @@ This roadmap prioritizes building the core functionality and admin experience fi
             8.  **Ensure Providers Wrap Correctly:**
                 *   Verify `QueryClientProvider` and `CgLibProvider` are correctly placed in the component tree (likely in `layout.tsx` or a client component wrapper).
     2.  **Basic Admin/User Distinction:**
-        *   Implement a simple way to differentiate views (e.g., check if `userInfo` has a specific community "Admin" role).
-    3.  **Minimal Admin "Config":**
-        *   Hardcode a target role ID in the plugin's code.
-    4.  **Minimal User View:**
-        *   Display a single button (e.g., "Get Verified Role").
-    5.  **Implement Core Logic:**
-        *   Button click calls `useGiveRole()` with the hardcoded role ID and user ID.
-    6.  **Minimal Admin View:**
-        *   Display the hardcoded role ID being used.
+        *   Implement a simple way to differentiate views using `useAdminStatus` hook (checks `NEXT_PUBLIC_ADMIN_ROLE_IDS` env var or default "Admin" role).
 
 **Phase 2: Admin Configuration UI & Storage**
 
-*   **Goal:** Allow admins to *select* which role(s) are assigned, replacing the hardcoded value. Introduce basic configuration persistence.
+*   **Goal:** Allow admins to *select* which role(s) are assigned upon completion of the (future) onboarding flow. Introduce configuration persistence.
 *   **Steps:**
     1.  **Admin UI - Role Selection:**
         *   Build an admin-only component using `useCommunityInfo()` to list available roles.
