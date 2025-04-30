@@ -25,28 +25,50 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
 
   return (
-    <div className="flex h-full max-h-screen flex-col gap-2">
-      <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
-        <Link href="/" className="flex items-center gap-2 font-semibold">
-          {/* Optional: Add logo/icon here later */}
-          <span>Onboarding Wiz</span>
+    <div className="flex h-full max-h-screen flex-col">
+      {/* Header with enhanced styling */}
+      <div className="flex h-14 items-center border-b border-border px-4 lg:h-[60px] lg:px-6">
+        <Link href="/" className="flex items-center gap-2 font-semibold text-foreground group">
+          <div className="flex items-center justify-center w-8 h-8 rounded-md bg-primary text-primary-foreground font-bold shadow-sm transition-all duration-200 group-hover:shadow group-hover:scale-105">
+            OW
+          </div>
+          <span className="transition-colors duration-200">Onboarding Wizard</span>
         </Link>
       </div>
-      <div className="flex-1 overflow-auto py-2"> {/* Add scroll for many links */}
-        <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
-          {links.map((link) => (
-            <Button
-              key={link.id}
-              variant={activeSection === link.id ? "secondary" : "ghost"} // Highlight active link
-              className="justify-start w-full my-1" // Justify text left
-              onClick={() => setActiveSection(link.id)}
-            >
-              {/* Optional: Render icon if provided */}
-              {link.icon && <link.icon className="h-4 w-4 mr-2" />}
-              {link.label}
-            </Button>
-          ))}
-        </nav>
+
+      {/* Navigation with improved spacing and styling */}
+      <div className="flex-1 overflow-auto py-4 px-3">
+        <div className="mb-4">
+          <p className="text-xs font-medium text-muted-foreground px-2 mb-2">NAVIGATION</p>
+          <nav className="space-y-1.5">
+            {links.map((link) => (
+              <Button
+                key={link.id}
+                variant={activeSection === link.id ? "secondary" : "ghost"}
+                className={`justify-start w-full transition-all duration-200 ${
+                  activeSection === link.id 
+                    ? "bg-secondary text-secondary-foreground font-medium shadow-sm" 
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"
+                }`}
+                onClick={() => setActiveSection(link.id)}
+              >
+                {link.icon && <link.icon className={`h-4 w-4 mr-2 transition-transform duration-200 ${activeSection === link.id ? 'text-primary' : ''}`} />}
+                {link.label}
+              </Button>
+            ))}
+          </nav>
+        </div>
+        
+        {/* Footer section with help and version */}
+        <div className="mt-auto pt-4 border-t border-border">
+          <p className="text-xs text-muted-foreground px-4 pb-2">v1.0.0</p>
+          <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-foreground transition-all duration-200 hover:bg-secondary/40">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 mr-2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
+            </svg>
+            Help & Documentation
+          </Button>
+        </div>
       </div>
     </div>
   );

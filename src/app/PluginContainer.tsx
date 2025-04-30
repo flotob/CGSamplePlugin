@@ -10,24 +10,26 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { AdminView } from '../components/AdminView';
 import { UserView } from '../components/UserView';
+import { LayoutDashboard, Settings, Plug, User } from 'lucide-react';
 
 // Removed targetRoleIdFromEnv constant
 // const targetRoleIdFromEnv = process.env.NEXT_PUBLIC_TARGET_ROLE_ID;
 
-// Define link structures
+// Define link structures with optional icons
 const adminLinks = [
-  { id: 'dashboard', label: 'Dashboard' },
-  { id: 'config', label: 'Wizard Config' },
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'config', label: 'Wizard Config', icon: Settings },
+  { id: 'connections', label: 'Connections', icon: Plug },
 ];
 const userLinks = [
-  { id: 'profile', label: 'Profile' },
+  { id: 'profile', label: 'Profile', icon: User },
 ];
 
 const PluginContainer = () => {
   const { isInitializing, initError, iframeUid } = useCgLib();
   const { isAdmin, isLoading: isLoadingAdminStatus, error: adminStatusError } = useAdminStatus();
 
-  // State for current active section - Initialize AFTER isAdmin status is known
+  // State for current active section
   const [activeSection, setActiveSection] = useState<string | null>(null);
 
   // Determine sidebar links based on admin status only when status is loaded
@@ -138,16 +140,16 @@ const PluginContainer = () => {
       sidebar={(
         <Sidebar 
           links={sidebarLinks} 
-          activeSection={activeSection} 
+          activeSection={activeSection ?? ''}
           setActiveSection={setActiveSection} 
         />
       )}
     >
-      {isAdmin ? (
+      {activeSection && (isAdmin ? (
         <AdminView {...viewProps} />
       ) : (
         <UserView {...viewProps} />
-      )}
+      ))}
     </AppLayout>
   );
 }

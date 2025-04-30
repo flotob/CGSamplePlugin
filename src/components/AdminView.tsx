@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 // Payload types
 import type { CommunityInfoResponsePayload, UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
 import type { UserFriendsResponsePayload } from '@common-ground-dao/cg-plugin-lib-host';
+// Icons
+import { Shield, Users, BadgeCheck, Cog, Plug } from 'lucide-react';
 
 // Define props expected from PluginContainer
 interface AdminViewProps {
@@ -51,22 +53,101 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
   return (
     <>
+      {/* Section title with animation */}
+      <div className="mb-6 animate-in fade-in slide-in-from-bottom-5 duration-500">
+        {activeSection === 'dashboard' && (
+          <div className="flex items-center gap-2">
+            <Shield className="h-6 w-6 text-primary" />
+            <h1 className="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
+          </div>
+        )}
+        {activeSection === 'config' && (
+          <div className="flex items-center gap-2">
+            <Cog className="h-6 w-6 text-primary" />
+            <h1 className="text-2xl font-bold tracking-tight">Wizard Configuration</h1>
+          </div>
+        )}
+        {activeSection === 'connections' && (
+          <div className="flex items-center gap-2">
+            <Plug className="h-6 w-6 text-primary" />
+            <h1 className="text-2xl font-bold tracking-tight">Service Connections</h1>
+          </div>
+        )}
+      </div>
+      
       {/* Render Dashboard content */}
       {activeSection === 'dashboard' && (
         <div className="w-full max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* User Info Card */} 
-          <Card className="md:col-span-1">
-              <CardHeader> <CardTitle>Your Info (Admin)</CardTitle> </CardHeader>
-              <CardContent className='flex flex-col gap-1 text-sm'>
-                {isLoadingUserInfo ? <p>Loading...</p> : userInfoError ? <p className='text-red-500'>Error</p> : (
+          <Card className="md:col-span-1 animate-in fade-in slide-in-from-bottom-5 duration-500 delay-150" interactive>
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-full bg-primary/10">
+                    <Shield className="h-4 w-4 text-primary" />
+                  </div>
+                  <CardTitle>Your Admin Profile</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className='flex flex-col gap-2.5 text-sm'>
+                {isLoadingUserInfo ? (
+                  <div className="flex items-center justify-center p-4">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                  </div>
+                ) : userInfoError ? (
+                  <div className="text-destructive flex items-center gap-2 p-2 bg-destructive/10 rounded-md">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                    </svg>
+                    <p>Error loading user data</p>
+                  </div>
+                ) : (
                   <>
-                    <p><span className='font-semibold'>Username:</span> {userInfo?.name}</p>
-                    {!!userInfo?.twitter && <p><span className='font-semibold'>Twitter:</span> {userInfo?.twitter?.username || 'Not connected'}</p>}
-                    {!!userInfo?.lukso && <p><span className='font-semibold'>Lukso:</span> {userInfo?.lukso?.username || 'Not connected'}</p>}
-                    {!!userInfo?.farcaster && <p><span className='font-semibold'>Farcaster:</span> {userInfo?.farcaster?.username || 'Not connected'}</p>}
-                    {!!userInfo?.email && <p><span className='font-semibold'>Email:</span> {userInfo?.email || 'Not connected'}</p>}
-                    <p><span className='font-semibold'>Community:</span> {communityInfo?.title}</p>
-                    <p><span className='font-semibold text-purple-600 dark:text-purple-400'>Admin Status Check:</span> Yes</p>
+                    <div className="flex items-center gap-3 mb-1">
+                      {userInfo?.imageUrl ? (
+                        <Image src={userInfo.imageUrl} alt={userInfo.name || 'User'} width={36} height={36} className="rounded-full ring-2 ring-primary/20" />
+                      ) : (
+                        <div className="h-9 w-9 rounded-full bg-primary/20 flex items-center justify-center text-primary font-medium">
+                          {userInfo?.name?.charAt(0) || '?'}
+                        </div>
+                      )}
+                      <div>
+                        <p className="font-medium">{userInfo?.name}</p>
+                        <p className="text-xs text-muted-foreground">{userInfo?.id?.substring(0, 10)}...</p>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2 mt-2">
+                      {!!userInfo?.twitter && (
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"></path>
+                          </svg>
+                          <span>{userInfo?.twitter?.username || 'Not connected'}</span>
+                        </div>
+                      )}
+                      {!!userInfo?.email && (
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect width="20" height="16" x="2" y="4" rx="2"></rect>
+                            <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
+                          </svg>
+                          <span>{userInfo?.email}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M18 21a8 8 0 0 0-16 0"></path>
+                          <circle cx="10" cy="8" r="5"></circle>
+                          <path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3"></path>
+                        </svg>
+                        <span>{communityInfo?.title}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 mt-3 bg-primary/10 text-primary px-3 py-2 rounded-md">
+                      <BadgeCheck className="h-4 w-4" />
+                      <p className="font-medium">Admin Privileges Active</p>
+                    </div>
                   </>
                 )}
               </CardContent>
@@ -75,65 +156,180 @@ export const AdminView: React.FC<AdminViewProps> = ({
           {/* Friends list Card */} 
           {/* Only render if not loading and no error, and friends exist */}
           {!isLoadingFriends && !friendsError && friends && friends.friends.length > 0 && (
-              <Card className="md:col-span-1">
-                <CardHeader> <CardTitle>Some of your friends</CardTitle> </CardHeader>
-                 <CardContent className='flex flex-col gap-2'>
-                   {friends.friends.map((friend) => (
-                     <div key={friend.id} className='flex items-center gap-2 text-sm'>
-                       {friend.imageUrl && <Image src={friend.imageUrl} alt={friend.name} width={32} height={32} className='rounded-full' />}
-                       <span>{friend.name}</span>
-                     </div>
-                   ))}
-                 </CardContent>
+              <Card className="md:col-span-1 animate-in fade-in slide-in-from-bottom-5 duration-500 delay-300" interactive>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-full bg-primary/10">
+                      <Users className="h-4 w-4 text-primary" />
+                    </div>
+                    <CardTitle>Your Community</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent className='flex flex-col gap-3'>
+                  {friends.friends.map((friend, index) => (
+                    <div 
+                      key={friend.id} 
+                      className='flex items-center gap-3 p-2 rounded-md transition-colors hover:bg-secondary/40'
+                      style={{ animationDelay: `${150 + (index * 50)}ms` }}
+                    >
+                      {friend.imageUrl ? (
+                        <Image src={friend.imageUrl} alt={friend.name} width={32} height={32} className='rounded-full ring-1 ring-border' />
+                      ) : (
+                        <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center">
+                          {friend.name.charAt(0)}
+                        </div>
+                      )}
+                      <span className="font-medium">{friend.name}</span>
+                    </div>
+                  ))}
+                </CardContent>
               </Card>
             )}
-             {/* TODO: Add loading/error display for friends card */}
+            {isLoadingFriends && (
+              <Card className="md:col-span-1 animate-in fade-in slide-in-from-bottom-5 duration-500 delay-300">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-full bg-primary/10">
+                      <Users className="h-4 w-4 text-primary" />
+                    </div>
+                    <CardTitle>Your Community</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent className='flex items-center justify-center p-8'>
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Assignable roles Card */} 
             {/* Only render if not loading community info and roles exist */} 
             {!isLoadingCommunityInfo && !communityInfoError && assignableRoles && assignableRoles.length > 0 && (
-              <Card className="md:col-span-1"> 
-                <CardHeader>
-                  <CardTitle>Manually Assignable Roles</CardTitle>
-                   {isAssigningRole && <CardDescription className='text-blue-500 pt-2'>Assigning role...</CardDescription>}
-                   {assignRoleError && <CardDescription className='text-red-500 pt-2'>Error: {assignRoleError.message}</CardDescription>}
+              <Card className="md:col-span-2 animate-in fade-in slide-in-from-bottom-5 duration-500 delay-450" interactive>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-full bg-primary/10">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
+                        <path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/>
+                        <path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/>
+                        <path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>
+                      </svg>
+                    </div>
+                    <div>
+                      <CardTitle>Role Management</CardTitle>
+                      <CardDescription className="mt-1">Assign roles to members</CardDescription>
+                    </div>
+                  </div>
+                  {isAssigningRole && (
+                    <div className='text-blue-500 pt-2 flex items-center gap-2'>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                      <p className="text-sm">Assigning role...</p>
+                    </div>
+                  )}
+                  {assignRoleError && (
+                    <div className='text-destructive pt-2 flex items-center gap-2 p-2 bg-destructive/10 rounded-md'>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" x2="12" y1="8" y2="12"/>
+                        <line x1="12" x2="12.01" y1="16" y2="16"/>
+                      </svg>
+                      <p className="text-sm">Error: {assignRoleError.message}</p>
+                    </div>
+                  )}
                 </CardHeader>
-                 <CardContent className='flex flex-col gap-3'>
-                   {assignableRoles?.map((role) => (
-                     <div className='flex items-center justify-between text-sm' key={role.id}>
-                       <p>{role.title}</p>
-                       {userInfo?.roles?.includes(role.id) ? (
-                         <span className='text-xs text-gray-500 px-2 py-1 border rounded-md'>Already Has Role</span>
-                       ) : (
-                         <Button
-                           variant="outline"
-                           size="sm"
-                           onClick={() => handleAssignRoleClick(role.id)}
-                           disabled={isAssigningRole}
-                         >
-                           Get Role
-                         </Button>
-                       )}
-                     </div>
-                   ))}
-                 </CardContent>
+                <CardContent className='grid grid-cols-1 md:grid-cols-2 gap-3'>
+                  {assignableRoles?.map((role, index) => (
+                    <div 
+                      className='flex items-center justify-between p-3 rounded-md border border-border bg-card transition-all hover:bg-secondary/20' 
+                      key={role.id}
+                      style={{ animationDelay: `${450 + (index * 50)}ms` }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-full bg-accent flex items-center justify-center text-accent-foreground">
+                          {role.title.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="font-medium">{role.title}</p>
+                          <p className="text-xs text-muted-foreground">ID: {role.id.substring(0, 6)}...</p>
+                        </div>
+                      </div>
+                      {userInfo?.roles?.includes(role.id) ? (
+                        <div className='text-xs flex items-center gap-1.5 text-primary px-2.5 py-1.5 border-primary/20 border rounded-md bg-primary/10'>
+                          <BadgeCheck className="h-3.5 w-3.5" />
+                          <span>Assigned</span>
+                        </div>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleAssignRoleClick(role.id)}
+                          disabled={isAssigningRole}
+                          className="transition-all duration-200"
+                        >
+                          Assign Role
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </CardContent>
               </Card>
             )}
-             {/* TODO: Add loading/error display for roles card */}
+             {isLoadingCommunityInfo && (
+              <Card className="md:col-span-2 animate-in fade-in slide-in-from-bottom-5 duration-500 delay-450">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-full bg-primary/10">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
+                        <path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z"/>
+                        <path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/>
+                        <path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>
+                      </svg>
+                    </div>
+                    <CardTitle>Role Management</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent className='flex items-center justify-center p-12'>
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                </CardContent>
+              </Card>
+            )}
         </div>
       )}
 
       {/* Render Configuration Section */}
       {activeSection === 'config' && (
-        <div className="w-full max-w-4xl mx-auto">
-           <Card>
+        <div className="w-full max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-5 duration-500 delay-150">
+           <Card interactive>
                <CardHeader>
                    <CardTitle>Wizard Configuration</CardTitle>
                    <CardDescription>Setup roles and steps for the onboarding wizard here.</CardDescription>
                </CardHeader>
                <CardContent>
-                   {/* Role selection UI will go here in Phase 4 */}
-                   <p className="text-sm text-muted-foreground">Role selection UI coming soon...</p>
+                   <div className="flex items-center justify-center p-12 text-muted-foreground border border-dashed border-border rounded-md">
+                     <div className="text-center">
+                       <Cog className="h-8 w-8 mx-auto mb-3 opacity-50" />
+                       <p>Role selection UI coming soon...</p>
+                     </div>
+                   </div>
+               </CardContent>
+           </Card>
+         </div>
+      )}
+
+      {/* Render Connections Section */}
+      {activeSection === 'connections' && (
+        <div className="w-full max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-5 duration-500 delay-150">
+           <Card interactive>
+               <CardHeader>
+                   <CardTitle>Service Connections</CardTitle>
+                   <CardDescription>Connect third-party services (Discord, Telegram, Guild.xyz, etc.) to use in your wizard.</CardDescription>
+               </CardHeader>
+               <CardContent>
+                   <div className="flex items-center justify-center p-12 text-muted-foreground border border-dashed border-border rounded-md">
+                     <div className="text-center">
+                       <Plug className="h-8 w-8 mx-auto mb-3 opacity-50" />
+                       <p>Connection UI coming soon...</p>
+                     </div>
+                   </div>
                </CardContent>
            </Card>
          </div>
