@@ -11,7 +11,8 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { AdminView } from '../components/AdminView';
 import { UserView } from '../components/UserView';
 import { HelpView } from '../components/HelpView';
-import { LayoutDashboard, Settings, Plug, User } from 'lucide-react';
+import { WizardView } from '../components/WizardView';
+import { LayoutDashboard, Settings, Plug, User, ListChecks, Wand2 } from 'lucide-react';
 
 // Removed targetRoleIdFromEnv constant
 // const targetRoleIdFromEnv = process.env.NEXT_PUBLIC_TARGET_ROLE_ID;
@@ -23,6 +24,7 @@ const adminLinks = [
   { id: 'connections', label: 'Connections', icon: Plug },
 ];
 const userLinks = [
+  { id: 'wizards', label: 'Wizards', icon: Wand2 },
   { id: 'profile', label: 'Profile', icon: User },
 ];
 
@@ -52,7 +54,8 @@ const PluginContainer = () => {
   React.useEffect(() => {
     if (!isLoadingAdminStatus && !activeSection) {
       startTransition(() => {
-        setActiveSection(isAdmin ? 'dashboard' : 'profile');
+        // Set default view to 'wizards' for users, 'dashboard' for admins
+        setActiveSection(isAdmin ? 'dashboard' : 'wizards');
       });
     }
   }, [isAdmin, isLoadingAdminStatus, activeSection]);
@@ -152,17 +155,27 @@ const PluginContainer = () => {
 
   // Render appropriate view based on active section with a wrapper div for animations
   const renderView = () => {
-    // Only render the view when it's not in a pending transition state
     if (isPending && previousSection === activeSection) {
       return null;
     }
     
-    // Render the correct view based on section
     let view;
     if (activeSection === 'help') {
       view = <HelpView isAdmin={isAdmin} />;
+    } else if (isAdmin) {
+      view = <AdminView {...viewProps} />;
     } else {
-      view = isAdmin ? <AdminView {...viewProps} /> : <UserView {...viewProps} />;
+      // User views
+      switch (activeSection) {
+        case 'wizards':
+          view = <WizardView {...viewProps} />;
+          break;
+        case 'profile':
+          view = <UserView {...viewProps} />;
+          break;
+        default:
+          view = <WizardView {...viewProps} />;
+      }
     }
 
     return (
