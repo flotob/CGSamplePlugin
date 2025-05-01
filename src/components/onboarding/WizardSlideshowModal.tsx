@@ -8,6 +8,9 @@ import { useStepTypesQuery } from '@/hooks/useStepTypesQuery';
 import type { UserStepProgress } from '@/app/api/user/wizards/[wizardId]/steps/route';
 import { StepDisplay } from './steps/display/StepDisplay';
 import { useCompleteStepMutation } from '@/hooks/useCompleteStepMutation';
+import { WizardSummaryScreen } from './WizardSummaryScreen';
+import { useUserCredentialsQuery } from '@/hooks/useUserCredentialsQuery';
+import { useMarkWizardCompleted } from '@/hooks/useMarkWizardCompleted';
 
 interface WizardSlideshowModalProps {
   wizardId: string;
@@ -21,12 +24,15 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
   onClose,
 }) => {
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
+  const [showSummary, setShowSummary] = useState<boolean>(false);
+  const [hasTriedCompletion, setHasTriedCompletion] = useState<boolean>(false);
   const { 
     data: stepsData,
     isLoading: isLoadingSteps,
     error: stepsError,
   } = useUserWizardStepsQuery(wizardId);
   const { data: stepTypesData, isLoading: isLoadingTypes } = useStepTypesQuery();
+  const { data: credentialsData, isLoading: isLoadingCredentials } = useUserCredentialsQuery();
 
   const steps = stepsData?.steps;
   const currentStep: UserStepProgress | undefined = steps?.[currentStepIndex];
@@ -35,18 +41,48 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
   // Mutation hook for completing a step
   const completeStepMutation = useCompleteStepMutation(wizardId, currentStep?.id);
 
+  // Add the completion mutation hook
+  const markCompleted = useMarkWizardCompleted();
+
   // Find the StepType object for the current step
   const currentStepType = currentStep && stepTypesData
     ? stepTypesData.step_types.find(t => t.id === currentStep.step_type_id)
     : undefined;
 
+  // Check if all steps are completed
+  const allStepsCompleted = steps?.every(step => step.completed_at) || false;
+
   // Effect to determine the starting step index based on progress
   useEffect(() => {
     if (steps) {
-      const firstIncompleteIndex = steps.findIndex(step => step.completed_at === null);
-      setCurrentStepIndex(firstIncompleteIndex >= 0 ? firstIncompleteIndex : 0);
+      // If all steps are completed and we're not showing summary, auto-show summary
+      if (allStepsCompleted && steps.length > 0 && !showSummary) {
+        const lastIncompleteIndex = steps.findIndex(step => !step.completed_at);
+        if (lastIncompleteIndex === -1) {
+          // All steps complete, but stay on the last step until user clicks "View Summary"
+          setCurrentStepIndex(steps.length - 1);
+        } else {
+          // Otherwise, show the first incomplete step
+          setCurrentStepIndex(lastIncompleteIndex);
+        }
+      } else if (!allStepsCompleted) {
+        // Standard behavior - find first incomplete step
+        const firstIncompleteIndex = steps.findIndex(step => !step.completed_at);
+        setCurrentStepIndex(firstIncompleteIndex >= 0 ? firstIncompleteIndex : 0);
+      }
     }
-  }, [steps]); // Run when steps array changes
+  }, [steps, allStepsCompleted, showSummary]);
+
+  // Effect to mark the wizard as completed when all steps are completed
+  useEffect(() => {
+    if (allStepsCompleted && steps && steps.length > 0 && !markCompleted.isPending && !hasTriedCompletion) {
+      // Set the flag to prevent infinite loop
+      setHasTriedCompletion(true);
+      // Mark the wizard as completed in the database
+      console.log('All steps completed, marking wizard as completed:', wizardId);
+      markCompleted.mutate(wizardId);
+    }
+  }, [allStepsCompleted, steps, wizardId, markCompleted, hasTriedCompletion]);
 
   const goToStep = useCallback((index: number) => {
     if (steps && index >= 0 && index < steps.length) {
@@ -71,31 +107,77 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
     completeStepMutation.mutate(completionData ? { verified_data: completionData } : undefined, {
       onSuccess: () => {
         console.log(`Step ${currentStep.id} completed successfully.`);
-        // Advance to next step only on successful mutation
-        if (currentStepIndex < totalSteps - 1) {
-           goToStep(currentStepIndex + 1);
-        } else {
-           // Last step completed - potentially show success message and close
-           console.log('Wizard finished!');
-           onClose(); // Close modal for now
-        }
+        // No longer automatically advancing to next step or closing
+        // Instead, we show a success state and let the user control navigation
       },
       onError: (error) => {
         console.error("Mutation error completing step:", error);
         // Error toast is handled within the hook, but could add specific UI feedback here too
       }
     });
-  }, [currentStep, completeStepMutation, wizardId, currentStepIndex, totalSteps, onClose, goToStep]);
+  }, [currentStep, completeStepMutation, wizardId]);
 
   // Determine if Next button should be disabled 
   const isCompleted = !!currentStep?.completed_at;
-  const canProceed = isCompleted || !currentStep?.is_mandatory; // Can always proceed if completed or optional (simplification)
+  const canProceed = isCompleted || !currentStep?.is_mandatory; // Can always proceed if completed or optional
   const isNextDisabled = currentStepIndex >= totalSteps - 1 || completeStepMutation.isPending || !canProceed;
   const isPrevDisabled = currentStepIndex <= 0 || completeStepMutation.isPending;
+
+  // Determine if we should show the summary screen
+  const isLastStep = currentStepIndex === totalSteps - 1;
+
+  // New function to handle the view summary button click
+  const handleViewSummary = useCallback(() => {
+    setShowSummary(true);
+  }, []);
 
   // --- Render Logic --- 
 
   const renderContent = () => {
+    // If we're in summary mode, show the summary screen
+    if (showSummary) {
+      // Prepare the data for the summary screen
+      const completedSteps = steps?.filter(step => step.completed_at) || [];
+      
+      // Match step types to steps
+      const stepsWithTypes = completedSteps.map(step => ({
+        ...step,
+        stepType: stepTypesData?.step_types.find(t => t.id === step.step_type_id)
+      }));
+      
+      // Get credentials just from this wizard
+      const wizardCredentials = credentialsData?.credentials
+        .filter(cred => {
+          // Match credentials to steps in this wizard that have verified data
+          return completedSteps.some(step => {
+            const verifiedData = step.verified_data;
+            if (!verifiedData) return false;
+            
+            switch (cred.platform.toUpperCase()) {
+              case 'ENS':
+                return verifiedData.ensName === cred.external_id;
+              case 'DISCORD':
+                return verifiedData.discordId === cred.external_id;
+              case 'TELEGRAM':
+                return verifiedData.telegramId === cred.external_id;
+              default:
+                return false;
+            }
+          });
+        }) || [];
+      
+      return (
+        <WizardSummaryScreen
+          wizardId={wizardId}
+          completedSteps={stepsWithTypes}
+          credentials={wizardCredentials}
+          allCredentials={credentialsData?.credentials || []}
+          rolesGranted={[]} // We'll add role fetching in future iterations
+          onClose={onClose}
+        />
+      );
+    }
+    
     if (isLoadingSteps || isLoadingTypes) {
       return (
         <div className="flex-1 flex items-center justify-center">
@@ -169,15 +251,16 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
         {/* Main Step Content Area */}
         {renderContent()}
 
-        {/* Footer Area (Navigation) - Only show if steps are loaded */}
-        {!isLoadingSteps && !isLoadingTypes && !stepsError && totalSteps > 0 && (
+        {/* Footer Area (Navigation) - Only show if steps are loaded and not in summary mode */}
+        {!isLoadingSteps && !isLoadingTypes && !stepsError && totalSteps > 0 && !showSummary && (
           <div className="flex items-center justify-between p-4 border-t min-h-[60px]">
              <Button variant="outline" onClick={handlePrevious} disabled={isPrevDisabled}>Previous</Button>
              <Button 
-                onClick={handleNext}
-                disabled={isNextDisabled} 
+                onClick={isLastStep && isCompleted ? handleViewSummary : handleNext}
+                disabled={!canProceed || completeStepMutation.isPending} 
+                className={isCompleted ? "bg-green-600 hover:bg-green-700" : ""}
              >
-                {currentStepIndex === totalSteps - 1 ? 'Finish' : 'Next'}
+                {isLastStep && isCompleted ? 'View Summary' : 'Next'}
                 {completeStepMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
              </Button>
           </div>

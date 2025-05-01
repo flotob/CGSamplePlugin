@@ -22,17 +22,23 @@ export const GET = withAuth(async (req) => {
   const communityId = user.cid;
 
   try {
-    // Query active wizards for the community, joining with user progress
+    // Query active wizards for the community, joining with user progress and completions
     const result = await query(
       `SELECT
          w.id, w.name, w.description,
-         -- Determine status based on progress existence for this user
-         -- Using COUNT(uwp.step_id) > 0 effectively checks if there's at least one entry for this wizard/user
-         CASE WHEN COUNT(uwp.step_id) > 0 THEN 'started' ELSE 'not_started' END as "progressStatus"
+         -- Determine status using both progress and completions tables
+         CASE 
+           WHEN uwc.user_id IS NOT NULL THEN 'completed' -- Check completions table first
+           WHEN COUNT(uwp.step_id) > 0 THEN 'started'   -- If not completed but has progress
+           ELSE 'not_started'                           -- No progress at all
+         END as "progressStatus"
        FROM onboarding_wizards w
+       -- Check for any progress
        LEFT JOIN user_wizard_progress uwp ON w.id = uwp.wizard_id AND uwp.user_id = $2
+       -- Check if the wizard is explicitly marked as completed
+       LEFT JOIN user_wizard_completions uwc ON w.id = uwc.wizard_id AND uwc.user_id = $2
        WHERE w.community_id = $1 AND w.is_active = true
-       GROUP BY w.id, w.name, w.description -- Group to allow aggregation (COUNT)
+       GROUP BY w.id, w.name, w.description, uwc.user_id -- Include uwc.user_id in GROUP BY
        ORDER BY w.created_at DESC;`,
       [communityId, userId]
     );
