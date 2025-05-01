@@ -3,11 +3,16 @@ declare module '@/hooks/useMarkWizardCompleted' {
   import { UseMutationResult } from '@tanstack/react-query';
   
   interface MutateOptions {
-    onSuccess?: (data: any) => void;
+    onSuccess?: (data: WizardCompletionResponse) => void;
     onError?: (error: Error) => void;
   }
   
-  interface MarkWizardCompletedResult extends UseMutationResult<any, Error, string> {
+  interface WizardCompletionResponse {
+    success: boolean;
+    roles: string[];
+  }
+  
+  interface MarkWizardCompletedResult extends UseMutationResult<WizardCompletionResponse, Error, string> {
     earnedRoles: string[];
     isPending: boolean;
     mutate: (wizardId: string, options?: MutateOptions) => void;
@@ -28,9 +33,9 @@ declare module '@/hooks/useCommunityInfoQuery' {
       assignmentRules?: {
         type: string;
       } | null;
-      [key: string]: any;
+      [key: string]: unknown;
     }>;
-    [key: string]: any;
+    [key: string]: unknown;
   }
   
   export function useCommunityInfoQuery(): UseQueryResult<CommunityInfo, Error>;

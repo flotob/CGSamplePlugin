@@ -13,9 +13,6 @@ export interface UserStepProgress extends Step {
 }
 
 export const GET = withAuth(async (req, context) => {
-  // Get the properly awaited params
-  const { params } = context;
-  
   // Type guard: ensure req.user exists and has the expected shape
   const user = req.user as JwtPayload | undefined;
   // Need both user ID (sub) and community ID (cid) to verify context
@@ -25,8 +22,8 @@ export const GET = withAuth(async (req, context) => {
   const userId = user.sub;
   const communityId = user.cid; // Use communityId to ensure wizard belongs to the correct community
 
-  // Access wizardId only after params is awaited
-  const wizardId = params.wizardId;
+  // Safely access wizardId from context.params
+  const { wizardId } = context.params;
   if (!wizardId) {
     return NextResponse.json({ error: 'Missing wizard id' }, { status: 400 });
   }

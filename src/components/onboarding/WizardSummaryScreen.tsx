@@ -7,7 +7,7 @@ import type { UserStepProgress } from '@/app/api/user/wizards/[wizardId]/steps/r
 import type { StepType } from '@/hooks/useStepTypesQuery';
 
 interface WizardSummaryScreenProps {
-  wizardId: string;
+  wizardId?: string;
   completedSteps: (UserStepProgress & { stepType?: StepType })[];
   credentials: { platform: string; username: string | null }[];
   allCredentials: { 
@@ -20,13 +20,24 @@ interface WizardSummaryScreenProps {
 }
 
 export const WizardSummaryScreen: React.FC<WizardSummaryScreenProps> = ({
-  wizardId,
   completedSteps,
   credentials,
   allCredentials,
   rolesGranted,
   onClose
 }) => {
+  // Filter additional credentials that aren't already shown in the credentials section
+  const additionalCredentials = React.useMemo(() => {
+    if (!credentials.length) return allCredentials;
+    
+    return allCredentials.filter(allCred => 
+      !credentials.some(cred => 
+        cred.platform === allCred.platform && 
+        (cred.username === allCred.username || cred.username === allCred.external_id)
+      )
+    );
+  }, [credentials, allCredentials]);
+
   return (
     <div className="flex flex-col h-full overflow-y-auto">
       {/* Summary Header */}
@@ -37,7 +48,7 @@ export const WizardSummaryScreen: React.FC<WizardSummaryScreenProps> = ({
         </div>
         <h1 className="text-2xl font-semibold">Wizard Completed!</h1>
         <p className="text-gray-500 mt-1">
-          You've successfully completed all required steps.
+          You&apos;ve successfully completed all required steps.
         </p>
       </div>
 
@@ -115,15 +126,15 @@ export const WizardSummaryScreen: React.FC<WizardSummaryScreenProps> = ({
           </section>
         )}
 
-        {/* All Your Credentials */}
-        {allCredentials.length > 0 && (
+        {/* Only show additional credentials if there are any beyond what's shown in Credentials Verified */}
+        {additionalCredentials.length > 0 && (
           <section>
             <h2 className="text-xl font-medium flex items-center mb-4">
               <User className="mr-2 h-5 w-5 text-gray-500" />
               All Your Credentials
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {allCredentials.map((cred, index) => (
+              {additionalCredentials.map((cred, index) => (
                 <div key={index} className="bg-white/30 backdrop-blur-sm rounded-lg p-3 border border-gray-100">
                   <div className="flex items-center">
                     <div className="mr-2 h-6 w-6 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">

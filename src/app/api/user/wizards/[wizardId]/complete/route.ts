@@ -4,9 +4,6 @@ import { query } from '@/lib/db';
 import type { JwtPayload } from '@/app/api/auth/session/route';
 
 export const POST = withAuth(async (req, context) => {
-  // Get the properly awaited params
-  const { params } = context;
-  
   // Type guard: ensure req.user exists
   const user = req.user as JwtPayload | undefined;
   if (!user || !user.sub || !user.cid) {
@@ -15,8 +12,8 @@ export const POST = withAuth(async (req, context) => {
   const userId = user.sub;
   const communityId = user.cid;
 
-  // Access wizardId after params is awaited
-  const wizardId = params.wizardId;
+  // Safely access wizardId from context.params
+  const { wizardId } = context.params;
   if (!wizardId) {
     return NextResponse.json({ error: 'Missing wizard ID' }, { status: 400 });
   }

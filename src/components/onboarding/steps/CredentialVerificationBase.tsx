@@ -3,7 +3,7 @@
 import React from 'react';
 import type { UserStepProgress } from '@/app/api/user/wizards/[wizardId]/steps/route';
 import type { StepType } from '@/hooks/useStepTypesQuery';
-import { LoadingState, ErrorState, SuccessState, WarningState } from '@/components/ui/verification-states';
+import { LoadingState, ErrorState, SuccessState } from '@/components/ui/verification-states';
 
 export interface CredentialVerificationBaseProps {
   /**
@@ -53,7 +53,6 @@ export interface CredentialVerificationBaseProps {
  */
 export const CredentialVerificationBase: React.FC<CredentialVerificationBaseProps> = ({
   step,
-  stepType,
   isVerifying,
   verificationError,
   renderVerificationUI,

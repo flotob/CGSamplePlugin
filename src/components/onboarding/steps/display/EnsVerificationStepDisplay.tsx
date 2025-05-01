@@ -11,7 +11,6 @@ import { useEnsAddress } from 'wagmi';
 import { normalize } from 'viem/ens';
 import { useCredentialVerification } from '@/hooks/useCredentialVerification';
 import { CredentialVerificationBase } from '@/components/onboarding/steps/CredentialVerificationBase';
-import { LoadingState } from '@/components/ui/verification-states';
 
 interface EnsVerificationStepDisplayProps {
   step: UserStepProgress;
@@ -25,6 +24,74 @@ export const EnsVerificationStepDisplay: React.FC<EnsVerificationStepDisplayProp
   onComplete 
 }) => {
   const { address, isConnected } = useAccount();
+  
+  // Initialize these hooks unconditionally at the top level
+  const { 
+    isVerifying, 
+    verificationError, 
+    verifyCredential 
+  } = useCredentialVerification(step.wizard_id, step.id);
+  
+  // ENS profile details - initialize unconditionally
+  const {
+    ens: ensDetails,
+    detailsLoading,
+  } = useProfileDetails({ addressOrName: address || '' });
+  
+  // For type safety - convert any error to a string message
+  const errorMessage = verificationError ? String(verificationError) : null;
+
+  // Effect for auto-verification - will only run when conditions are met
+  useEffect(() => {
+    // First, check if already completed to prevent re-verification
+    if (step.completed_at) {
+      return; // Skip verification if already completed
+    }
+
+    const hasPrimaryEns = !!ensDetails?.name;
+    
+    if (isConnected && 
+        address && 
+        !detailsLoading && 
+        hasPrimaryEns && 
+        !isVerifying) {
+      
+      // Create local flag to prevent verification during this effect run
+      let isVerifyingLocally = false;
+      
+      const performVerification = async () => {
+        if (isVerifyingLocally) return;
+        
+        isVerifyingLocally = true;
+        console.log('ENS Verification detected:', ensDetails.name);
+        
+        try {
+          // Verify credential with ENS name data
+          await verifyCredential({
+            ensName: ensDetails.name,
+            address: address
+          });
+          
+          // Call onComplete to signal the wizard to advance
+          onComplete();
+        } catch (error) {
+          console.error("ENS verification failed:", error);
+        }
+      };
+
+      performVerification();
+    }
+  }, [
+    // Only run when these dependencies change:
+    detailsLoading, 
+    ensDetails?.name, 
+    step.completed_at, 
+    isVerifying,
+    isConnected, 
+    address, 
+    verifyCredential, 
+    onComplete
+  ]);
 
   // If the user isn't connected to a wallet, show the connect view
   if (!isConnected) {
@@ -37,7 +104,11 @@ export const EnsVerificationStepDisplay: React.FC<EnsVerificationStepDisplayProp
       address={address} 
       step={step}
       stepType={stepType}
-      onComplete={onComplete} 
+      onComplete={onComplete}
+      ensDetails={ensDetails}
+      detailsLoading={detailsLoading}
+      isVerifying={isVerifying}
+      verificationError={errorMessage}
     />
   );
 };
@@ -61,45 +132,31 @@ const ConnectView: React.FC = () => {
   );
 };
 
-// Dashboard view - updated to use the credential verification hook
+// Dashboard view - updated to receive props from parent
 const EnsDashboard: React.FC<{ 
   address: `0x${string}` | undefined; 
   step: UserStepProgress;
-  stepType: StepType;
-  onComplete: () => void; 
-}> = ({ address, step, stepType, onComplete }) => {
+  stepType: StepType;  // Keep for type consistency
+  onComplete: () => void;  // Keep this for proper typing, even if not directly used
+  ensDetails: ReturnType<typeof useProfileDetails>['ens'];  // Use proper type instead of any
+  detailsLoading: boolean;
+  isVerifying: boolean;
+  verificationError: string | null;
+}> = ({ 
+  address, 
+  step, 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  stepType, 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onComplete, 
+  ensDetails, 
+  detailsLoading, 
+  isVerifying, 
+  verificationError 
+}) => {
   if (!address) return null;
   
-  // Use our new credential verification hook
-  const { 
-    isVerifying, 
-    verificationError, 
-    verifyCredential 
-  } = useCredentialVerification(step.wizard_id, step.id);
-  
-  // ENS profile details
-  const {
-    ens: ensDetails,
-    detailsLoading,
-  } = useProfileDetails({ addressOrName: address });
-
   const hasPrimaryEns = !!ensDetails?.name;
-
-  // Auto-verify when ENS is found
-  useEffect(() => {
-    if (!detailsLoading && hasPrimaryEns && !step.completed_at && !isVerifying) {
-      console.log('ENS Verification detected:', ensDetails.name);
-      
-      // Verify credential with ENS name data
-      verifyCredential({
-        ensName: ensDetails.name,
-        address: address
-      }).then(() => {
-        // Call onComplete to signal the wizard to advance
-        onComplete();
-      });
-    }
-  }, [detailsLoading, hasPrimaryEns, address, ensDetails?.name, step.completed_at, isVerifying, verifyCredential, onComplete]);
   
   return (
     <div className="flex flex-col h-full">
@@ -115,14 +172,12 @@ const EnsDashboard: React.FC<{
       <div className="flex-1 flex items-center justify-center">
         <CredentialVerificationBase
           step={step}
-          stepType={stepType}
           isVerifying={isVerifying || detailsLoading}
           verificationError={verificationError}
           successMessage="ENS Name Verified"
           credential={ensDetails?.name}
           renderVerificationUI={() => (
             <EnsStatusView 
-              address={address} 
               ensDetails={ensDetails}
               hasPrimaryEns={hasPrimaryEns}
             />
@@ -221,10 +276,9 @@ const EnsLookup: React.FC = () => {
 
 // Updated ENS Status View - simplified since most state management is now in the parent
 const EnsStatusView: React.FC<{ 
-  address: `0x${string}`;
   ensDetails: ReturnType<typeof useProfileDetails>['ens'];
   hasPrimaryEns: boolean;
-}> = ({ address, ensDetails, hasPrimaryEns }) => {
+}> = ({ ensDetails, hasPrimaryEns }) => {
 
   // If user has ENS, this will be caught by the parent's useEffect and verification will start
   if (hasPrimaryEns) {

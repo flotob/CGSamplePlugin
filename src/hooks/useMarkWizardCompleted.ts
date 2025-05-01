@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthFetch } from '@/lib/authFetch';
 import { useToast } from '@/hooks/use-toast';
@@ -67,7 +67,7 @@ export function useMarkWizardCompleted() {
         throw err;
       }
     },
-    onSuccess: (data, wizardId) => {
+    onSuccess: (data) => {
       // Store the earned roles
       if (data.roles && data.roles.length > 0) {
         setEarnedRoles(data.roles);

@@ -11,7 +11,7 @@ export interface AuthenticatedRequest extends NextRequest {
 
 // Define the type for the handler function that receives the authenticated request
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AuthenticatedHandler = (req: AuthenticatedRequest, params?: any) => Promise<NextResponse> | NextResponse;
+type AuthenticatedHandler = (req: AuthenticatedRequest, context: { params: Record<string, string> }) => Promise<NextResponse> | NextResponse;
 
 /**
  * Higher-Order Function to wrap Next.js API route handlers
@@ -25,7 +25,7 @@ export function withAuth(
     adminOnly: boolean = false
 ) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return async (req: NextRequest, params?: any): Promise<NextResponse> => {
+    return async (req: NextRequest, context: any): Promise<NextResponse> => {
         if (!JWT_SECRET) {
             console.error('JWT_SECRET is not configured for verification.');
             return NextResponse.json({ error: 'Configuration error' }, { status: 500 });
@@ -57,8 +57,9 @@ export function withAuth(
                 return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
             }
 
-            // Call the original handler with the authenticated request
-            return await handler(authReq, params);
+            // Call the original handler with the authenticated request and a clean context
+            // This ensures params is passed correctly and only once
+            return await handler(authReq, context);
 
         } catch (error) {
             if (error instanceof jwt.TokenExpiredError) {
