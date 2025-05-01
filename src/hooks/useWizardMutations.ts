@@ -126,7 +126,7 @@ export function useUpdateWizardDetails() {
         headers: { 'Content-Type': 'application/json' },
       });
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       // Update specific wizard query data if possible?
       // Or just invalidate the list
       queryClient.invalidateQueries({ queryKey: ['wizards'] });

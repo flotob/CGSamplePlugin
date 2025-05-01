@@ -8,7 +8,7 @@ import {
   useDeleteWizard,
   useUpdateWizardDetails,
 } from '@/hooks/useWizardMutations';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -27,7 +27,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from 'date-fns';
-import { Edit2, Copy, Trash2, Play, Square, Check, X, Loader2, Settings } from 'lucide-react';
+import { Edit2, Copy, Trash2, Play, Square, Check, Loader2, Settings } from 'lucide-react';
 
 interface WizardListItemProps {
   wizard: Wizard;
