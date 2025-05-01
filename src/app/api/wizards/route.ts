@@ -37,13 +37,13 @@ export const POST = withAuth(async (req) => {
     return NextResponse.json({ error: 'Wizard name is required' }, { status: 400 });
   }
 
-  // Ensure community exists
-  await query(
-    `INSERT INTO communities (id, title)
-     VALUES ($1, $2)
-     ON CONFLICT (id) DO NOTHING`,
-    [user.cid, communityTitle || 'Untitled Community']
-  );
+  // // Ensure community exists - This is now handled by /api/community/sync
+  // await query(
+  //   `INSERT INTO communities (id, title)
+  //    VALUES ($1, $2)
+  //    ON CONFLICT (id) DO NOTHING`,
+  //   [user.cid, communityTitle || 'Untitled Community']
+  // );
 
   // Insert new wizard
   const result = await query(

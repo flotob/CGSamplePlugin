@@ -3,11 +3,12 @@ import React, { useState, useTransition, useEffect } from 'react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import type { CommunityInfoResponsePayload, UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
 import type { UserFriendsResponsePayload } from '@common-ground-dao/cg-plugin-lib-host';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCgLib } from '../context/CgLibContext';
 import { useAuth } from '../context/AuthContext';
 import { useCgQuery } from '../hooks/useCgQuery';
 import { useCgMutation } from '../hooks/useCgMutation';
+import { useAuthFetch } from '@/lib/authFetch';
 import { useAdminStatus } from '../hooks/useAdminStatus';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Sidebar } from '@/components/layout/Sidebar';
@@ -42,6 +43,8 @@ const PluginContainer = () => {
   const { isInitializing, initError, iframeUid } = useCgLib();
   const { isAdmin, isLoading: isLoadingAdminStatus, error: adminStatusError } = useAdminStatus();
   const { jwt, login, isAuthenticating, authError } = useAuth();
+  const { authFetch } = useAuthFetch();
+  const queryClient = useQueryClient();
   const [isPending, startTransition] = useTransition();
 
   // State for current active section
@@ -91,6 +94,7 @@ const PluginContainer = () => {
   );
   const communityInfo = communityInfoResponse;
   const communityId = communityInfo?.id;
+  const communityTitle = communityInfo?.title;
 
   // Fetch Community Logo URL
   const { data: logoData, isLoading: isLoadingLogo, error: logoError } = useQuery<CommunityLogoResponse, Error>({
@@ -108,6 +112,29 @@ const PluginContainer = () => {
     staleTime: 15 * 60 * 1000,
     retry: 1
   });
+
+  // Sync Community Data Mutation
+  const { mutate: syncCommunity } = useMutation<unknown, Error, { communityTitle: string }>({
+    mutationFn: async (payload) => {
+      return await authFetch('/api/community/sync', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+    },
+    onError: (error) => {
+      console.error('Failed to sync community data:', error);
+    },
+  });
+
+  // --- Effect to Trigger Community Sync --- 
+  useEffect(() => {
+      // Check if we have the necessary data and are authenticated
+      if (communityId && communityTitle && jwt && !isAuthenticating) {
+          // console.log('Triggering community sync...');
+          syncCommunity({ communityTitle });
+      }
+      // Depend on the specific pieces of data needed to trigger the sync.
+  }, [communityId, communityTitle, jwt, isAuthenticating, syncCommunity]);
 
   // Effect to trigger JWT login once CG Lib and user/community/admin status are ready
   useEffect(() => {
