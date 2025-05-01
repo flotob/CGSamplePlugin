@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { X, Loader2, AlertCircle } from 'lucide-react';
 import { useUserWizardStepsQuery } from '@/hooks/useUserWizardStepsQuery';
@@ -9,7 +8,6 @@ import { useStepTypesQuery } from '@/hooks/useStepTypesQuery';
 import type { UserStepProgress } from '@/app/api/user/wizards/[wizardId]/steps/route';
 import { StepDisplay } from './steps/display/StepDisplay';
 import { useCompleteStepMutation } from '@/hooks/useCompleteStepMutation';
-import { cn } from "@/lib/utils";
 
 interface WizardSlideshowModalProps {
   wizardId: string;
@@ -27,7 +25,6 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
     data: stepsData,
     isLoading: isLoadingSteps,
     error: stepsError,
-    refetch: refetchSteps // Might need later
   } = useUserWizardStepsQuery(wizardId);
   const { data: stepTypesData, isLoading: isLoadingTypes } = useStepTypesQuery();
 
@@ -50,11 +47,6 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
       setCurrentStepIndex(firstIncompleteIndex >= 0 ? firstIncompleteIndex : 0);
     }
   }, [steps]); // Run when steps array changes
-
-  // Prevent closing modal by clicking overlay
-  const handleInteractOutside = (event: Event) => {
-    event.preventDefault();
-  };
 
   const goToStep = useCallback((index: number) => {
     if (steps && index >= 0 && index < steps.length) {

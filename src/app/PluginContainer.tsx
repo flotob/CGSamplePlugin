@@ -1,7 +1,6 @@
 'use client';
 import React, { useState, useTransition, useEffect } from 'react';
 import Image from 'next/image';
-import { ConnectButton } from '@rainbow-me/rainbowkit';
 import type { CommunityInfoResponsePayload, UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
 import type { UserFriendsResponsePayload } from '@common-ground-dao/cg-plugin-lib-host';
 import { useQuery, useMutation } from '@tanstack/react-query';

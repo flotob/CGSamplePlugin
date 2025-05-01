@@ -18,7 +18,6 @@ interface EnsVerificationStepDisplayProps {
 
 export const EnsVerificationStepDisplay: React.FC<EnsVerificationStepDisplayProps> = ({ 
   step, 
-  stepType, 
   onComplete 
 }) => {
   const { address, isConnected } = useAccount();
@@ -108,7 +107,7 @@ const EnsLookup: React.FC = () => {
   const [isValidName, setIsValidName] = useState<boolean>(true);
   
   // ENS address resolution - only run query when we have a normalized name
-  const { data: resolvedAddress, isLoading, isError } = useEnsAddress({
+  const { data: resolvedAddress, isLoading } = useEnsAddress({
     name: normalizedEnsName || undefined, // Only pass name when it exists
     chainId: 1,
   });
@@ -247,7 +246,7 @@ const EnsStatusView: React.FC<{
         </div>
         <h2 className="text-2xl font-medium tracking-tight">No ENS Name Found</h2>
         <p className="text-muted-foreground/80 text-sm mt-3 mb-10 max-w-sm mx-auto">
-          This wallet doesn't have a primary ENS name
+          This wallet doesn&apos;t have a primary ENS name
         </p>
       </div>
       
