@@ -4,13 +4,6 @@ import { Button } from '@/components/ui/button';
 import { useStepTypesQuery, StepType } from '@/hooks/useStepTypesQuery';
 import { UseMutationResult } from '@tanstack/react-query';
 import { CreateStepPayload } from '../WizardStepEditorPage';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 interface CommunityRole {
   id: string;
@@ -137,26 +130,20 @@ export const StepEditor: React.FC<StepEditorProps> = ({
       </div>
       <div>
         <label className="block text-sm font-medium mb-1">Target Role</label>
-        <Select
+        <select
           name="target_role_id"
           value={form.target_role_id}
-          onValueChange={handleRoleChange}
+          onChange={(e) => handleRoleChange(e.target.value)}
           required
-          defaultValue={form.target_role_id}
+          className="w-full border border-input bg-background rounded-md text-sm p-2 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none h-9"
         >
-          <SelectTrigger className="w-full text-sm">
-            <SelectValue placeholder="Select a role...">
-              {form.target_role_id ? roleOptions.find(role => role.id === form.target_role_id)?.title : "Select a role..."}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {roleOptions.map(role => (
-              <SelectItem key={role.id} value={role.id}>
-                {role.title}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          <option value="" disabled>Select a role...</option>
+          {roleOptions.map(role => (
+            <option key={role.id} value={role.id}>
+              {role.title}
+            </option>
+          ))}
+        </select>
         {currentMutation.isError && (currentMutation.error.message.includes('target_role_id') || !form.target_role_id) && (
            <p className="text-xs text-destructive mt-1">Target role is required.</p>
         )}
