@@ -3,12 +3,12 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import type { JwtPayload } from '@/app/api/auth/session/route';
 
-export const GET = withAuth(async (req, { params }) => {
+export const GET = withAuth(async (req, context) => {
   const user = req.user as JwtPayload | undefined;
   if (!user || !user.cid) {
     return NextResponse.json({ error: 'Missing community ID in token' }, { status: 400 });
   }
-  const { id } = params;
+  const { id } = context.params;
   if (!id) {
     return NextResponse.json({ error: 'Missing wizard id' }, { status: 400 });
   }
@@ -22,12 +22,12 @@ export const GET = withAuth(async (req, { params }) => {
   return NextResponse.json({ wizard: result.rows[0] });
 }, true);
 
-export const PUT = withAuth(async (req, { params }) => {
+export const PUT = withAuth(async (req, context) => {
   const user = req.user as JwtPayload | undefined;
   if (!user || !user.cid) {
     return NextResponse.json({ error: 'Missing community ID in token' }, { status: 400 });
   }
-  const { id } = params;
+  const { id } = context.params;
   if (!id) {
     return NextResponse.json({ error: 'Missing wizard id' }, { status: 400 });
   }
@@ -44,7 +44,12 @@ export const PUT = withAuth(async (req, { params }) => {
   let idx = 3;
   if (name !== undefined) { fields.push(`name = $${idx}`); values.push(name); idx++; }
   if (description !== undefined) { fields.push(`description = $${idx}`); values.push(description); idx++; }
-  if (is_active !== undefined) { fields.push(`is_active = $${idx}`); values.push(is_active); idx++; }
+  if (is_active !== undefined) { 
+    fields.push(`is_active = $${idx}`); 
+    // Convert boolean to string representation for PostgreSQL
+    values.push(is_active.toString()); 
+    idx++; 
+  }
   if (fields.length === 0) {
     return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
   }
@@ -56,12 +61,12 @@ export const PUT = withAuth(async (req, { params }) => {
   return NextResponse.json({ wizard: result.rows[0] });
 }, true);
 
-export const DELETE = withAuth(async (req, { params }) => {
+export const DELETE = withAuth(async (req, context) => {
   const user = req.user as JwtPayload | undefined;
   if (!user || !user.cid) {
     return NextResponse.json({ error: 'Missing community ID in token' }, { status: 400 });
   }
-  const { id } = params;
+  const { id } = context.params;
   if (!id) {
     return NextResponse.json({ error: 'Missing wizard id' }, { status: 400 });
   }

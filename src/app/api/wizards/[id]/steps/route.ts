@@ -4,12 +4,12 @@ import { query } from '@/lib/db';
 import type { JwtPayload } from '@/app/api/auth/session/route';
 
 // GET: List all steps for a wizard
-export const GET = withAuth(async (req, { params }) => {
+export const GET = withAuth(async (req, context) => {
   const user = req.user as JwtPayload | undefined;
   if (!user || !user.cid) {
     return NextResponse.json({ error: 'Missing community ID in token' }, { status: 400 });
   }
-  const { id: wizardId } = params;
+  const { id: wizardId } = context.params;
   if (!wizardId) {
     return NextResponse.json({ error: 'Missing wizard id' }, { status: 400 });
   }
@@ -30,12 +30,12 @@ export const GET = withAuth(async (req, { params }) => {
 }, true);
 
 // POST: Create a new step for a wizard
-export const POST = withAuth(async (req, { params }) => {
+export const POST = withAuth(async (req, context) => {
   const user = req.user as JwtPayload | undefined;
   if (!user || !user.cid) {
     return NextResponse.json({ error: 'Missing community ID in token' }, { status: 400 });
   }
-  const { id: wizardId } = params;
+  const { id: wizardId } = context.params;
   if (!wizardId) {
     return NextResponse.json({ error: 'Missing wizard id' }, { status: 400 });
   }
@@ -63,11 +63,19 @@ export const POST = withAuth(async (req, { params }) => {
     [wizardId]
   );
   const step_order = orderRes.rows[0]?.next_order || 1;
-  // Insert the new step
+  // Insert the new step - convert boolean values to strings
   const insertRes = await query(
     `INSERT INTO onboarding_steps (wizard_id, step_type_id, step_order, config, target_role_id, is_mandatory, is_active)
      VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-    [wizardId, step_type_id, step_order, config ? JSON.stringify(config) : '{}', target_role_id, is_mandatory !== false, is_active !== false]
+    [
+      wizardId, 
+      step_type_id, 
+      step_order, 
+      config ? JSON.stringify(config) : '{}', 
+      target_role_id, 
+      (is_mandatory !== false).toString(), 
+      (is_active !== false).toString()
+    ]
   );
   return NextResponse.json({ step: insertRes.rows[0] }, { status: 201 });
 }, true); 

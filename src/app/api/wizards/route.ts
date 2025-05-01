@@ -48,7 +48,7 @@ export const POST = withAuth(async (req) => {
   // Insert new wizard
   const result = await query(
     `INSERT INTO onboarding_wizards (community_id, name, description, is_active) VALUES ($1, $2, $3, $4) RETURNING *`,
-    [user.cid, name, description || null, is_active !== undefined ? is_active : true]
+    [user.cid, name, description || null, is_active !== undefined ? is_active.toString() : 'true']
   );
 
   return NextResponse.json({ wizard: result.rows[0] }, { status: 201 });
