@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Wand2, CheckCircle, Loader2, AlertCircle, CirclePlay, CircleCheck } from 'lucide-react';
 import { useUserWizardsQuery } from '@/hooks/useUserWizardsQuery';
+import { useWizardSlideshow } from '@/context/WizardSlideshowContext';
 
 // Define props - currently none needed, but keep interface for consistency
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
@@ -17,6 +18,7 @@ interface WizardViewProps {}
 
 export const WizardView: React.FC<WizardViewProps> = () => {
   const { data: wizardsData, isLoading, error } = useUserWizardsQuery();
+  const { setActiveSlideshowWizardId } = useWizardSlideshow();
 
   // Memoize filtered lists
   const availableWizards = React.useMemo(() => {
@@ -76,7 +78,7 @@ export const WizardView: React.FC<WizardViewProps> = () => {
                   key={wizard.id} 
                   className='flex items-center justify-between p-3 rounded-md border border-border bg-card transition-all hover:bg-secondary/20 cursor-pointer'
                   style={{ animationDelay: `${150 + (index * 50)}ms` }}
-                  onClick={() => console.log(`Navigate to wizard: ${wizard.id}`)} // Placeholder action
+                  onClick={() => setActiveSlideshowWizardId(wizard.id)}
                 >
                   <div className="flex items-center gap-3">
                     <div className={`h-8 w-8 rounded-full flex items-center justify-center text-accent-foreground ${wizard.progressStatus === 'started' ? 'bg-blue-500/10 text-blue-600' : 'bg-accent'}`}>

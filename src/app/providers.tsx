@@ -11,6 +11,7 @@ import '@rainbow-me/rainbowkit/styles.css';
 import { CgLibProvider } from '../context/CgLibContext';
 import { AuthProvider } from '../context/AuthContext';
 import { ThemeProvider } from '../components/ThemeProvider';
+import { WizardSlideshowProvider } from '../context/WizardSlideshowContext';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 
@@ -36,8 +37,10 @@ function ThemeAndCgLibLoader({ children }: { children: React.ReactNode }) {
             <TransactionProvider>
               <CgLibProvider>
                 <AuthProvider>
-                  {/* CgLibProvider will eventually wrap children here */}
-                  {children}
+                  <WizardSlideshowProvider>
+                    {/* CgLibProvider will eventually wrap children here */}
+                    {children}
+                  </WizardSlideshowProvider>
                 </AuthProvider>
               </CgLibProvider>
             </TransactionProvider>

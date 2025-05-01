@@ -19,6 +19,8 @@ import { HelpView } from '../components/HelpView';
 import { WizardView } from '../components/WizardView';
 import { LayoutDashboard, Settings, Plug, User, Wand2, Building, Loader2 } from 'lucide-react';
 import { Toaster } from "@/components/ui/toaster";
+import { useWizardSlideshow } from '../context/WizardSlideshowContext';
+import { WizardSlideshowModal } from '../components/onboarding/WizardSlideshowModal';
 
 // Removed targetRoleIdFromEnv constant
 // const targetRoleIdFromEnv = process.env.NEXT_PUBLIC_TARGET_ROLE_ID;
@@ -45,6 +47,7 @@ const PluginContainer = () => {
   const { isAdmin, isLoading: isLoadingAdminStatus, error: adminStatusError } = useAdminStatus();
   const { jwt, login, isAuthenticating, authError } = useAuth();
   const { authFetch } = useAuthFetch();
+  const { activeSlideshowWizardId, setActiveSlideshowWizardId } = useWizardSlideshow();
   const [isPending, startTransition] = useTransition();
 
   // State for current active section
@@ -284,24 +287,35 @@ const PluginContainer = () => {
   };
 
   return (
-    <AppLayout
-      sidebar={(
-        <Sidebar 
-          links={sidebarLinks} 
-          activeSection={activeSection ?? ''}
-          setActiveSection={handleSetActiveSection} 
-          communityId={communityId}
+    <>
+      <AppLayout
+        sidebar={(
+          <Sidebar 
+            links={sidebarLinks} 
+            activeSection={activeSection ?? ''}
+            setActiveSection={handleSetActiveSection} 
+            communityId={communityId}
+          />
+        )}
+        header={
+          <div className="flex justify-end p-4 border-b">
+            <ConnectButton />
+          </div>
+        }
+      >
+        {activeSection && renderView()}
+        <Toaster />
+      </AppLayout>
+
+      {/* Conditionally render the modal outside the main layout */}
+      {activeSlideshowWizardId && (
+        <WizardSlideshowModal
+          wizardId={activeSlideshowWizardId}
+          open={!!activeSlideshowWizardId} // Control open state based on ID
+          onClose={() => setActiveSlideshowWizardId(null)} // Provide close handler
         />
       )}
-      header={
-        <div className="flex justify-end p-4 border-b">
-          <ConnectButton />
-        </div>
-      }
-    >
-      {activeSection && renderView()}
-      <Toaster />
-    </AppLayout>
+    </>
   );
 }
 
