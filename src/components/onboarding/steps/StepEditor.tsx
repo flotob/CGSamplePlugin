@@ -4,6 +4,13 @@ import { Button } from '@/components/ui/button';
 import { useStepTypesQuery, StepType } from '@/hooks/useStepTypesQuery';
 import { UseMutationResult } from '@tanstack/react-query';
 import { CreateStepPayload } from '../WizardStepEditorPage';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface CommunityRole {
   id: string;
@@ -77,7 +84,7 @@ export const StepEditor: React.FC<StepEditorProps> = ({
   const stepTypeInfo = isCreating ? stepTypeForCreate : stepTypesData?.step_types.find(t => t.id === step?.step_type_id);
   const roleOptions = roles;
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type } = e.target;
     if (type === 'checkbox') {
       setForm(f => ({
@@ -90,6 +97,10 @@ export const StepEditor: React.FC<StepEditorProps> = ({
         [name]: value,
       }));
     }
+  };
+
+  const handleRoleChange = (value: string) => {
+    setForm(f => ({ ...f, target_role_id: value }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -126,18 +137,23 @@ export const StepEditor: React.FC<StepEditorProps> = ({
       </div>
       <div>
         <label className="block text-sm font-medium mb-1">Target Role</label>
-        <select
+        <Select
           name="target_role_id"
           value={form.target_role_id}
-          onChange={handleChange}
-          className="w-full border rounded px-3 py-2 text-sm"
+          onValueChange={handleRoleChange}
           required
         >
-          <option value="">Select a role...</option>
-          {roleOptions.map(role => (
-            <option key={role.id} value={role.id}>{role.title}</option>
-          ))}
-        </select>
+          <SelectTrigger className="w-full text-sm">
+            <SelectValue placeholder="Select a role..." />
+          </SelectTrigger>
+          <SelectContent>
+            {roleOptions.map(role => (
+              <SelectItem key={role.id} value={role.id}>
+                {role.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         {currentMutation.isError && (currentMutation.error.message.includes('target_role_id') || !form.target_role_id) && (
            <p className="text-xs text-destructive mt-1">Target role is required.</p>
         )}

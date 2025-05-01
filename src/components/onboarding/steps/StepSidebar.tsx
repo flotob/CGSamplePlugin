@@ -62,11 +62,11 @@ export const StepSidebar: React.FC<StepSidebarProps> = ({
       {isCreating && stepTypeToCreate && (
         <div
           key="creating-step"
-          className={`relative group flex flex-col items-center rounded-lg shadow-sm px-2 py-3 cursor-default transition-colors border bg-white border-primary ring-2 ring-primary/30`
+          className={`relative group flex flex-col items-center rounded-lg shadow-sm px-2 py-3 cursor-default transition-colors border bg-card border-primary ring-2 ring-primary/30`
           }
           style={{ minHeight: 64 }}
         >
-          <div className="w-40 h-10 flex flex-col items-center justify-center bg-white rounded border border-dashed border-border mb-1">
+          <div className="w-40 h-10 flex flex-col items-center justify-center bg-card rounded border border-dashed border-border mb-1">
             <span className="font-semibold text-sm text-primary">
               {stepTypeToCreate.name.replace(/_/g, ' ')}
             </span>
@@ -74,7 +74,7 @@ export const StepSidebar: React.FC<StepSidebarProps> = ({
           <div className="text-xs text-muted-foreground text-center truncate w-full">
             {stepTypeToCreate.description || 'New Step'}
           </div>
-          <div className="absolute inset-0 bg-white/30 backdrop-blur-sm flex items-center justify-center">
+          <div className="absolute inset-0 bg-background/30 backdrop-blur-sm flex items-center justify-center">
              <span className="text-xs font-medium text-primary animate-pulse">Editing...</span>
           </div>
         </div>

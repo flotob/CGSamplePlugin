@@ -87,21 +87,31 @@ export const WizardStepEditorPage: React.FC<WizardStepEditorPageProps> = ({ wiza
               + Add Step
             </Button>
             {showTypeMenu && (
-              <div className="absolute right-0 mt-2 w-56 bg-white border rounded shadow-lg z-10">
+              <div className="absolute right-0 mt-2 w-56 bg-popover text-popover-foreground border rounded-md shadow-lg z-10">
                 {isLoadingStepTypes ? (
                   <div className="p-3 text-sm">Loading types...</div>
                 ) : stepTypesData && stepTypesData.step_types.length > 0 ? (
-                  stepTypesData.step_types.map(type => (
-                    <button
-                      key={type.id}
-                      className="w-full text-left px-4 py-2 hover:bg-accent text-sm"
-                      onClick={() => handleAddStepClick(type)}
-                      disabled={createStep.isPending}
-                    >
-                      <span className="font-medium">{type.name.replace(/_/g, ' ')}</span>
-                      <span className="block text-xs text-muted-foreground">{type.description}</span>
-                    </button>
-                  ))
+                  [...stepTypesData.step_types]
+                    .sort((a, b) => {
+                      if (a.name === 'ens') return -1;
+                      if (b.name === 'ens') return 1;
+                      return a.name.localeCompare(b.name);
+                    })
+                    .map(type => {
+                      const isEnabled = type.name === 'ens';
+                      return (
+                        <button
+                          key={type.id}
+                          className={`w-full text-left px-4 py-2 text-sm ${isEnabled ? 'hover:bg-accent' : 'opacity-50 cursor-not-allowed'}`}
+                          onClick={() => isEnabled && handleAddStepClick(type)}
+                          disabled={!isEnabled || createStep.isPending}
+                        >
+                          <span className="font-medium">{type.name.replace(/_/g, ' ')}</span>
+                          <span className="block text-xs text-muted-foreground">{type.description}</span>
+                          {!isEnabled && <span className="text-xs text-blue-500 block mt-1">(Coming Soon)</span>}
+                        </button>
+                      );
+                    })
                 ) : (
                   <div className="p-3 text-sm text-muted-foreground">No step types available</div>
                 )}

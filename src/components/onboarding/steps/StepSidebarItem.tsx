@@ -40,13 +40,13 @@ export const StepSidebarItem: React.FC<StepSidebarItemProps> = ({
 
   return (
     <div
-      key={step.id} // Key moved here
-      className={`relative group flex flex-col items-center rounded-lg shadow-sm px-2 py-3 cursor-pointer transition-colors border ${isActive ? 'bg-white border-primary ring-2 ring-primary/30' : 'bg-white hover:bg-accent border-border'}`}
+      key={step.id}
+      className={`relative group flex flex-col items-center rounded-lg shadow-sm px-2 py-3 cursor-pointer transition-colors border ${isActive ? 'bg-card border-primary ring-2 ring-primary/30' : 'bg-card hover:bg-accent border-border'}`}
       onClick={() => setActiveStepId(step.id)}
       style={{ minHeight: 64 }}
     >
       <button
-        className="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity text-destructive bg-white rounded-full p-1 hover:bg-destructive/10"
+        className="absolute top-1 right-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity text-destructive bg-card rounded-full p-1 hover:bg-destructive/10"
         onClick={handleDeleteClick}
         disabled={isDeleting}
         aria-label="Remove step"
@@ -54,7 +54,7 @@ export const StepSidebarItem: React.FC<StepSidebarItemProps> = ({
       >
         {isDeleting ? <span className="animate-spin">⏳</span> : <span className="text-lg">–</span>}
       </button>
-      <div className="w-40 h-10 flex flex-col items-center justify-center bg-white rounded border border-dashed border-border mb-1">
+      <div className="w-40 h-10 flex flex-col items-center justify-center bg-background rounded border border-dashed border-border mb-1">
         <span className="font-semibold text-sm text-primary">
           {stepType ? stepType.name.replace(/_/g, ' ') : 'Step'}
         </span>
