@@ -3,7 +3,6 @@
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
 import type { CommunityInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthFetch } from '@/lib/authFetch';
@@ -16,7 +15,6 @@ export const NewWizardButton: React.FC<NewWizardButtonProps> = ({ communityInfo 
   const [open, setOpen] = React.useState(false);
   const [name, setName] = React.useState('');
   const [description, setDescription] = React.useState('');
-  const [isActive, setIsActive] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const queryClient = useQueryClient();
   const { authFetch } = useAuthFetch();
@@ -28,7 +26,7 @@ export const NewWizardButton: React.FC<NewWizardButtonProps> = ({ communityInfo 
         body: JSON.stringify({
           name,
           description,
-          is_active: isActive,
+          is_active: false, // Always create as draft
           communityTitle: communityInfo?.title || 'Untitled Community',
         }),
       });
@@ -38,7 +36,6 @@ export const NewWizardButton: React.FC<NewWizardButtonProps> = ({ communityInfo 
       setOpen(false);
       setName('');
       setDescription('');
-      setIsActive(true);
       setError(null);
       queryClient.invalidateQueries({ queryKey: ['wizards'] });
     },
@@ -87,10 +84,6 @@ export const NewWizardButton: React.FC<NewWizardButtonProps> = ({ communityInfo 
                 onChange={e => setDescription(e.target.value)}
                 placeholder="Optional"
               />
-            </div>
-            <div className="flex items-center gap-2">
-              <Checkbox id="isActive" checked={isActive} onCheckedChange={v => setIsActive(!!v)} />
-              <label htmlFor="isActive" className="text-sm">Active</label>
             </div>
             {error && <div className="text-destructive text-sm bg-destructive/10 rounded p-2">{error}</div>}
             <div className="flex justify-end gap-2 pt-2">

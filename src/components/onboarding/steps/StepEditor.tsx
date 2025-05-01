@@ -142,9 +142,12 @@ export const StepEditor: React.FC<StepEditorProps> = ({
           value={form.target_role_id}
           onValueChange={handleRoleChange}
           required
+          defaultValue={form.target_role_id}
         >
           <SelectTrigger className="w-full text-sm">
-            <SelectValue placeholder="Select a role..." />
+            <SelectValue placeholder="Select a role...">
+              {form.target_role_id ? roleOptions.find(role => role.id === form.target_role_id)?.title : "Select a role..."}
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             {roleOptions.map(role => (

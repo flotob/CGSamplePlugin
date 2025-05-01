@@ -6,7 +6,6 @@ import { WizardListItem } from './WizardListItem'; // Import the new item compon
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { FileTextIcon, Loader2, PlusIcon } from 'lucide-react';
@@ -23,7 +22,6 @@ export const WizardList: React.FC<{ setEditingWizardId: (id: string) => void }> 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [isActive, setIsActive] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   
   const queryClient = useQueryClient();
@@ -36,7 +34,7 @@ export const WizardList: React.FC<{ setEditingWizardId: (id: string) => void }> 
         body: JSON.stringify({
           name,
           description,
-          is_active: isActive,
+          is_active: false, // Always create as draft
           communityTitle: communityInfo?.title || 'Untitled Community',
         }),
       });
@@ -46,7 +44,6 @@ export const WizardList: React.FC<{ setEditingWizardId: (id: string) => void }> 
       setDialogOpen(false);
       setName('');
       setDescription('');
-      setIsActive(false);
       setFormError(null);
       queryClient.invalidateQueries({ queryKey: ['wizards'] });
     },
@@ -182,10 +179,6 @@ export const WizardList: React.FC<{ setEditingWizardId: (id: string) => void }> 
                 rows={3}
                 className="resize-none"
               />
-            </div>
-            <div className="flex items-center gap-2 pt-1">
-              <Checkbox id="isActive" checked={isActive} onCheckedChange={v => setIsActive(!!v)} />
-              <label htmlFor="isActive" className="text-sm cursor-pointer">Publish immediately</label>
             </div>
             {formError && (
               <div className="text-destructive text-sm bg-destructive/10 rounded-md p-2.5 border border-destructive/20">
