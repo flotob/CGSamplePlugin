@@ -11,6 +11,13 @@ import { useCompleteStepMutation } from '@/hooks/useCompleteStepMutation';
 import { WizardSummaryScreen } from './WizardSummaryScreen';
 import { useUserCredentialsQuery } from '@/hooks/useUserCredentialsQuery';
 import { useMarkWizardCompleted } from '@/hooks/useMarkWizardCompleted';
+import { useCommunityInfoQuery } from '@/hooks/useCommunityInfoQuery';
+
+// Define some type interfaces for better TypeScript support
+interface Role {
+  id: string;
+  title: string;
+}
 
 interface WizardSlideshowModalProps {
   wizardId: string;
@@ -32,7 +39,8 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
     error: stepsError,
   } = useUserWizardStepsQuery(wizardId);
   const { data: stepTypesData, isLoading: isLoadingTypes } = useStepTypesQuery();
-  const { data: credentialsData, isLoading: isLoadingCredentials } = useUserCredentialsQuery();
+  const { data: credentialsData } = useUserCredentialsQuery();
+  const { data: communityInfoResponse } = useCommunityInfoQuery();
 
   const steps = stepsData?.steps;
   const currentStep: UserStepProgress | undefined = steps?.[currentStepIndex];
@@ -120,7 +128,6 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
   // Determine if Next button should be disabled 
   const isCompleted = !!currentStep?.completed_at;
   const canProceed = isCompleted || !currentStep?.is_mandatory; // Can always proceed if completed or optional
-  const isNextDisabled = currentStepIndex >= totalSteps - 1 || completeStepMutation.isPending || !canProceed;
   const isPrevDisabled = currentStepIndex <= 0 || completeStepMutation.isPending;
 
   // Determine if we should show the summary screen
@@ -172,7 +179,14 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
           completedSteps={stepsWithTypes}
           credentials={wizardCredentials}
           allCredentials={credentialsData?.credentials || []}
-          rolesGranted={[]} // We'll add role fetching in future iterations
+          rolesGranted={markCompleted.earnedRoles.map((roleId: string) => {
+            // Try to find role details from communityInfo
+            const role = communityInfoResponse?.roles?.find((r: Role) => r.id === roleId);
+            return { 
+              id: roleId, 
+              name: role?.title || 'Community Role'
+            };
+          })}
           onClose={onClose}
         />
       );

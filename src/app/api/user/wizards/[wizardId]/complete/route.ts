@@ -30,21 +30,26 @@ export const POST = withAuth(async (req, { params }) => {
 
     // Optionally, verify all mandatory steps are completed
     const stepsCheck = await query(
-      `SELECT s.id, s.is_mandatory, uwp.completed_at
+      `SELECT s.id, s.is_mandatory, s.target_role_id, uwp.completed_at
        FROM onboarding_steps s
        LEFT JOIN user_wizard_progress uwp ON s.id = uwp.step_id AND uwp.user_id = $1 AND uwp.wizard_id = $2
-       WHERE s.wizard_id = $2 AND s.is_active = true AND s.is_mandatory = true`,
+       WHERE s.wizard_id = $2 AND s.is_active = true`,
       [userId, wizardId]
     );
 
     // Check if any mandatory steps are not completed
-    const incompleteSteps = stepsCheck.rows.filter(step => !step.completed_at);
+    const incompleteSteps = stepsCheck.rows.filter(step => step.is_mandatory && !step.completed_at);
     if (incompleteSteps.length > 0) {
       return NextResponse.json({ 
         error: 'Cannot mark wizard as complete: not all mandatory steps are completed',
         incompleteSteps: incompleteSteps.map(s => s.id)
       }, { status: 400 });
     }
+
+    // Get all target role IDs from completed steps
+    const targetRoleIds = stepsCheck.rows
+      .filter(step => step.completed_at && step.target_role_id)
+      .map(step => step.target_role_id);
 
     // Insert or update the wizard completion record
     await query(
@@ -56,7 +61,12 @@ export const POST = withAuth(async (req, { params }) => {
       [userId, wizardId]
     );
 
-    return NextResponse.json({ success: true });
+    // Return success response with target role IDs
+    // These role IDs can be used by the frontend to display and/or assign roles
+    return NextResponse.json({ 
+      success: true,
+      roles: targetRoleIds
+    });
 
   } catch (error) {
     console.error('Error marking wizard as complete:', error);
