@@ -27,7 +27,7 @@ export function useMarkWizardCompleted() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [earnedRoles, setEarnedRoles] = useState<string[]>([]);
-  const { iframeUid } = useCgLib();
+  const { iframeUid, cgInstance } = useCgLib();
 
   // Role assignment mutation
   const { mutate: assignRole } = useCgMutation<
@@ -67,27 +67,53 @@ export function useMarkWizardCompleted() {
         throw err;
       }
     },
-    onSuccess: (data) => {
-      // Store the earned roles
+    // Make onSuccess async and fetch userId reliably
+    onSuccess: async (data) => {
       if (data.roles && data.roles.length > 0) {
         setEarnedRoles(data.roles);
-        
-        // Get user info from query cache
-        const userInfo = queryClient.getQueryData(['userInfo', iframeUid]) as UserInfoResponsePayload | undefined;
-        const userId = userInfo?.id;
-        
-        if (userId) {
-          // Assign all roles
-          data.roles.forEach(roleId => {
-            assignRole({ roleId, userId });
+        try {
+          // Check if cgInstance is available before fetching
+          if (!cgInstance) {
+            throw new Error('CgPluginLib instance not available for fetching user info.');
+          }
+          
+          // Reliably fetch user info before assigning roles, providing the queryFn
+          const userInfo = await queryClient.fetchQuery<UserInfoResponsePayload>({
+            queryKey: ['userInfo', iframeUid],
+            // Define the query function inline
+            queryFn: async () => {
+               // Re-check instance just in case, though outer check should suffice
+               if (!cgInstance) throw new Error('CgPluginLib instance lost during queryFn execution.');
+               // Fetch the data using the instance
+               const response = await cgInstance.getUserInfo();
+               return response.data; // Assuming response structure based on useCgQuery
+            },
+            staleTime: 0 // Re-fetch if needed
+          });
+          const userId = userInfo?.id;
+
+          if (userId) {
+            console.log(`User ID ${userId} found. Assigning ${data.roles.length} roles.`);
+            const assignmentPromises = data.roles.map(roleId => 
+              assignRole({ roleId, userId })
+            );
+            await Promise.allSettled(assignmentPromises);
+            console.log('Finished attempting role assignments.');
+          } else {
+            console.warn('Could not find user ID after wizard completion. Skipping role assignments.');
+          }
+        } catch (error) {
+          console.error('Error fetching user info or assigning roles during wizard completion success:', error);
+          toast({ 
+            title: 'Role Assignment Issue', 
+            description: 'Could not retrieve user information or assign roles.',
+            variant: 'destructive' // Use 'destructive' for errors
           });
         }
       }
       
-      // Invalidate related queries to refresh data
+      // Invalidate queries (moved outside the role check)
       queryClient.invalidateQueries({ queryKey: ['userWizards'] });
-      
-      // Also invalidate user credentials to ensure the summary screen has the latest data
       queryClient.invalidateQueries({ queryKey: ['userCredentials'] });
     },
     onError: (error) => {
@@ -106,15 +132,5 @@ export function useMarkWizardCompleted() {
   return {
     ...completeMutation,
     earnedRoles,
-    mutate: (wizardId: string, options?: MutateOptions) => {
-      return completeMutation.mutate(wizardId, {
-        onSuccess: (data) => {
-          if (options?.onSuccess) options.onSuccess(data);
-        },
-        onError: (error) => {
-          if (options?.onError) options.onError(error as Error);
-        }
-      });
-    }
   };
 } 
