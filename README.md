@@ -148,3 +148,33 @@ export const GET = withAuth(async (req) => {
 - For admin-only routes, pass `true` as the second argument.
 - Never trust client-supplied values; always use values from `req.user`.
 - The JWT secret must be set in your environment as `JWT_SECRET`.
+
+## ENS Verification Feature
+
+This plugin includes an Ethereum Name Service (ENS) verification feature, allowing users to verify ownership of ENS domains. The feature consists of:
+
+1. **Wallet Connection:** Users connect their Ethereum wallet using RainbowKit.
+
+2. **ENS Verification:** The system checks if the connected wallet has a primary ENS name set via reverse resolution.
+
+3. **ENS Lookup Tool:** Users can search for any ENS name to find which Ethereum address owns it. This helps when users have multiple wallets and need to identify which one to connect.
+
+4. **Modern UI:** Clean, Apple-inspired design with translucent elements, blur effects, and clear visual feedback during the verification process.
+
+### Implementation Details
+
+- Uses `wagmi`'s `useEnsAddress` hook for forward resolution (ENS name → address)
+- Uses `ethereum-identity-kit`'s `useProfileDetails` for reverse resolution (address → ENS name)
+- Integrates directly with the wallet connection flow
+- Transforms verification into a clear two-step process (connect wallet → verify ENS)
+
+### TODO: Handle ENS Forward/Reverse Resolution Edge Case
+
+We've identified an edge case where users may own an ENS name (visible through our lookup tool), but have not set it as their primary ENS name for reverse resolution. This creates confusion as the user connects the correct wallet but still sees "No ENS Name Found".
+
+**Planned Solution:**
+- Check both forward and reverse resolution for ENS names
+- When a wallet owns ENS names but has no primary ENS set, show a specific message
+- Provide clear guidance to help users set their primary ENS name in the ENS app
+- Potentially list ENS names owned by the wallet
+- Add link/button to the ENS app with instructions
