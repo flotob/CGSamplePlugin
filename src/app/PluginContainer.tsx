@@ -3,7 +3,7 @@ import React, { useState, useTransition, useEffect } from 'react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import type { CommunityInfoResponsePayload, UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
 import type { UserFriendsResponsePayload } from '@common-ground-dao/cg-plugin-lib-host';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { useCgLib } from '../context/CgLibContext';
 import { useAuth } from '../context/AuthContext';
 import { useCgQuery } from '../hooks/useCgQuery';
@@ -44,7 +44,6 @@ const PluginContainer = () => {
   const { isAdmin, isLoading: isLoadingAdminStatus, error: adminStatusError } = useAdminStatus();
   const { jwt, login, isAuthenticating, authError } = useAuth();
   const { authFetch } = useAuthFetch();
-  const queryClient = useQueryClient();
   const [isPending, startTransition] = useTransition();
 
   // State for current active section

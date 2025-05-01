@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { BookOpen, Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -34,7 +33,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
 
   // --- Fetch Community Logo from Cache --- 
-  const { data: logoData, isLoading: isLoadingLogo, error: logoError } = useQuery<CommunityLogoResponse, Error>({
+  const { data: logoData, isLoading: isLoadingLogo } = useQuery<CommunityLogoResponse, Error>({
     queryKey: ['communityLogo', communityId],
     queryFn: async () => {
       if (!communityId) return { logo_url: null };

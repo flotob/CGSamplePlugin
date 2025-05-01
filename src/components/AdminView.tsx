@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import type { CommunityInfoResponsePayload, UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
 import type { UserFriendsResponsePayload } from '@common-ground-dao/cg-plugin-lib-host';
 // Icons
-import { Shield, Users, BadgeCheck, Cog, Plug, Building, Image as ImageIcon, AlertCircle } from 'lucide-react';
+import { Shield, Users, BadgeCheck, Cog, Plug, Building, AlertCircle } from 'lucide-react';
 // Import the new UserAvatar component
 import { UserAvatar } from './UserAvatar';
 import { WizardStepEditorPage } from './onboarding/WizardStepEditorPage';

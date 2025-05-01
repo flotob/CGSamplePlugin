@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { withAuth } from '@/lib/withAuth';
 import type { JwtPayload } from '@/app/api/auth/session/route';
@@ -27,7 +27,7 @@ export const POST = withAuth(async (req) => {
   }
 
   try {
-    const result = await query(
+    await query(
       `INSERT INTO communities (id, title, created_at, updated_at)
        VALUES ($1, $2, NOW(), NOW())
        ON CONFLICT (id) DO UPDATE SET

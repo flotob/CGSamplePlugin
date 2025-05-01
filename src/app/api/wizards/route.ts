@@ -32,7 +32,7 @@ export const POST = withAuth(async (req) => {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { name, description, is_active, communityTitle } = body;
+  const { name, description, is_active } = body;
   if (!name) {
     return NextResponse.json({ error: 'Wizard name is required' }, { status: 400 });
   }
