@@ -13,11 +13,6 @@ interface WizardCompletionResponse {
   roles: string[];
 }
 
-interface MutateOptions {
-  onSuccess?: (data: WizardCompletionResponse) => void;
-  onError?: (error: Error) => void;
-}
-
 /**
  * Hook to mark a wizard as completed and handle role assignments.
  * This will add an entry to the user_wizard_completions table.

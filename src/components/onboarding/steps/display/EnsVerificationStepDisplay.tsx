@@ -97,7 +97,9 @@ export const EnsVerificationStepDisplay: React.FC<EnsVerificationStepDisplayProp
       detailsLoading,
       ensDetails?.name, // Trigger if ENS name appears/changes
       step.id, // Include step.id in case the step itself changes
-      step.wizard_id // Include wizard_id for completeness
+      step.wizard_id, // Include wizard_id for completeness
+      verifyCredential,
+      onComplete 
     ]
   );
 
