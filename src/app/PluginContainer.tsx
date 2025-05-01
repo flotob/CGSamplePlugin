@@ -297,11 +297,6 @@ const PluginContainer = () => {
             communityId={communityId}
           />
         )}
-        header={
-          <div className="flex justify-end p-4 border-b">
-            <ConnectButton />
-          </div>
-        }
       >
         {activeSection && renderView()}
         <Toaster />
