@@ -9,6 +9,9 @@ import type { StepType } from '@/hooks/useStepTypesQuery';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useEnsAddress } from 'wagmi';
 import { normalize } from 'viem/ens';
+import { useCredentialVerification } from '@/hooks/useCredentialVerification';
+import { CredentialVerificationBase } from '@/components/onboarding/steps/CredentialVerificationBase';
+import { LoadingState } from '@/components/ui/verification-states';
 
 interface EnsVerificationStepDisplayProps {
   step: UserStepProgress;
@@ -18,40 +21,24 @@ interface EnsVerificationStepDisplayProps {
 
 export const EnsVerificationStepDisplay: React.FC<EnsVerificationStepDisplayProps> = ({ 
   step, 
+  stepType,
   onComplete 
 }) => {
   const { address, isConnected } = useAccount();
-  
-  // Already completed state - show success message
-  if (step.completed_at) {
-    return (
-      <div className="flex flex-col items-center justify-center h-[500px] text-center">
-        <div className="relative">
-          <div className="absolute inset-0 -z-10 bg-green-100/20 blur-2xl rounded-full w-32 h-32 mx-auto" />
-          <CheckCircle className="h-16 w-16 text-green-500/90" />
-        </div>
-        <h2 className="text-2xl font-medium mt-8 tracking-tight">Verification Complete</h2>
-        {step.verified_data && typeof step.verified_data.ensName === 'string' && (
-          <p className="text-muted-foreground mt-2 text-sm">
-            {step.verified_data.ensName}
-          </p>
-        )}
-      </div>
-    );
+
+  // If the user isn't connected to a wallet, show the connect view
+  if (!isConnected) {
+    return <ConnectView />;
   }
 
+  // If they are connected, show the ENS verification dashboard
   return (
-    <div className="flex flex-col h-full">
-      {isConnected ? (
-        <EnsDashboard 
-          address={address} 
-          step={step} 
-          onComplete={onComplete} 
-        />
-      ) : (
-        <ConnectView />
-      )}
-    </div>
+    <EnsDashboard 
+      address={address} 
+      step={step}
+      stepType={stepType}
+      onComplete={onComplete} 
+    />
   );
 };
 
@@ -74,13 +61,45 @@ const ConnectView: React.FC = () => {
   );
 };
 
-// Dashboard view (post-connection)
+// Dashboard view - updated to use the credential verification hook
 const EnsDashboard: React.FC<{ 
   address: `0x${string}` | undefined; 
   step: UserStepProgress;
+  stepType: StepType;
   onComplete: () => void; 
-}> = ({ address, step, onComplete }) => {
+}> = ({ address, step, stepType, onComplete }) => {
   if (!address) return null;
+  
+  // Use our new credential verification hook
+  const { 
+    isVerifying, 
+    verificationError, 
+    verifyCredential 
+  } = useCredentialVerification(step.wizard_id, step.id);
+  
+  // ENS profile details
+  const {
+    ens: ensDetails,
+    detailsLoading,
+  } = useProfileDetails({ addressOrName: address });
+
+  const hasPrimaryEns = !!ensDetails?.name;
+
+  // Auto-verify when ENS is found
+  useEffect(() => {
+    if (!detailsLoading && hasPrimaryEns && !step.completed_at && !isVerifying) {
+      console.log('ENS Verification detected:', ensDetails.name);
+      
+      // Verify credential with ENS name data
+      verifyCredential({
+        ensName: ensDetails.name,
+        address: address
+      }).then(() => {
+        // Call onComplete to signal the wizard to advance
+        onComplete();
+      });
+    }
+  }, [detailsLoading, hasPrimaryEns, address, ensDetails?.name, step.completed_at, isVerifying, verifyCredential, onComplete]);
   
   return (
     <div className="flex flex-col h-full">
@@ -94,7 +113,21 @@ const EnsDashboard: React.FC<{
       
       {/* Main content */}
       <div className="flex-1 flex items-center justify-center">
-        <EnsStatusView address={address} step={step} onComplete={onComplete} />
+        <CredentialVerificationBase
+          step={step}
+          stepType={stepType}
+          isVerifying={isVerifying || detailsLoading}
+          verificationError={verificationError}
+          successMessage="ENS Name Verified"
+          credential={ensDetails?.name}
+          renderVerificationUI={() => (
+            <EnsStatusView 
+              address={address} 
+              ensDetails={ensDetails}
+              hasPrimaryEns={hasPrimaryEns}
+            />
+          )}
+        />
       </div>
     </div>
   );
@@ -186,39 +219,14 @@ const EnsLookup: React.FC = () => {
   );
 };
 
-// ENS Status View
+// Updated ENS Status View - simplified since most state management is now in the parent
 const EnsStatusView: React.FC<{ 
-  address: `0x${string}`; 
-  step: UserStepProgress;
-  onComplete: () => void;
-}> = ({ address, step, onComplete }) => {
-  const {
-    ens: ensDetails,
-    detailsLoading,
-  } = useProfileDetails({ addressOrName: address });
+  address: `0x${string}`;
+  ensDetails: ReturnType<typeof useProfileDetails>['ens'];
+  hasPrimaryEns: boolean;
+}> = ({ address, ensDetails, hasPrimaryEns }) => {
 
-  const hasPrimaryEns = !!ensDetails?.name;
-
-  useEffect(() => {
-    if (!detailsLoading && hasPrimaryEns && !step.completed_at) {
-      console.log('ENS Verification Successful, calling onComplete for step:', step.id);
-      onComplete();
-    }
-  }, [detailsLoading, hasPrimaryEns, onComplete, step.id, step.completed_at]);
-
-  if (detailsLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 text-center">
-        <div className="relative">
-          <div className="absolute inset-0 bg-blue-50/20 blur-2xl rounded-full w-24 h-24 -z-10" />
-          <Loader2 className="h-14 w-14 text-primary/70 animate-spin" />
-        </div>
-        <h2 className="text-xl font-medium mt-8 tracking-tight">Checking ENS Records</h2>
-        <p className="text-muted-foreground/80 text-sm mt-2">This will just take a moment</p>
-      </div>
-    );
-  }
-
+  // If user has ENS, this will be caught by the parent's useEffect and verification will start
   if (hasPrimaryEns) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center max-w-sm">
@@ -226,9 +234,10 @@ const EnsStatusView: React.FC<{
           <div className="absolute inset-0 bg-green-100/30 blur-2xl rounded-full w-28 h-28 -z-10" />
           <CheckCircle className="h-16 w-16 text-green-500/90" />
         </div>
-        <h2 className="text-2xl font-medium mt-8 tracking-tight">ENS Name Verified</h2>
+        <h2 className="text-2xl font-medium mt-8 tracking-tight">ENS Name Found</h2>
+        <p className="text-muted-foreground/80 text-sm mt-2">Verifying your ENS name...</p>
         <div className="mt-6 bg-white/40 backdrop-blur-sm border border-green-100/80 px-8 py-3 rounded-full shadow-sm">
-          <span className="text-lg font-medium text-green-800">{ensDetails.name}</span>
+          <span className="text-lg font-medium text-green-800">{ensDetails?.name}</span>
         </div>
       </div>
     );
