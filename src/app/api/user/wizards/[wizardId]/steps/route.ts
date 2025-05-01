@@ -12,7 +12,12 @@ export interface UserStepProgress extends Step {
   verified_data: Record<string, unknown> | null; // Assuming verified_data is JSON
 }
 
-export const GET = withAuth(async (req, context) => {
+// Define the params type for this route
+interface StepsParams {
+  wizardId: string;
+}
+
+export const GET = withAuth<StepsParams>(async (req, { params }) => {
   // Type guard: ensure req.user exists and has the expected shape
   const user = req.user as JwtPayload | undefined;
   // Need both user ID (sub) and community ID (cid) to verify context
@@ -22,8 +27,8 @@ export const GET = withAuth(async (req, context) => {
   const userId = user.sub;
   const communityId = user.cid; // Use communityId to ensure wizard belongs to the correct community
 
-  // Safely access wizardId from context.params
-  const { wizardId } = context.params;
+  // Now params are already resolved, so no need to await them again
+  const { wizardId } = params;
   if (!wizardId) {
     return NextResponse.json({ error: 'Missing wizard id' }, { status: 400 });
   }

@@ -3,13 +3,18 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import type { JwtPayload } from '@/app/api/auth/session/route';
 
+// Define the params type for this route
+interface WizardStepsParams {
+  id: string;
+}
+
 // GET: List all steps for a wizard
-export const GET = withAuth(async (req, context) => {
+export const GET = withAuth<WizardStepsParams>(async (req, { params }) => {
   const user = req.user as JwtPayload | undefined;
   if (!user || !user.cid) {
     return NextResponse.json({ error: 'Missing community ID in token' }, { status: 400 });
   }
-  const { id: wizardId } = context.params;
+  const { id: wizardId } = params;
   if (!wizardId) {
     return NextResponse.json({ error: 'Missing wizard id' }, { status: 400 });
   }
@@ -30,12 +35,12 @@ export const GET = withAuth(async (req, context) => {
 }, true);
 
 // POST: Create a new step for a wizard
-export const POST = withAuth(async (req, context) => {
+export const POST = withAuth<WizardStepsParams>(async (req, { params }) => {
   const user = req.user as JwtPayload | undefined;
   if (!user || !user.cid) {
     return NextResponse.json({ error: 'Missing community ID in token' }, { status: 400 });
   }
-  const { id: wizardId } = context.params;
+  const { id: wizardId } = params;
   if (!wizardId) {
     return NextResponse.json({ error: 'Missing wizard id' }, { status: 400 });
   }

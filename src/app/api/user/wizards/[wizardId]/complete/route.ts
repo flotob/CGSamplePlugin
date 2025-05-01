@@ -3,7 +3,12 @@ import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import type { JwtPayload } from '@/app/api/auth/session/route';
 
-export const POST = withAuth(async (req, context) => {
+// Define the params type for this route
+interface CompleteWizardParams {
+  wizardId: string;
+}
+
+export const POST = withAuth<CompleteWizardParams>(async (req, { params }) => {
   // Type guard: ensure req.user exists
   const user = req.user as JwtPayload | undefined;
   if (!user || !user.sub || !user.cid) {
@@ -12,8 +17,8 @@ export const POST = withAuth(async (req, context) => {
   const userId = user.sub;
   const communityId = user.cid;
 
-  // Safely access wizardId from context.params
-  const { wizardId } = context.params;
+  // Params are already resolved
+  const { wizardId } = params;
   if (!wizardId) {
     return NextResponse.json({ error: 'Missing wizard ID' }, { status: 400 });
   }

@@ -9,23 +9,13 @@ export interface AuthenticatedRequest extends NextRequest {
     user?: JwtPayload & { iat: number; exp: number }; // Add the decoded user payload
 }
 
-// Define the type for the handler function that receives the authenticated request
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AuthenticatedHandler = (req: AuthenticatedRequest, context: { params: Record<string, string> }) => Promise<NextResponse> | NextResponse;
-
-/**
- * Higher-Order Function to wrap Next.js API route handlers
- * with JWT authentication and authorization.
- *
- * @param handler The API route handler to wrap.
- * @param adminOnly If true, requires the JWT 'adm' claim to be true.
- */
-export function withAuth(
-    handler: AuthenticatedHandler,
+// Define the type for the handler function that receives the authenticated request with awaited params
+export function withAuth<Params = Record<string, string>>(
+    handler: (req: AuthenticatedRequest, context: { params: Params }) => Promise<NextResponse> | NextResponse,
     adminOnly: boolean = false
 ) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return async (req: NextRequest, context: any): Promise<NextResponse> => {
+    // Return the route handler that will handle authentication before calling the provided handler
+    return async (req: NextRequest, context: { params: Promise<Params> }): Promise<NextResponse> => {
         if (!JWT_SECRET) {
             console.error('JWT_SECRET is not configured for verification.');
             return NextResponse.json({ error: 'Configuration error' }, { status: 500 });
@@ -57,9 +47,11 @@ export function withAuth(
                 return NextResponse.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
             }
 
-            // Call the original handler with the authenticated request and a clean context
-            // This ensures params is passed correctly and only once
-            return await handler(authReq, context);
+            // Await the params before passing to handler
+            const resolvedParams = await context.params;
+
+            // Call the original handler with the authenticated request and resolved params
+            return await handler(authReq, { params: resolvedParams });
 
         } catch (error) {
             if (error instanceof jwt.TokenExpiredError) {

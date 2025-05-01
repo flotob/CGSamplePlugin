@@ -10,7 +10,13 @@ interface CompleteStepRequestBody {
     verified_data?: Record<string, unknown>; // Optional data to store upon completion
 }
 
-export const POST = withAuth(async (req, context) => {
+// Define the params type for this route
+interface CompleteStepParams {
+    wizardId: string;
+    stepId: string;
+}
+
+export const POST = withAuth<CompleteStepParams>(async (req, { params }) => {
   // Type guard: ensure req.user exists
   const user = req.user as JwtPayload | undefined;
   if (!user || !user.sub || !user.cid) {
@@ -19,8 +25,8 @@ export const POST = withAuth(async (req, context) => {
   const userId = user.sub;
   const communityId = user.cid;
 
-  // Safely access parameters from context.params
-  const { wizardId, stepId } = context.params;
+  // Params are already resolved
+  const { wizardId, stepId } = params;
   if (!wizardId || !stepId) {
     return NextResponse.json({ error: 'Missing wizard or step id' }, { status: 400 });
   }

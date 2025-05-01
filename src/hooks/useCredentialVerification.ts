@@ -2,6 +2,12 @@
 
 import { useState, useCallback } from 'react';
 import { useCompleteStepMutation } from '@/hooks/useCompleteStepMutation';
+import type { UseMutationOptions } from '@tanstack/react-query';
+
+// Define the type for the variables the mutation function will receive
+interface CompleteStepVariables {
+  verified_data?: Record<string, unknown>;
+}
 
 /**
  * Hook for handling credential verification in onboarding steps.
@@ -9,17 +15,19 @@ import { useCompleteStepMutation } from '@/hooks/useCompleteStepMutation';
  * 
  * @param wizardId The ID of the wizard containing the step
  * @param stepId The ID of the step being verified
+ * @param options Optional TanStack Query mutation options.
  * @returns Methods and state for credential verification
  */
 export function useCredentialVerification(
   wizardId: string,
-  stepId: string
+  stepId: string,
+  options?: UseMutationOptions<void, Error, CompleteStepVariables | undefined, unknown>
 ) {
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationError, setVerificationError] = useState<string | null>(null);
   
-  // Use the existing step completion mutation
-  const completeStepMutation = useCompleteStepMutation(wizardId, stepId);
+  // Use the existing step completion mutation, passing options through
+  const completeStepMutation = useCompleteStepMutation(wizardId, stepId, options);
   
   /**
    * Submit credential data for verification.

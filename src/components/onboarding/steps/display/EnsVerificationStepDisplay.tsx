@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useAccount } from 'wagmi';
 import { useProfileDetails } from 'ethereum-identity-kit';
 import { Loader2, CheckCircle, Search } from 'lucide-react';
@@ -25,12 +25,15 @@ export const EnsVerificationStepDisplay: React.FC<EnsVerificationStepDisplayProp
 }) => {
   const { address, isConnected } = useAccount();
   
-  // Initialize these hooks unconditionally at the top level
+  // Initialize useRef for verification guard
+  const verifyingRef = useRef(false);
+  
+  // Pass retry: false option to the hook
   const { 
     isVerifying, 
     verificationError, 
     verifyCredential 
-  } = useCredentialVerification(step.wizard_id, step.id);
+  } = useCredentialVerification(step.wizard_id, step.id, { retry: false });
   
   // ENS profile details - initialize unconditionally
   const {
@@ -43,55 +46,60 @@ export const EnsVerificationStepDisplay: React.FC<EnsVerificationStepDisplayProp
 
   // Effect for auto-verification - will only run when conditions are met
   useEffect(() => {
-    // First, check if already completed to prevent re-verification
+    // Check if already completed
     if (step.completed_at) {
-      return; // Skip verification if already completed
+      verifyingRef.current = false; // Reset ref if completed
+      return;
     }
 
     const hasPrimaryEns = !!ensDetails?.name;
     
+    // Check core conditions
     if (isConnected && 
         address && 
         !detailsLoading && 
-        hasPrimaryEns && 
-        !isVerifying) {
+        hasPrimaryEns) {
       
-      // Create local flag to prevent verification during this effect run
-      let isVerifyingLocally = false;
+      // Guard against re-entry using ref
+      if (verifyingRef.current) {
+        console.log('Verification already in progress, skipping effect run.');
+        return; 
+      }
+        
+      console.log('Starting ENS Verification effect for:', ensDetails.name);
+      verifyingRef.current = true; // Set ref before async operation
       
-      const performVerification = async () => {
-        if (isVerifyingLocally) return;
-        
-        isVerifyingLocally = true;
-        console.log('ENS Verification detected:', ensDetails.name);
-        
-        try {
-          // Verify credential with ENS name data
-          await verifyCredential({
-            ensName: ensDetails.name,
-            address: address
-          });
-          
-          // Call onComplete to signal the wizard to advance
-          onComplete();
-        } catch (error) {
-          console.error("ENS verification failed:", error);
-        }
-      };
-
-      performVerification();
+      verifyCredential({
+        ensName: ensDetails.name,
+        address: address
+      }).then(() => {
+        // Only call onComplete if verification succeeded
+        console.log('Verification succeeded, calling onComplete.');
+        onComplete();
+      }).catch((error) => {
+        // Error is already handled within useCredentialVerification/useCompleteStepMutation
+        console.error("ENS verification promise rejected:", error); 
+      }).finally(() => {
+        // Always reset the ref after operation finishes (success or error)
+        verifyingRef.current = false;
+        console.log('Resetting verifyingRef.');
+      });
     }
-  }, [
-    // Only run when these dependencies change:
-    detailsLoading, 
-    ensDetails?.name, 
-    step.completed_at, 
-    isVerifying,
-    isConnected, 
-    address, 
-    verifyCredential, 
-    onComplete
-  ]);
+  },
+    // Updated Dependencies:
+    // - Only include values that truly trigger re-verification if they change.
+    // - Remove verifyCredential, onComplete as they should be stable refs/callbacks.
+    // - isVerifying is internal state of the hook, don't depend on it here.
+    [
+      step.completed_at,
+      isConnected,
+      address,
+      detailsLoading,
+      ensDetails?.name, // Trigger if ENS name appears/changes
+      step.id, // Include step.id in case the step itself changes
+      step.wizard_id // Include wizard_id for completeness
+    ]
+  );
 
   // If the user isn't connected to a wallet, show the connect view
   if (!isConnected) {
