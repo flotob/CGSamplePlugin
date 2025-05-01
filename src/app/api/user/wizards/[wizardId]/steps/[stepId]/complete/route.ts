@@ -10,7 +10,10 @@ interface CompleteStepRequestBody {
     verified_data?: Record<string, unknown>; // Optional data to store upon completion
 }
 
-export const POST = withAuth(async (req, { params }) => {
+export const POST = withAuth(async (req, context) => {
+  // Get the properly awaited params
+  const { params } = context;
+  
   // Type guard: ensure req.user exists
   const user = req.user as JwtPayload | undefined;
   if (!user || !user.sub || !user.cid) {
@@ -19,7 +22,9 @@ export const POST = withAuth(async (req, { params }) => {
   const userId = user.sub;
   const communityId = user.cid;
 
-  const { wizardId, stepId } = params;
+  // Access parameters after params is awaited
+  const wizardId = params.wizardId;
+  const stepId = params.stepId;
   if (!wizardId || !stepId) {
     return NextResponse.json({ error: 'Missing wizard or step id' }, { status: 400 });
   }

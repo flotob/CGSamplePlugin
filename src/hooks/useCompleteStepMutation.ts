@@ -40,11 +40,16 @@ export function useCompleteStepMutation(
       // Return void explicitly if needed, though await on a void fetch usually resolves to undefined
       return;
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       // Invalidate queries related to user progress for this wizard upon successful completion
       queryClient.invalidateQueries({ queryKey: ['userWizardSteps', wizardId] });
       // Potentially invalidate the user wizard list as well if progressStatus changes
       queryClient.invalidateQueries({ queryKey: ['userWizards'] });
+      
+      // Invalidate user credentials if we have verified data (credential was likely added)
+      if (variables?.verified_data) {
+        queryClient.invalidateQueries({ queryKey: ['userCredentials'] });
+      }
       
       // Optional: Show success toast
       // toast({ title: "Step Completed!" });

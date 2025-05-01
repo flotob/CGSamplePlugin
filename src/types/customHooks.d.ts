@@ -2,10 +2,15 @@
 declare module '@/hooks/useMarkWizardCompleted' {
   import { UseMutationResult } from '@tanstack/react-query';
   
+  interface MutateOptions {
+    onSuccess?: (data: any) => void;
+    onError?: (error: Error) => void;
+  }
+  
   interface MarkWizardCompletedResult extends UseMutationResult<any, Error, string> {
     earnedRoles: string[];
     isPending: boolean;
-    mutate: (wizardId: string) => void;
+    mutate: (wizardId: string, options?: MutateOptions) => void;
   }
   
   export function useMarkWizardCompleted(): MarkWizardCompletedResult;

@@ -39,7 +39,8 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
     error: stepsError,
   } = useUserWizardStepsQuery(wizardId);
   const { data: stepTypesData, isLoading: isLoadingTypes } = useStepTypesQuery();
-  const { data: credentialsData } = useUserCredentialsQuery();
+  const credentialsQuery = useUserCredentialsQuery();
+  const { data: credentialsData } = credentialsQuery;
   const { data: communityInfoResponse } = useCommunityInfoQuery();
 
   const steps = stepsData?.steps;
@@ -83,12 +84,25 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
 
   // Effect to mark the wizard as completed when all steps are completed
   useEffect(() => {
-    if (allStepsCompleted && steps && steps.length > 0 && !markCompleted.isPending && !hasTriedCompletion) {
-      // Set the flag to prevent infinite loop
+    if (allStepsCompleted && 
+        steps && 
+        steps.length > 0 && 
+        !markCompleted.isPending && 
+        !hasTriedCompletion) {
+      
+      // Set the flag to prevent infinite loop BEFORE making the API call
       setHasTriedCompletion(true);
+      
       // Mark the wizard as completed in the database
       console.log('All steps completed, marking wizard as completed:', wizardId);
-      markCompleted.mutate(wizardId);
+      
+      markCompleted.mutate(wizardId, {
+        onError: (error: Error) => {
+          // Keep the hasTriedCompletion flag true even on error to prevent infinite retries
+          console.error('Failed to mark wizard as completed:', error);
+          // Error toast is handled in the mutation hook
+        }
+      });
     }
   }, [allStepsCompleted, steps, wizardId, markCompleted, hasTriedCompletion]);
 
@@ -135,8 +149,10 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
 
   // New function to handle the view summary button click
   const handleViewSummary = useCallback(() => {
+    // Refetch credentials to ensure we have the latest data
+    credentialsQuery.refetch();
     setShowSummary(true);
-  }, []);
+  }, [credentialsQuery]);
 
   // --- Render Logic --- 
 
