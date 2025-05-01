@@ -12,7 +12,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ sidebar, header, children 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
-    <div className="flex h-full min-h-screen w-full">
+    <div className="flex h-full min-h-screen w-full relative">
       {/* Sidebar Area - flush with the edge of the screen with inset shadow */}
       <div 
         className="fixed top-0 left-0 z-30 h-full w-60 border-r border-border bg-card shadow-sm hidden md:block"
@@ -46,7 +46,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ sidebar, header, children 
         {header && <header>{header}</header>}
 
         {/* Main Content Area - with improved spacing and layout */}
-        <main className="flex-grow p-4 pt-6 md:p-6">
+        <main className="flex-grow p-4 pt-6 md:p-6 relative">
           <div className="max-w-6xl mx-auto space-y-8">
             {children}
           </div>

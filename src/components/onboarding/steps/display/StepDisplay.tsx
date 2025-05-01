@@ -4,23 +4,23 @@ import React from 'react';
 import type { UserStepProgress } from '@/app/api/user/wizards/[wizardId]/steps/route';
 import type { StepType } from '@/hooks/useStepTypesQuery'; // Assuming StepType definition
 
-// Import specific step display components (examples - create these later)
-// import { EnsVerificationStepDisplay } from './display/EnsVerificationStepDisplay';
-// import { InfoStepDisplay } from './display/InfoStepDisplay';
-// import { MultipleChoiceStepDisplay } from './display/MultipleChoiceStepDisplay';
+// Import specific step display components
+import { EnsVerificationStepDisplay } from './EnsVerificationStepDisplay';
+// import { InfoStepDisplay } from './InfoStepDisplay';
+// import { MultipleChoiceStepDisplay } from './MultipleChoiceStepDisplay';
 
 interface StepDisplayProps {
   step: UserStepProgress;
   stepType: StepType | undefined; // Pass the resolved step type object
   // Add callbacks for completion/error handling later
-  // onComplete: (completionData?: Record<string, unknown>) => void;
+  onComplete: () => void; // Pass down the onComplete handler
   // onError: (errorMessage: string) => void;
 }
 
 export const StepDisplay: React.FC<StepDisplayProps> = ({
   step,
   stepType,
-  // onComplete,
+  onComplete,
   // onError,
 }) => {
 
@@ -30,12 +30,12 @@ export const StepDisplay: React.FC<StepDisplayProps> = ({
 
   // Dynamically render the correct component based on the step type name
   switch (stepType.name) {
-    // case 'ens_verification':
-    //   return <EnsVerificationStepDisplay step={step} stepType={stepType} />;
+    case 'ens': // Corrected case name from 'ens_verification'
+      return <EnsVerificationStepDisplay step={step} stepType={stepType} onComplete={onComplete} />;
     // case 'info_display':
-    //   return <InfoStepDisplay step={step} stepType={stepType} />;
+    //   return <InfoStepDisplay step={step} stepType={stepType} onComplete={onComplete} />;
     // case 'multiple_choice':
-    //  return <MultipleChoiceStepDisplay step={step} stepType={stepType} />;
+    //  return <MultipleChoiceStepDisplay step={step} stepType={stepType} onComplete={onComplete} />;
     
     // Add cases for other step types here
 

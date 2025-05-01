@@ -216,3 +216,62 @@
 .animate-in.slide-in-from-bottom-5 {
   animation-name: slide-in-from-bottom-5;
 }
+
+/* Custom modal styles for iframe context */
+.wizard-slideshow-modal {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 50;
+  overflow: hidden;
+}
+
+/* Ensure the modal gets proper stacking context */
+.view-transition {
+  position: relative;
+  z-index: 10;
+}
+
+/* Modal animation */
+.wizard-slideshow-modal {
+  animation: modalFadeIn 0.2s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Ensure the modal content is scrollable but contained */
+.wizard-slideshow-modal .overflow-y-auto {
+  max-height: calc(100% - 120px); /* Account for header and footer */
+}
+
+/* Ensure the modal container spans the full iframe */
+.modal-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 100;
+  pointer-events: none; /* Only receive events when modal is active */
+}
+
+.modal-container .wizard-slideshow-modal {
+  pointer-events: auto; /* Restore pointer events for the modal */
+}
+
+/* Plugin root container styles */
+.plugin-root {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}

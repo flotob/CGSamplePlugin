@@ -287,7 +287,7 @@ const PluginContainer = () => {
   };
 
   return (
-    <>
+    <div className="plugin-root relative h-screen w-screen overflow-hidden">
       <AppLayout
         sidebar={(
           <Sidebar 
@@ -307,15 +307,15 @@ const PluginContainer = () => {
         <Toaster />
       </AppLayout>
 
-      {/* Conditionally render the modal outside the main layout */}
+      {/* Conditionally render the modal outside the layout but within the plugin root */}
       {activeSlideshowWizardId && (
         <WizardSlideshowModal
           wizardId={activeSlideshowWizardId}
-          open={!!activeSlideshowWizardId} // Control open state based on ID
-          onClose={() => setActiveSlideshowWizardId(null)} // Provide close handler
+          open={!!activeSlideshowWizardId} 
+          onClose={() => setActiveSlideshowWizardId(null)} 
         />
       )}
-    </>
+    </div>
   );
 }
 
