@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import { Button } from "@/components/ui/button";
 import { BookOpen, Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -58,17 +59,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="flex h-14 items-center border-b border-border px-4 lg:h-[60px] lg:px-6">
         <div className="flex items-center gap-2 font-semibold text-foreground">
           <div 
-             className="flex items-center justify-center w-8 h-8 rounded-md bg-primary text-primary-foreground font-bold shadow-sm transition-all duration-200 overflow-hidden" 
+             className="relative flex items-center justify-center w-8 h-8 rounded-md bg-primary text-primary-foreground font-bold shadow-sm transition-all duration-200 overflow-hidden" 
              style={{ backgroundColor: logoData?.logo_url ? 'transparent' : undefined }}
            >
             {isLoadingLogo ? (
               <Loader2 className="h-5 w-5 animate-spin" />
             ) : logoData?.logo_url ? (
-              <img 
+              <Image 
                 src={logoData.logo_url} 
                 alt="Logo" 
-                className="h-full w-full object-cover"
-                onError={(e) => e.currentTarget.style.display = 'none'}
+                fill={true}
+                className="object-cover"
               />
             ) : (
               'OW'

@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Wand2, CheckCircle, Loader2, AlertCircle, CirclePlay, CircleCheck } from 'lucide-react';
-import { useUserWizardsQuery, UserWizard } from '@/hooks/useUserWizardsQuery';
+import { useUserWizardsQuery } from '@/hooks/useUserWizardsQuery';
 
 // Define props - currently none needed, but keep interface for consistency
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type

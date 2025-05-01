@@ -21,6 +21,7 @@ import { NewWizardButton } from './onboarding/NewWizardButton';
 // Hooks & Libs
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthFetch } from '@/lib/authFetch';
+import Image from 'next/image';
 
 // Define props expected from PluginContainer
 interface AdminViewProps {
@@ -494,14 +495,12 @@ export const AdminView: React.FC<AdminViewProps> = ({
                   {showLogoPreview && logoUrlInput && (
                     <div className="space-y-1.5">
                        <Label>Logo Preview</Label>
-                       <div className="p-4 border rounded-md flex items-center justify-center bg-muted/40 h-32">
-                         <img 
+                       <div className="relative p-4 border rounded-md flex items-center justify-center bg-muted/40 h-32">
+                         <Image 
                            src={logoUrlInput} 
                            alt="Community Logo Preview" 
-                           className="max-h-full max-w-full object-contain"
-                           onError={(e) => { 
-                             e.currentTarget.style.display = 'none'; // Hide img tag on error
-                           }}
+                           fill={true}
+                           className="object-contain"
                          />
                        </div>
                     </div>

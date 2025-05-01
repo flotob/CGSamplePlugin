@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useTransition, useEffect } from 'react';
+import Image from 'next/image';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import type { CommunityInfoResponsePayload, UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
 import type { UserFriendsResponsePayload } from '@common-ground-dao/cg-plugin-lib-host';
@@ -186,10 +187,12 @@ const PluginContainer = () => {
         {isLoadingLogo ? (
           <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
         ) : logoData?.logo_url ? (
-          <img 
+          <Image 
             src={logoData.logo_url} 
-            alt={`${communityInfo?.title || 'Community'} Logo`} 
-            className="h-20 w-auto mb-4 object-contain animate-pulse"
+            alt={`${communityInfo?.title || 'Community'} Logo`}
+            width={80}
+            height={80}
+            className="w-auto h-20 mb-4 object-contain animate-pulse"
           />
         ) : (
            <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
