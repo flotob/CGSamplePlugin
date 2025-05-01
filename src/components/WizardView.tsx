@@ -8,25 +8,45 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Wand2, CheckCircle } from 'lucide-react';
-import { EnsVerificationStep } from './onboarding/steps/EnsVerificationStep';
+import { Wand2, CheckCircle, Loader2, AlertCircle, CirclePlay, CircleCheck } from 'lucide-react';
+import { useUserWizardsQuery, UserWizard } from '@/hooks/useUserWizardsQuery';
 
-// Define props - adjust later as needed when data is available
+// Define props - currently none needed, but keep interface for consistency
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-interface WizardViewProps {
-  // Props will be added here later, e.g., list of wizards
-}
+interface WizardViewProps {}
 
-export const WizardView: React.FC<WizardViewProps> = ({ /* props */ }) => {
+export const WizardView: React.FC<WizardViewProps> = () => {
+  const { data: wizardsData, isLoading, error } = useUserWizardsQuery();
 
-  // Placeholder data structure (replace with actual data later)
-  const availableWizards = [
-    { id: 'wiz1', title: 'Community Welcome Wizard', description: 'Get started with the basics.' },
-    { id: 'wiz2', title: 'Developer Onboarding', description: 'Setup your dev environment.' },
-  ];
-  const completedWizards = [
-    { id: 'wiz0', title: 'Account Verification', description: 'Identity confirmed.' },
-  ];
+  // Memoize filtered lists
+  const availableWizards = React.useMemo(() => {
+    return wizardsData?.wizards.filter(w => w.progressStatus === 'not_started' || w.progressStatus === 'started') ?? [];
+  }, [wizardsData]);
+
+  const completedWizards = React.useMemo(() => {
+    return wizardsData?.wizards.filter(w => w.progressStatus === 'completed') ?? [];
+  }, [wizardsData]);
+
+  // Handle Loading State
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center pt-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+        <p className="text-muted-foreground">Loading wizards...</p>
+      </div>
+    );
+  }
+
+  // Handle Error State
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center pt-12 text-destructive">
+        <AlertCircle className="h-8 w-8 mb-4" />
+        <p className="font-medium">Error loading wizards</p>
+        <p className="text-sm">{error.message}</p>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -43,11 +63,11 @@ export const WizardView: React.FC<WizardViewProps> = ({ /* props */ }) => {
 
       {/* Main content grid */}
       <div className="w-full max-w-4xl mx-auto space-y-8">
-        {/* Available Wizards Card */}
+        {/* Available Wizards Card (Includes Not Started and Started) */}
         <Card className="animate-in fade-in slide-in-from-bottom-5 duration-500 delay-150" interactive>
           <CardHeader>
             <CardTitle>Available Wizards</CardTitle>
-            <CardDescription>Start these wizards to progress in the community.</CardDescription>
+            <CardDescription>Start or continue these wizards to progress.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {availableWizards.length > 0 ? (
@@ -56,21 +76,27 @@ export const WizardView: React.FC<WizardViewProps> = ({ /* props */ }) => {
                   key={wizard.id} 
                   className='flex items-center justify-between p-3 rounded-md border border-border bg-card transition-all hover:bg-secondary/20 cursor-pointer'
                   style={{ animationDelay: `${150 + (index * 50)}ms` }}
-                  onClick={() => console.log(`Start wizard: ${wizard.id}`)} // Placeholder action
+                  onClick={() => console.log(`Navigate to wizard: ${wizard.id}`)} // Placeholder action
                 >
                   <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-accent flex items-center justify-center text-accent-foreground">
-                      <Wand2 className="h-4 w-4" />
+                    <div className={`h-8 w-8 rounded-full flex items-center justify-center text-accent-foreground ${wizard.progressStatus === 'started' ? 'bg-blue-500/10 text-blue-600' : 'bg-accent'}`}>
+                      {wizard.progressStatus === 'started' ? <CirclePlay className="h-4 w-4" /> : <Wand2 className="h-4 w-4" />}
                     </div>
                     <div>
-                      <p className="font-medium">{wizard.title}</p>
-                      <p className="text-xs text-muted-foreground">{wizard.description}</p>
+                      <p className="font-medium">{wizard.name}</p>
+                      <p className="text-xs text-muted-foreground">{wizard.description || 'No description available.'}</p>
                     </div>
                   </div>
-                  {/* Add a start button or indicator */} 
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary">
-                    <path d="m9 18 6-6-6-6"/>
-                  </svg>
+                  <div className="flex items-center gap-2"> 
+                    {wizard.progressStatus === 'started' ? (
+                       <span className="text-xs font-medium text-blue-600">Continue</span>
+                    ) : (
+                       <span className="text-xs font-medium text-primary">Start</span>
+                    )}
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground">
+                      <path d="m9 18 6-6-6-6"/>
+                    </svg>
+                  </div> 
                 </div>
               ))
             ) : (
@@ -78,18 +104,6 @@ export const WizardView: React.FC<WizardViewProps> = ({ /* props */ }) => {
             )}
           </CardContent>
         </Card>
-
-        {/* --- TEMPORARY: Add ENS Verification Step for testing --- */}
-        <Card className="animate-in fade-in slide-in-from-bottom-5 duration-500 delay-200">
-          <CardHeader>
-            <CardTitle>Test ENS Step</CardTitle>
-            <CardDescription>Connect wallet above and check ENS status.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <EnsVerificationStep />
-          </CardContent>
-        </Card>
-        {/* --- END TEMPORARY --- */}
 
         {/* Completed Wizards Card */}
         <Card className="animate-in fade-in slide-in-from-bottom-5 duration-500 delay-300" interactive>
@@ -107,14 +121,14 @@ export const WizardView: React.FC<WizardViewProps> = ({ /* props */ }) => {
                 >
                   <div className="flex items-center gap-3">
                     <div className="h-8 w-8 rounded-full bg-green-500/10 flex items-center justify-center text-green-600">
-                      <CheckCircle className="h-4 w-4" />
+                      <CircleCheck className="h-4 w-4" />
                     </div>
                     <div>
-                      <p className="font-medium">{wizard.title}</p>
-                      <p className="text-xs text-muted-foreground">{wizard.description}</p>
+                      <p className="font-medium">{wizard.name}</p>
+                      <p className="text-xs text-muted-foreground">{wizard.description || 'No description available.'}</p>
                     </div>
                   </div>
-                  {/* Indicator for completion */} 
+                  {/* Indicator for completion */}
                    <CheckCircle className="h-5 w-5 text-green-500" />
                 </div>
               ))
