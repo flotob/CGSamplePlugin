@@ -1,20 +1,26 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 // Removed Image import
 // Shadcn components
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
 // Payload types
 import type { CommunityInfoResponsePayload, UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
 import type { UserFriendsResponsePayload } from '@common-ground-dao/cg-plugin-lib-host';
 // Icons
-import { Shield, Users, BadgeCheck, Cog, Plug } from 'lucide-react';
+import { Shield, Users, BadgeCheck, Cog, Plug, Building, Image as ImageIcon, AlertCircle } from 'lucide-react';
 // Import the new UserAvatar component
 import { UserAvatar } from './UserAvatar';
 import { WizardStepEditorPage } from './onboarding/WizardStepEditorPage';
 import { WizardList } from './onboarding/WizardList';
 import { NewWizardButton } from './onboarding/NewWizardButton';
+// Hooks & Libs
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuthFetch } from '@/lib/authFetch';
 
 // Define props expected from PluginContainer
 interface AdminViewProps {
@@ -39,6 +45,11 @@ interface AdminViewProps {
   authError: Error | null;
 }
 
+// Define the expected shape of the settings API response
+interface CommunitySettings {
+  logo_url: string | null;
+}
+
 export const AdminView: React.FC<AdminViewProps> = ({
   userInfo,
   communityInfo,
@@ -60,7 +71,86 @@ export const AdminView: React.FC<AdminViewProps> = ({
   // isAuthenticating,
   authError,
 }) => {
+  const { toast } = useToast();
   const [editingWizardId, setEditingWizardId] = React.useState<string | null>(null);
+  const { authFetch } = useAuthFetch();
+  const queryClient = useQueryClient();
+  const communityId = communityInfo?.id;
+
+  // --- State for Community Settings --- 
+  const [logoUrlInput, setLogoUrlInput] = useState<string>('');
+  const [inputError, setInputError] = useState<string | null>(null);
+  const [showLogoPreview, setShowLogoPreview] = useState<boolean>(false);
+
+  // --- Data Fetching for Community Settings --- 
+  const { data: settings, isLoading: isLoadingSettings, error: settingsError } = useQuery<CommunitySettings, Error>({
+    queryKey: ['communitySettings', communityId],
+    queryFn: async () => {
+      const res = await fetch(`/api/community/settings?communityId=${communityId}`); // Use fetch directly for public GET
+      if (!res.ok) {
+        throw new Error('Failed to fetch community settings');
+      }
+      return res.json();
+    },
+    enabled: !!communityId && activeSection === 'account', // Only fetch when ID is available and section is active
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+
+  // --- Update state when settings are loaded --- 
+  useEffect(() => {
+    if (settings) {
+      setLogoUrlInput(settings.logo_url ?? '');
+      setShowLogoPreview(!!settings.logo_url); // Show preview if URL exists
+      setInputError(null); // Clear error on successful load
+    }
+  }, [settings]);
+
+  // --- Input Validation --- 
+  const validateUrl = (url: string): boolean => {
+    if (url === '' || url === null) {
+      setInputError(null);
+      return true; // Allow empty/null to clear
+    }
+    if (!url.startsWith('https://app.cg/')) {
+      setInputError('URL must start with https://app.cg/');
+      return false;
+    }
+    setInputError(null);
+    return true;
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newUrl = e.target.value;
+    setLogoUrlInput(newUrl);
+    validateUrl(newUrl); // Validate on change
+    setShowLogoPreview(newUrl.startsWith('https://app.cg/')); // Update preview visibility based on valid prefix
+  };
+
+  // --- Data Mutation for Community Settings --- 
+  const { mutate: updateSettings, isPending: isUpdatingSettings } = useMutation<unknown, Error, { logo_url: string | null }>({
+    mutationFn: async (payload) => {
+      await authFetch('/api/community/settings', {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      });
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['communitySettings', communityId] });
+      queryClient.invalidateQueries({ queryKey: ['communityLogo', communityId] }); // Invalidate logo-specific query too
+      toast({ title: "Settings saved successfully!" });
+      setShowLogoPreview(!!variables.logo_url); // Ensure preview state matches saved state
+    },
+    onError: (error) => {
+      console.error("Error saving settings:", error);
+      toast({ title: "Error saving settings", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleSaveSettings = () => {
+    if (validateUrl(logoUrlInput)) {
+      updateSettings({ logo_url: logoUrlInput.trim() === '' ? null : logoUrlInput });
+    }
+  };
 
   // Render loading/error specifically for the data needed by the active section if desired
   // Or rely on the global loading state in PluginContainer
@@ -99,6 +189,12 @@ export const AdminView: React.FC<AdminViewProps> = ({
           <div className="flex items-center gap-2">
             <Plug className="h-6 w-6 text-primary" />
             <h1 className="text-2xl font-bold tracking-tight">Service Connections</h1>
+          </div>
+        )}
+        {activeSection === 'account' && (
+          <div className="flex items-center gap-2">
+            <Building className="h-6 w-6 text-primary" />
+            <h1 className="text-2xl font-bold tracking-tight">Account Settings</h1>
           </div>
         )}
       </div>
@@ -359,6 +455,95 @@ export const AdminView: React.FC<AdminViewProps> = ({
                </CardContent>
            </Card>
          </div>
+      )}
+
+      {/* Render Account Settings Section */}
+      {activeSection === 'account' && (
+        <div className="w-full max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-5 duration-500 delay-150">
+          {/* Community Settings Pane */}
+          <Card interactive>
+            <CardHeader>
+              <CardTitle>Community Settings</CardTitle>
+              <CardDescription>Manage basic community details and preferences.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {isLoadingSettings && <p>Loading settings...</p>}
+              {settingsError && <p className="text-destructive">Error loading settings: {settingsError.message}</p>}
+              {!isLoadingSettings && !settingsError && (
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="community-logo-url">Community Logo URL</Label>
+                    <Input 
+                      id="community-logo-url" 
+                      placeholder="https://app.cg/path/to/your/logo.png" 
+                      value={logoUrlInput}
+                      onChange={handleInputChange}
+                      disabled={isUpdatingSettings}
+                    />
+                    {inputError && (
+                      <p className="text-sm text-destructive flex items-center gap-1">
+                        <AlertCircle className="h-3.5 w-3.5"/> 
+                        {inputError}
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      Logo must be hosted on app.cg domain (e.g., uploaded via Common Ground).
+                    </p>
+                  </div>
+
+                  {showLogoPreview && logoUrlInput && (
+                    <div className="space-y-1.5">
+                       <Label>Logo Preview</Label>
+                       <div className="p-4 border rounded-md flex items-center justify-center bg-muted/40 h-32">
+                         <img 
+                           src={logoUrlInput} 
+                           alt="Community Logo Preview" 
+                           className="max-h-full max-w-full object-contain"
+                           onError={(e) => { 
+                             e.currentTarget.style.display = 'none'; // Hide img tag on error
+                           }}
+                         />
+                       </div>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end">
+                    <Button 
+                      onClick={handleSaveSettings} 
+                      disabled={isUpdatingSettings || !!inputError || logoUrlInput === (settings?.logo_url ?? '')}
+                    >
+                      {isUpdatingSettings ? 'Saving...' : 'Save Settings'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Plan & Billing Pane */}
+          <Card interactive>
+            <CardHeader>
+              <CardTitle>Plan & Billing</CardTitle>
+              <CardDescription>View your current plan and manage billing details.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground text-sm">Plan & Billing UI coming soon...</p>
+              {/* Placeholder for billing info and plan management */}
+            </CardContent>
+          </Card>
+
+          {/* Delete Account Pane */}
+          <Card interactive className="border-destructive">
+            <CardHeader>
+              <CardTitle className="text-destructive">Delete Account</CardTitle>
+              <CardDescription>Permanently delete your account and all associated data.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex justify-end">
+              <Button variant="destructive">Delete Account</Button>
+              {/* Placeholder for delete confirmation */}
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {editingWizardId && (

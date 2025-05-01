@@ -3,6 +3,7 @@ import React, { useState, useTransition, useEffect } from 'react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import type { CommunityInfoResponsePayload, UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
 import type { UserFriendsResponsePayload } from '@common-ground-dao/cg-plugin-lib-host';
+import { useQuery } from '@tanstack/react-query';
 import { useCgLib } from '../context/CgLibContext';
 import { useAuth } from '../context/AuthContext';
 import { useCgQuery } from '../hooks/useCgQuery';
@@ -14,7 +15,8 @@ import { AdminView } from '../components/AdminView';
 import { UserView } from '../components/UserView';
 import { HelpView } from '../components/HelpView';
 import { WizardView } from '../components/WizardView';
-import { LayoutDashboard, Settings, Plug, User, Wand2 } from 'lucide-react';
+import { LayoutDashboard, Settings, Plug, User, Wand2, Building, Loader2 } from 'lucide-react';
+import { Toaster } from "@/components/ui/toaster";
 
 // Removed targetRoleIdFromEnv constant
 // const targetRoleIdFromEnv = process.env.NEXT_PUBLIC_TARGET_ROLE_ID;
@@ -24,11 +26,17 @@ const adminLinks = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'config', label: 'Wizard Config', icon: Settings },
   { id: 'connections', label: 'Connections', icon: Plug },
+  { id: 'account', label: 'Account', icon: Building },
 ];
 const userLinks = [
   { id: 'wizards', label: 'Wizards', icon: Wand2 },
   { id: 'profile', label: 'Profile', icon: User },
 ];
+
+// Define the expected shape of the settings API response
+interface CommunityLogoResponse {
+  logo_url: string | null;
+}
 
 const PluginContainer = () => {
   const { isInitializing, initError, iframeUid } = useCgLib();
@@ -82,6 +90,24 @@ const PluginContainer = () => {
     { enabled: !!iframeUid }
   );
   const communityInfo = communityInfoResponse;
+  const communityId = communityInfo?.id;
+
+  // Fetch Community Logo URL
+  const { data: logoData, isLoading: isLoadingLogo, error: logoError } = useQuery<CommunityLogoResponse, Error>({
+    queryKey: ['communityLogo', communityId],
+    queryFn: async () => {
+      const res = await fetch(`/api/community/settings?communityId=${communityId}`);
+      if (!res.ok) {
+        // Handle 404 or other errors gracefully, maybe community has no logo set yet
+        if (res.status === 404) return { logo_url: null }; 
+        throw new Error('Failed to fetch community logo');
+      }
+      return res.json();
+    },
+    enabled: !!communityId,
+    staleTime: 15 * 60 * 1000,
+    retry: 1
+  });
 
   // Effect to trigger JWT login once CG Lib and user/community/admin status are ready
   useEffect(() => {
@@ -124,17 +150,33 @@ const PluginContainer = () => {
   // Combined loading and error states
   // We also consider `isAuthenticating` as part of the loading phase now.
   // The JWT is needed for backend calls, so the app isn't fully ready until it's attempted.
-  const isLoading = isInitializing || isLoadingAdminStatus || !activeSection || (isAuthenticating && !jwt);
-  const error = initError || adminStatusError || authError;
+  const isCoreLoading = isInitializing || isLoadingAdminStatus || !activeSection || (isAuthenticating && !jwt);
+  const coreError = initError || adminStatusError || authError || userInfoError || communityInfoError;
 
   // Display loading indicator
-  if (isLoading) {
-    return <div>Loading Plugin...</div>; // Consider a more detailed loading state if needed
+  if (isCoreLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground">
+        {isLoadingLogo ? (
+          <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+        ) : logoData?.logo_url ? (
+          <img 
+            src={logoData.logo_url} 
+            alt={`${communityInfo?.title || 'Community'} Logo`} 
+            className="h-20 w-auto mb-4 object-contain animate-pulse"
+          />
+        ) : (
+           <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+        )}
+        <p className="text-lg font-medium">Loading Plugin...</p>
+        {logoError && <p className="text-xs text-muted-foreground mt-1">Could not load community logo.</p>}
+      </div>
+    );
   }
 
   // Display error messages
-  if (error) {
-    return <div className='text-red-500 p-4'>Error loading plugin: {error.message}</div>;
+  if (coreError) {
+    return <div className='text-red-500 p-4'>Error loading plugin: {coreError.message}</div>;
   }
 
   // This check might be redundant now given the combined loading state, but keep for safety
@@ -219,6 +261,7 @@ const PluginContainer = () => {
           links={sidebarLinks} 
           activeSection={activeSection ?? ''}
           setActiveSection={handleSetActiveSection} 
+          communityId={communityId}
         />
       )}
       header={
@@ -228,6 +271,7 @@ const PluginContainer = () => {
       }
     >
       {activeSection && renderView()}
+      <Toaster />
     </AppLayout>
   );
 }
