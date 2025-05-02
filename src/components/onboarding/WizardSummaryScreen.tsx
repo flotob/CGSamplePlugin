@@ -62,7 +62,7 @@ export const WizardSummaryScreen: React.FC<WizardSummaryScreenProps> = ({
           </h2>
           <div className="space-y-3">
             {completedSteps.map((step) => (
-              <div key={step.id} className="bg-white/50 backdrop-blur-sm rounded-lg p-4 border border-gray-100">
+              <div key={step.id} className="bg-card/80 dark:bg-card/50 backdrop-blur-sm rounded-lg p-4 border border-border">
                 <div className="flex items-start">
                   <CheckCircle className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
                   <div>
@@ -88,10 +88,10 @@ export const WizardSummaryScreen: React.FC<WizardSummaryScreenProps> = ({
             </h2>
             <div className="space-y-3">
               {credentials.map((cred, index) => (
-                <div key={index} className="bg-white/50 backdrop-blur-sm rounded-lg p-4 border border-blue-100">
+                <div key={index} className="bg-card/80 dark:bg-card/50 backdrop-blur-sm rounded-lg p-4 border border-blue-500/20 dark:border-blue-500/30">
                   <div className="flex items-center">
-                    <div className="mr-3 h-8 w-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                      <span className="text-blue-700 font-medium">{cred.platform.charAt(0)}</span>
+                    <div className="mr-3 h-8 w-8 bg-muted/50 dark:bg-muted/30 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-blue-600 dark:text-blue-400 font-medium">{cred.platform.charAt(0)}</span>
                     </div>
                     <div>
                       <h3 className="font-medium">{formatPlatformName(cred.platform)}</h3>
@@ -113,7 +113,7 @@ export const WizardSummaryScreen: React.FC<WizardSummaryScreenProps> = ({
             </h2>
             <div className="space-y-3">
               {rolesGranted.map((role) => (
-                <div key={role.id} className="bg-white/50 backdrop-blur-sm rounded-lg p-4 border border-purple-100">
+                <div key={role.id} className="bg-card/80 dark:bg-card/50 backdrop-blur-sm rounded-lg p-4 border border-purple-500/20 dark:border-purple-500/30">
                   <div className="flex items-center">
                     <Award className="h-5 w-5 text-purple-500 mr-3 flex-shrink-0" />
                     <div>
@@ -135,10 +135,10 @@ export const WizardSummaryScreen: React.FC<WizardSummaryScreenProps> = ({
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {additionalCredentials.map((cred, index) => (
-                <div key={index} className="bg-white/30 backdrop-blur-sm rounded-lg p-3 border border-gray-100">
+                <div key={index} className="bg-card/50 dark:bg-card/30 backdrop-blur-sm rounded-lg p-3 border border-border">
                   <div className="flex items-center">
-                    <div className="mr-2 h-6 w-6 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
-                      <span className="text-gray-700 text-xs font-medium">{cred.platform.charAt(0)}</span>
+                    <div className="mr-2 h-6 w-6 bg-muted/50 dark:bg-muted/30 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-muted-foreground text-xs font-medium">{cred.platform.charAt(0)}</span>
                     </div>
                     <div className="overflow-hidden">
                       <h3 className="font-medium text-sm">{formatPlatformName(cred.platform)}</h3>

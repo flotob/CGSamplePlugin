@@ -232,7 +232,7 @@ const EnsLookup: React.FC = () => {
   };
   
   return (
-    <div className="bg-white/50 backdrop-blur-sm rounded-xl p-6 w-full max-w-md mx-auto border border-slate-100 shadow-sm">
+    <div className="bg-card/50 dark:bg-card/80 backdrop-blur-sm rounded-xl p-6 w-full max-w-md mx-auto border border-border shadow-sm">
       <h3 className="text-lg font-medium mb-4">Find Address by ENS Name</h3>
       
       <form onSubmit={handleFormSubmit} className="space-y-4">
@@ -243,7 +243,7 @@ const EnsLookup: React.FC = () => {
               placeholder="vitalik.eth"
               value={ensName}
               onChange={handleInputChange}
-              className={`w-full p-2 pl-3 pr-10 border ${!isValidName ? 'border-red-300' : 'border-slate-200'} rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50`}
+              className={`w-full p-2 pl-3 pr-10 border ${!isValidName ? 'border-red-300' : 'border-input'} rounded-lg focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-background text-foreground`}
             />
             {!isValidName && (
               <p className="text-xs text-red-500 mt-1">Invalid ENS name format</p>
@@ -251,7 +251,7 @@ const EnsLookup: React.FC = () => {
           </div>
           <button 
             type="submit" 
-            className="bg-primary text-white p-2 rounded-lg hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/50"
+            className="bg-primary text-primary-foreground p-2 rounded-lg hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
           >
             <Search className="h-5 w-5" />
           </button>
@@ -266,12 +266,12 @@ const EnsLookup: React.FC = () => {
       )}
       
       {!isLoading && normalizedEnsName && (
-        <div className="mt-6 p-4 bg-slate-50 rounded-lg border border-slate-100">
+        <div className="mt-6 p-4 bg-muted/50 rounded-lg border border-border">
           <p className="text-sm font-medium mb-1">{normalizedEnsName}</p>
           {resolvedAddress ? (
             <div>
               <p className="text-xs text-muted-foreground mb-2">Connect this wallet to verify:</p>
-              <div className="bg-white p-2 rounded border border-slate-100 font-mono text-xs break-all">
+              <div className="bg-background p-2 rounded border border-border font-mono text-xs break-all">
                 {resolvedAddress}
               </div>
             </div>
