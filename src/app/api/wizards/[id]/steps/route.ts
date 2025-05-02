@@ -59,8 +59,8 @@ export const POST = withAuth<WizardStepsParams>(async (req, { params }) => {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
   const { step_type_id, config, target_role_id, is_mandatory, is_active } = body;
-  if (!step_type_id || !target_role_id) {
-    return NextResponse.json({ error: 'step_type_id and target_role_id are required' }, { status: 400 });
+  if (!step_type_id) {
+    return NextResponse.json({ error: 'step_type_id is required' }, { status: 400 });
   }
   // Find the next step_order
   const orderRes = await query(

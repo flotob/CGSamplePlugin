@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface CommunityRole {
   id: string;
@@ -65,6 +66,9 @@ export const StepEditor: React.FC<StepEditorProps> = ({
   const [isMandatory, setIsMandatory] = React.useState<boolean>(true);
   const [isActive, setIsActive] = React.useState<boolean>(true);
 
+  // State for enabling/disabling role assignment
+  const [isRoleAssignmentEnabled, setIsRoleAssignmentEnabled] = React.useState<boolean>(false);
+
   const [presentationConfig, setPresentationConfig] = React.useState<PresentationConfig>(INITIAL_PRESENTATION_CONFIG);
   const [specificConfig, setSpecificConfig] = React.useState<Record<string, unknown>>(INITIAL_SPECIFIC_CONFIG);
 
@@ -93,19 +97,24 @@ export const StepEditor: React.FC<StepEditorProps> = ({
       setIsActive(true);
       setPresentationConfig(INITIAL_PRESENTATION_CONFIG);
       setSpecificConfig(INITIAL_SPECIFIC_CONFIG);
+      setIsRoleAssignmentEnabled(false); // Default to disabled for new steps
     } else if (step) {
+      const shouldEnableRole = !!step.target_role_id;
       setTargetRoleId(step.target_role_id ?? '');
       setIsMandatory(step.is_mandatory);
       setIsActive(step.is_active);
       const { presentation, specific } = parseConfig(step.config);
       setPresentationConfig(presentation);
       setSpecificConfig(specific);
+      setIsRoleAssignmentEnabled(shouldEnableRole);
     } else {
+      // Reset case (e.g., if step becomes null)
       setTargetRoleId('');
       setIsMandatory(true);
       setIsActive(true);
       setPresentationConfig(INITIAL_PRESENTATION_CONFIG);
       setSpecificConfig(INITIAL_SPECIFIC_CONFIG);
+      setIsRoleAssignmentEnabled(false);
     }
     setShowDeleteConfirm(false);
   }, [step, isCreating]);
@@ -192,31 +201,56 @@ export const StepEditor: React.FC<StepEditorProps> = ({
 
         <AccordionItem value="target-role">
           <AccordionTrigger className="text-sm font-medium text-muted-foreground uppercase tracking-wide hover:no-underline py-2">
-             Target Role
+             Target Role Assignment
           </AccordionTrigger>
-          <AccordionContent className="pt-3">
-            <div>
-              <p className="text-xs text-muted-foreground mb-2">
-                Select a role to assign to the user if they successfully complete this step.
-                Leave as '-- No Target Role --' if no role should be assigned here.
-              </p>
-              <Select
-                onValueChange={(value) => setTargetRoleId(value)}
-                value={targetRoleId}
+          <AccordionContent className="pt-3 space-y-4">
+            {/* Checkbox to enable/disable role assignment */}
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="enable-role-assignment"
+                checked={isRoleAssignmentEnabled}
+                onCheckedChange={(checked) => {
+                  const isEnabled = Boolean(checked);
+                  setIsRoleAssignmentEnabled(isEnabled);
+                  if (!isEnabled) {
+                    setTargetRoleId(''); // Clear role ID if disabled
+                  }
+                }}
                 disabled={currentMutation.isPending}
+              />
+              <Label 
+                htmlFor="enable-role-assignment" 
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
               >
-                <SelectTrigger id="target_role_id">
-                  <SelectValue placeholder="Select a role to grant" />
-                </SelectTrigger>
-                <SelectContent>
-                  {roleOptions.map(role => (
-                    <SelectItem key={role.id} value={role.id}>
-                      {role.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                Assign a role upon step completion
+              </Label>
             </div>
+
+            {/* Conditionally render the dropdown only if enabled */}
+            {isRoleAssignmentEnabled && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Select the role to assign to the user.
+                </p>
+                <Select
+                  onValueChange={(value) => setTargetRoleId(value)}
+                  value={targetRoleId} // This will be '' if just enabled, prompting selection
+                  disabled={currentMutation.isPending}
+                >
+                  <SelectTrigger id="target_role_id">
+                    <SelectValue placeholder="Select a role to grant" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {/* Removed the '-- No Target Role --' option */}
+                    {roleOptions.map(role => (
+                      <SelectItem key={role.id} value={role.id}>
+                        {role.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </AccordionContent>
         </AccordionItem>
 
