@@ -6,26 +6,26 @@ import React, { useMemo } from 'react';
 import type { CommunityInfoResponsePayload, UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
 import type { UserFriendsResponsePayload } from '@common-ground-dao/cg-plugin-lib-host';
 // Import Shadcn components
-import { Button } from "@/components/ui/button";
+// Removed: import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
+  // Removed: CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 // Import Icons
-import { User, Users, Award, BadgeCheck, Wallet, Loader2, AlertCircle, Star, Ticket, ExternalLink } from 'lucide-react';
+import { User, Users, BadgeCheck, Wallet, Loader2 } from 'lucide-react'; // Removed: Award, AlertCircle, Star, Ticket, ExternalLink
 // Import the new UserAvatar component
 import { UserAvatar } from './UserAvatar';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { useWizardSlideshow } from '@/context/WizardSlideshowContext';
+// Removed: import { useWizardSlideshow } from '@/context/WizardSlideshowContext';
 import { useCgLib } from '@/context/CgLibContext';
 import { useCgQuery } from '@/hooks/useCgQuery';
-import { useActiveWizardsQuery } from '@/hooks/useActiveWizardsQuery';
-import { useRelevantStepsQuery } from '@/hooks/useRelevantStepsQuery';
-import { useUserWizardCompletionsQuery } from '@/hooks/useUserWizardCompletionsQuery';
+// Removed: import { useActiveWizardsQuery } from '@/hooks/useActiveWizardsQuery';
+// Removed: import { useRelevantStepsQuery } from '@/hooks/useRelevantStepsQuery';
+// Removed: import { useUserWizardCompletionsQuery } from '@/hooks/useUserWizardCompletionsQuery';
 
 // Define Role type alias using the imported payload
 type Role = NonNullable<CommunityInfoResponsePayload['roles']>[number]; 
@@ -67,14 +67,14 @@ export const UserView: React.FC<UserViewProps> = ({
   );
 
   // Fetch other data as before
-  const { data: activeWizardsData, isLoading: isLoadingActiveWizards } = useActiveWizardsQuery();
-  const { data: relevantStepsData, isLoading: isLoadingRelevantSteps } = useRelevantStepsQuery();
-  const { data: completionsData, isLoading: isLoadingCompletions } = useUserWizardCompletionsQuery();
-  const { setActiveSlideshowWizardId } = useWizardSlideshow();
+  // Removed: const { data: activeWizardsData, isLoading: isLoadingActiveWizards } = useActiveWizardsQuery();
+  // Removed: const { data: relevantStepsData, isLoading: isLoadingRelevantSteps } = useRelevantStepsQuery();
+  // Removed: const { data: completionsData, isLoading: isLoadingCompletions } = useUserWizardCompletionsQuery();
+  // Removed: const { setActiveSlideshowWizardId } = useWizardSlideshow();
 
   // Extract core data
-  const userRoleIds = userInfo?.roles || [];
-  const allCommunityRoles = communityInfo?.roles || [];
+  const userRoleIds = useMemo(() => userInfo?.roles || [], [userInfo?.roles]);
+  const allCommunityRoles = useMemo(() => communityInfo?.roles || [], [communityInfo?.roles]);
 
   // Calculate current roles
   const myRoles = useMemo(() => {
@@ -84,7 +84,7 @@ export const UserView: React.FC<UserViewProps> = ({
   }, [allCommunityRoles, userRoleIds]);
 
   // Combine loading/error states
-  const isLoading = isLoadingUserInfo || isLoadingCommunityInfo || isLoadingActiveWizards || isLoadingRelevantSteps || isLoadingCompletions || isLoadingFriends;
+  const isLoading = isLoadingUserInfo || isLoadingCommunityInfo || isLoadingFriends;
   const error = userInfoError || communityInfoError; 
 
   // Only render content if the active section is 'profile'
@@ -233,7 +233,7 @@ export const UserView: React.FC<UserViewProps> = ({
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground italic">You don't have any community roles yet.</p>
+              <p className="text-sm text-muted-foreground italic">You don&apos;t have any community roles yet.</p>
             )}
           </CardContent>
         </Card>

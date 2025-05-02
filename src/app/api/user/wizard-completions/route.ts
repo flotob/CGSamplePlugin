@@ -8,11 +8,6 @@ interface AuthenticatedRequest extends NextRequest {
   user?: JwtPayload;
 }
 
-// Define the structure for the response
-interface UserWizardCompletionsResponse {
-  completed_wizard_ids: string[];
-}
-
 // GET: List IDs of wizards completed by the current user
 export const GET = withAuth(async (req: AuthenticatedRequest) => {
   const user = req.user;

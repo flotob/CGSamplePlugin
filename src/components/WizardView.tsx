@@ -66,8 +66,8 @@ export const WizardView: React.FC<WizardViewProps> = () => {
   }, [userWizardsData]);
 
   // --- Added earnableRoles calculation --- 
-  const userRoleIds = userInfo?.roles || [];
-  const allCommunityRoles = communityInfo?.roles || [];
+  const userRoleIds = useMemo(() => userInfo?.roles || [], [userInfo?.roles]);
+  const allCommunityRoles = useMemo(() => communityInfo?.roles || [], [communityInfo?.roles]);
   const earnableRoles = useMemo(() => {
     if (!userInfo || !communityInfo || !activeWizardsData || !relevantStepsData || !completionsData || !allCommunityRoles) {
       return []; 

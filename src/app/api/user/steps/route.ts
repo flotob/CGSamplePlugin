@@ -8,14 +8,11 @@ interface AuthenticatedRequest extends NextRequest {
   user?: JwtPayload;
 }
 
-// Define the structure for the response item
-interface RelevantStepInfo {
+// Define the expected structure of the response items
+interface RelevantStep {
   wizard_id: string;
+  step_id: string;
   target_role_id: string;
-}
-
-interface RelevantStepsResponse {
-  steps: RelevantStepInfo[];
 }
 
 // GET: List relevant steps (wizard_id, target_role_id) from active wizards in the user's community
@@ -46,7 +43,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
       [activeWizardIds]
     );
     
-    const relevantSteps: RelevantStepInfo[] = stepsRes.rows;
+    const relevantSteps: RelevantStep[] = stepsRes.rows;
 
     return NextResponse.json({ steps: relevantSteps });
 

@@ -20,12 +20,6 @@ export interface CreateStepPayload {
   is_active: boolean;
 }
 
-interface StepFormData {
-  target_role_id: string;
-  is_mandatory: boolean;
-  is_active: boolean;
-}
-
 export const WizardStepEditorPage: React.FC<WizardStepEditorPageProps> = ({ wizardId, assignableRoles }) => {
   const { data, isLoading, refetch: refetchSteps } = useStepsQuery(wizardId);
   const [activeStepId, setActiveStepId] = React.useState<string | null>(null);

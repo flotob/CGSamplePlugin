@@ -14,22 +14,17 @@ import {
 } from "@/components/ui/accordion";
 import { Label } from '@/components/ui/label';
 import { Switch } from "@/components/ui/switch";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Info } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface CommunityRole {
   id: string;
   title: string;
-}
-
-interface StepFullData {
-  target_role_id: string | null;
-  is_mandatory: boolean;
-  is_active: boolean;
-  config: {
-    presentation: PresentationConfig;
-    specific: Record<string, unknown>;
-  };
 }
 
 interface StepEditorProps {
@@ -73,6 +68,14 @@ export const StepEditor: React.FC<StepEditorProps> = ({
   const [presentationConfig, setPresentationConfig] = React.useState<PresentationConfig>(INITIAL_PRESENTATION_CONFIG);
   const [specificConfig, setSpecificConfig] = React.useState<Record<string, unknown>>(INITIAL_SPECIFIC_CONFIG);
 
+  const handlePresentationChange = React.useCallback((newConfig: PresentationConfig) => {
+    setPresentationConfig(newConfig);
+  }, []);
+
+  const handleSpecificConfigChange = React.useCallback((newConfig: Record<string, unknown>) => {
+    setSpecificConfig(newConfig);
+  }, []);
+
   const updateStep = useUpdateStep(wizardId, step?.id);
   const deleteStep = useDeleteStep(wizardId, step?.id);
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
@@ -115,14 +118,6 @@ export const StepEditor: React.FC<StepEditorProps> = ({
 
   const stepTypeInfo = isCreating ? stepTypeForCreate : stepTypesData?.step_types.find(t => t.id === step?.step_type_id);
   const roleOptions = roles;
-
-  const handlePresentationChange = React.useCallback((newConfig: PresentationConfig) => {
-    setPresentationConfig(newConfig);
-  }, []);
-
-  const handleSpecificConfigChange = React.useCallback((newConfig: Record<string, unknown>) => {
-    setSpecificConfig(newConfig);
-  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -205,20 +200,22 @@ export const StepEditor: React.FC<StepEditorProps> = ({
                 Select a role to assign to the user if they successfully complete this step.
                 Leave as '-- No Target Role --' if no role should be assigned here.
               </p>
-              <select
-                name="target_role_id"
+              <Select
+                onValueChange={(value) => setTargetRoleId(value)}
                 value={targetRoleId}
-                onChange={(e) => setTargetRoleId(e.target.value)}
-                className="w-full border border-input bg-background rounded-md text-sm p-2 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none h-9"
                 disabled={currentMutation.isPending}
               >
-                <option value="">-- No Target Role --</option>
-                {roleOptions.map(role => (
-                  <option key={role.id} value={role.id}>
-                    {role.title}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger id="target_role_id">
+                  <SelectValue placeholder="Select a role to grant" />
+                </SelectTrigger>
+                <SelectContent>
+                  {roleOptions.map(role => (
+                    <SelectItem key={role.id} value={role.id}>
+                      {role.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </AccordionContent>
         </AccordionItem>
@@ -240,13 +237,13 @@ export const StepEditor: React.FC<StepEditorProps> = ({
       </Accordion>
 
       <div className="space-y-3 border-t border-border/30 pt-4 mt-4">
-        <div className="flex items-center justify-between space-x-2">
-          <Label htmlFor="step-active" className="flex flex-col space-y-1">
-            <span>Include Step</span>
-            <span className="font-normal leading-snug text-muted-foreground text-xs">
-              If disabled, this step will be hidden from users in the wizard.
-            </span>
-          </Label>
+        <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm bg-card/60">
+          <div className="space-y-0.5">
+            <Label htmlFor="is_active">Step Status</Label>
+            <p className="text-xs text-muted-foreground">
+              Inactive steps won&apos;t be shown to users. 
+            </p>
+          </div>
           <Switch
             id="step-active"
             checked={isActive}
@@ -254,13 +251,13 @@ export const StepEditor: React.FC<StepEditorProps> = ({
             disabled={currentMutation.isPending}
           />
         </div>
-        <div className="flex items-center justify-between space-x-2">
-          <Label htmlFor="step-mandatory" className="flex flex-col space-y-1">
-            <span>Mandatory Step</span>
-            <span className="font-normal leading-snug text-muted-foreground text-xs">
-              If enabled, users must complete this step to finish the wizard.
-            </span>
-          </Label>
+        <div className="flex items-center justify-between rounded-lg border p-3 shadow-sm bg-card/60">
+          <div className="space-y-0.5">
+            <Label htmlFor="is_mandatory">Mandatory Step</Label>
+            <p className="text-xs text-muted-foreground">
+              Users must complete mandatory steps to finish the wizard.
+            </p>
+          </div>
           <Switch
             id="step-mandatory"
             checked={isMandatory}

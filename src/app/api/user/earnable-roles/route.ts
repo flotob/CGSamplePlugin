@@ -20,10 +20,6 @@ interface EarnableRole {
   granting_wizards: GrantingWizard[];
 }
 
-interface EarnableRolesResponse {
-  earnable_roles: EarnableRole[];
-}
-
 // GET: List roles the user can earn via active, uncompleted wizards
 export const GET = withAuth(async (req) => {
   const user = req.user as JwtPayload | undefined;
