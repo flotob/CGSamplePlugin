@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 // Removed Image import as it's handled by UserAvatar
 // Import necessary payload types
 import type { CommunityInfoResponsePayload, UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
@@ -14,65 +14,138 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 // Import Icons
-import { User, Users, Award, BadgeCheck, Wallet } from 'lucide-react';
+import { User, Users, Award, BadgeCheck, Wallet, Loader2, AlertCircle, Star, Ticket, ExternalLink } from 'lucide-react';
 // Import the new UserAvatar component
 import { UserAvatar } from './UserAvatar';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
+import { useWizardSlideshow } from '@/context/WizardSlideshowContext';
+import { useCgLib } from '@/context/CgLibContext';
+import { useCgQuery } from '@/hooks/useCgQuery';
+import { useActiveWizardsQuery } from '@/hooks/useActiveWizardsQuery';
+import { useRelevantStepsQuery } from '@/hooks/useRelevantStepsQuery';
+import { useUserWizardCompletionsQuery } from '@/hooks/useUserWizardCompletionsQuery';
+
+// Define Role type alias using the imported payload
+type Role = NonNullable<CommunityInfoResponsePayload['roles']>[number]; 
 
 // Define props expected from PluginContainer
 interface UserViewProps {
-  userInfo: UserInfoResponsePayload | undefined;
-  communityInfo: CommunityInfoResponsePayload | undefined;
   friends: UserFriendsResponsePayload | undefined;
-  // Use the inferred type for roles directly from the communityInfo payload
-  assignableRoles: CommunityInfoResponsePayload['roles'] | undefined;
-  handleAssignRoleClick: (roleId: string | null) => void;
-  isAssigningRole: boolean;
-  assignRoleError: Error | null;
-  activeSection: string; // Receive activeSection prop
-  // Add loading/error props for specific data
-  isLoadingUserInfo: boolean;
-  userInfoError: Error | null;
-  isLoadingCommunityInfo: boolean;
-  communityInfoError: Error | null;
+  activeSection: string;
   isLoadingFriends: boolean;
   friendsError: Error | null;
 }
 
 export const UserView: React.FC<UserViewProps> = ({
-  userInfo,
-  communityInfo,
   friends,
-  assignableRoles,
-  handleAssignRoleClick,
-  isAssigningRole,
-  assignRoleError,
   activeSection,
-  // Destructure loading/error states
-  isLoadingUserInfo,
-  userInfoError,
-  isLoadingCommunityInfo,
-  communityInfoError,
   isLoadingFriends,
   friendsError,
 }) => {
+  // Get CG Lib context
+  const { isInitializing, iframeUid } = useCgLib(); 
+
+  // Fetch UserInfo and CommunityInfo using useCgQuery
+  const { data: userInfo, isLoading: isLoadingUserInfo, error: userInfoError } = useCgQuery<
+    UserInfoResponsePayload,
+    Error
+  >(
+    ['userInfo', iframeUid],
+    async (instance) => (await instance.getUserInfo()).data,
+    { enabled: !!iframeUid }
+  );
+
+  const { data: communityInfo, isLoading: isLoadingCommunityInfo, error: communityInfoError } = useCgQuery<
+    CommunityInfoResponsePayload,
+    Error
+  >(
+    ['communityInfo', iframeUid],
+    async (instance) => (await instance.getCommunityInfo()).data,
+    { enabled: !!iframeUid }
+  );
+
+  // Fetch other data as before
+  const { data: activeWizardsData, isLoading: isLoadingActiveWizards } = useActiveWizardsQuery();
+  const { data: relevantStepsData, isLoading: isLoadingRelevantSteps } = useRelevantStepsQuery();
+  const { data: completionsData, isLoading: isLoadingCompletions } = useUserWizardCompletionsQuery();
+  const { setActiveSlideshowWizardId } = useWizardSlideshow();
+
+  // Extract core data
+  const userRoleIds = userInfo?.roles || [];
+  const allCommunityRoles = communityInfo?.roles || [];
+
+  // Calculate current roles
+  const myRoles = useMemo(() => {
+    if (!allCommunityRoles) return []; // Guard against undefined
+    // Ensure the filter function correctly uses the Role type
+    return allCommunityRoles.filter((role: Role) => userRoleIds.includes(role.id));
+  }, [allCommunityRoles, userRoleIds]);
+
+  // Calculate earnable roles
+  const earnableRoles = useMemo(() => {
+    if (!userInfo || !communityInfo || !activeWizardsData || !relevantStepsData || !completionsData || !allCommunityRoles) {
+      return []; 
+    }
+
+    const unearnedRoles = allCommunityRoles.filter((role: Role) => !userRoleIds.includes(role.id));
+    if (unearnedRoles.length === 0) return [];
+
+    const activeWizardsMap = new Map(activeWizardsData.wizards.map(w => [w.id, w]));
+    const completedWizardIds = new Set(completionsData.completed_wizard_ids);
+    
+    const rolesToWizardsMap = new Map<string, { roleInfo: Role, grantingWizards: { wizard_id: string, wizard_name: string }[] }>();
+
+    for (const step of relevantStepsData.steps) {
+      const wizardInfo = activeWizardsMap.get(step.wizard_id);
+      if (!wizardInfo || completedWizardIds.has(step.wizard_id)) {
+        continue;
+      }
+      
+      const targetRole = unearnedRoles.find(r => r.id === step.target_role_id);
+      if (!targetRole) {
+        continue;
+      }
+
+      if (!rolesToWizardsMap.has(targetRole.id)) {
+        rolesToWizardsMap.set(targetRole.id, { roleInfo: targetRole, grantingWizards: [] });
+      }
+
+      const entry = rolesToWizardsMap.get(targetRole.id)!;
+      if (!entry.grantingWizards.some(w => w.wizard_id === wizardInfo.id)) {
+        entry.grantingWizards.push({ wizard_id: wizardInfo.id, wizard_name: wizardInfo.name });
+      }
+    }
+
+    return Array.from(rolesToWizardsMap.values()).sort((a, b) => a.roleInfo.title.localeCompare(b.roleInfo.title));
+
+  }, [userInfo, communityInfo, activeWizardsData, relevantStepsData, completionsData, allCommunityRoles, userRoleIds]);
+
+  // Combine loading/error states
+  const isLoading = isLoadingUserInfo || isLoadingCommunityInfo || isLoadingActiveWizards || isLoadingRelevantSteps || isLoadingCompletions || isLoadingFriends;
+  const error = userInfoError || communityInfoError; 
 
   // Only render content if the active section is 'profile'
   if (activeSection !== 'profile') {
     return null; 
   }
-
-  // Optional: Add specific loading/error handling for this view
-  if (isLoadingUserInfo || isLoadingCommunityInfo || isLoadingFriends) {
-      // Could return a specific skeleton for the user view
-      // return <UserViewSkeleton />;
+  
+  // Handle overall loading state
+  if (isInitializing || isLoading) {
+      return <div className="flex items-center justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
-  if (userInfoError || communityInfoError || friendsError) {
-      // Could return a specific error message for this view
-      // return <p>Error loading profile data.</p>;
+  
+  // Handle overall error state
+  if (error) {
+       return (
+        <div className="p-4 text-destructive bg-destructive/10 border border-destructive/20 rounded-md">
+            <p>Error loading profile data: {(error as Error)?.message || 'An unknown error occurred'}</p>
+        </div>
+    );
   }
 
+  // --- Render Logic --- 
   return (
     <>
       {/* Section title with animation */}
@@ -82,14 +155,14 @@ export const UserView: React.FC<UserViewProps> = ({
           <h1 className="text-2xl font-bold tracking-tight">Your Profile</h1>
         </div>
         <p className="text-muted-foreground mt-2">
-          View your information, community connections, and available roles.
+          View your information, community connections, and roles.
         </p>
       </div>
 
       {/* Grid layout back to 2 cols on medium */}
       <div className="w-full max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6"> 
         {/* User Info Card */}
-        <Card className="md:col-span-1 animate-in fade-in slide-in-from-bottom-5 duration-500 delay-150" interactive>
+        <Card className="md:col-span-1 animate-in fade-in slide-in-from-bottom-5 duration-500 delay-100" interactive>
           <CardHeader className="pb-3">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-full bg-primary/10">
@@ -161,7 +234,7 @@ export const UserView: React.FC<UserViewProps> = ({
         </Card>
 
         {/* Wallet Connection Card */}
-        <Card className="md:col-span-1 animate-in fade-in slide-in-from-bottom-5 duration-500 delay-200" interactive>
+        <Card className="md:col-span-1 animate-in fade-in slide-in-from-bottom-5 duration-500 delay-150" interactive>
            <CardHeader className="pb-3">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-full bg-primary/10">
@@ -175,11 +248,39 @@ export const UserView: React.FC<UserViewProps> = ({
           </CardContent>
         </Card>
 
+        {/* Your Roles Card */}
+        <Card className="md:col-span-1 animate-in fade-in slide-in-from-bottom-5 duration-500 delay-200" interactive>
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-full bg-primary/10">
+                <BadgeCheck className="h-4 w-4 text-primary" />
+              </div>
+              <CardTitle>Your Roles</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {isLoadingUserInfo || isLoadingCommunityInfo ? (
+              <div className="flex items-center justify-center p-4">
+                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              </div>
+            ) : myRoles.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {myRoles.map(role => (
+                  <Badge key={role.id} variant="secondary" className="font-medium">
+                    {role.title}
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground italic">You don't have any community roles yet.</p>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Friends list Card (will wrap below on md screens) */}
-        {/* Make it span full width if roles aren't shown, otherwise half */}
         {((!isLoadingFriends && !friendsError && friends && friends.friends.length > 0) || isLoadingFriends) && (
            // Safely check friends?.friends before accessing length
-           <Card className={`animate-in fade-in slide-in-from-bottom-5 duration-500 delay-300 ${(!isLoadingCommunityInfo && assignableRoles && assignableRoles.length > 0) || isLoadingCommunityInfo ? 'md:col-span-1' : 'md:col-span-2'}`} interactive>
+           <Card className={`animate-in fade-in slide-in-from-bottom-5 duration-500 delay-250 ${(!isLoadingCommunityInfo) ? 'md:col-span-1' : 'md:col-span-2'}`} interactive>
              <CardHeader className="pb-3">
                 <div className="flex items-center gap-3">
                   <div className="p-2 rounded-full bg-primary/10">
@@ -217,87 +318,61 @@ export const UserView: React.FC<UserViewProps> = ({
            </Card>
         )}
 
-        {/* Assignable roles Card (will wrap below on md screens) */}
-         {/* Make it span full width if friends aren't shown, otherwise half */} 
-        {((!isLoadingCommunityInfo && !communityInfoError && assignableRoles && assignableRoles.length > 0) || isLoadingCommunityInfo) && (
-             // Safely check friends?.friends before accessing length
-             <Card className={`animate-in fade-in slide-in-from-bottom-5 duration-500 delay-450 ${(!isLoadingFriends && friends?.friends && friends.friends.length > 0) || isLoadingFriends ? 'md:col-span-1' : 'md:col-span-2'}`} interactive>
-                {/* Role Card Content Here */} 
-                 <CardHeader className="pb-3">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-full bg-primary/10">
-                      <Award className="h-4 w-4 text-primary" />
-                    </div>
-                    <div>
-                      <CardTitle>Available Roles</CardTitle>
-                      <CardDescription className="mt-1">Get roles by meeting criteria or manual assignment.</CardDescription>
+        {/* Roles to Earn Card - Spans full width on MD if Friends card is hidden */}
+        <Card className={`animate-in fade-in slide-in-from-bottom-5 duration-500 delay-300 ${(!isLoadingFriends && friends?.friends && friends.friends.length > 0) || isLoadingFriends ? 'md:col-span-2' : 'md:col-span-2'}`} interactive> 
+           <CardHeader className="pb-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-full bg-primary/10">
+                <Ticket className="h-4 w-4 text-primary" /> 
+              </div>
+              <CardTitle>Roles to Earn</CardTitle>
+            </div>
+            <CardDescription className="pt-1 pl-10">Complete wizards to earn these roles.</CardDescription> 
+          </CardHeader>
+          <CardContent className='flex flex-col gap-4'>
+            {isLoading ? (
+               <div className="flex items-center justify-center p-8">
+                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+               </div>
+            ) : earnableRoles && earnableRoles.length > 0 ? (
+                earnableRoles.map(({ roleInfo, grantingWizards }) => (
+                  <div key={roleInfo.id} className="p-3 border rounded-md bg-card/50">
+                    <p className="font-medium mb-1">{roleInfo.title}</p>
+                    {/* Assume description is on Role type from lib - adjust if not */} 
+                    {/* {roleInfo.description && ( <p className="text-xs text-muted-foreground mb-2">{roleInfo.description}</p> )} */}
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className="text-xs text-muted-foreground mr-1">Earn via:</span>
+                      {grantingWizards.length > 0 ? (
+                         grantingWizards.map(wizard => (
+                           <Button 
+                             key={wizard.wizard_id} 
+                             variant="link"
+                             size="sm"
+                             className="h-auto p-0 text-xs text-primary hover:text-primary/80 flex items-center gap-1"
+                             onClick={() => setActiveSlideshowWizardId(wizard.wizard_id)}
+                           >
+                             <span>{wizard.wizard_name}</span>
+                             <ExternalLink className="h-3 w-3"/>
+                           </Button>
+                         ))
+                      ) : (
+                         <span className="text-xs italic text-muted-foreground">Error: No wizards found for this role.</span> // Should not happen based on calc
+                      )}
                     </div>
                   </div>
-                   {/* ... Assigning/Error indicators ... */} 
-                  {isAssigningRole && (
-                    <div className='text-blue-500 pt-2 flex items-center gap-2'>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
-                      <p className="text-sm">Assigning role...</p>
-                    </div>
-                  )}
-                  {assignRoleError && (
-                    <div className='text-destructive pt-2 flex items-center gap-2 p-2 bg-destructive/10 rounded-md'>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="10"/>
-                        <line x1="12" x2="12" y1="8" y2="12"/>
-                        <line x1="12" x2="12.01" y1="16" y2="16"/>
-                      </svg>
-                      <p className="text-sm">Error: {assignRoleError.message}</p>
-                    </div>
-                  )}
-                 </CardHeader>
-                 {/* Render content only if not loading and roles exist */}
-                 {!isLoadingCommunityInfo && assignableRoles && assignableRoles.length > 0 && (
-                   <CardContent className='grid grid-cols-1 gap-3'> 
-                      {assignableRoles?.map((role, index) => (
-                        <div 
-                          className='flex items-center justify-between p-3 rounded-md border border-border bg-card transition-all hover:bg-secondary/20' 
-                          key={role.id}
-                          style={{ animationDelay: `${450 + (index * 50)}ms` }}
-                        >
-                           {/* ... Role details and button ... */} 
-                           <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-full bg-accent flex items-center justify-center text-accent-foreground">
-                              {role.title.charAt(0)}
-                            </div>
-                            <div>
-                              <p className="font-medium">{role.title}</p>
-                              <p className="text-xs text-muted-foreground">ID: {role.id.substring(0, 6)}...</p>
-                            </div>
-                          </div>
-                          {userInfo?.roles?.includes(role.id) ? (
-                            <div className='text-xs flex items-center gap-1.5 text-primary px-2.5 py-1.5 border-primary/20 border rounded-md bg-primary/10'>
-                              <BadgeCheck className="h-3.5 w-3.5" />
-                              <span>Assigned</span>
-                            </div>
-                          ) : (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleAssignRoleClick(role.id)}
-                              disabled={isAssigningRole}
-                              className="transition-all duration-200"
-                            >
-                              Get Role
-                            </Button>
-                          )}
-                        </div>
-                      ))}
-                   </CardContent>
-                 )}
-                 {/* Show loading inside if loading */}
-                 {isLoadingCommunityInfo && (
-                    <CardContent className='flex items-center justify-center p-12'>
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-                    </CardContent>
-                 )}
-             </Card>
-        )}
+                ))
+            ) : (
+              <p className="text-sm text-muted-foreground italic p-4 text-center">No further roles currently earnable via wizards.</p>
+            )}
+            {/* Display general error for hooks if needed */}
+            {error && !isLoading && !(earnableRoles && earnableRoles.length > 0) && (
+                 <div className="text-destructive flex items-center gap-2 p-2 bg-destructive/10 rounded-md">
+                 <AlertCircle className="h-4 w-4" />
+                 <p>Error loading roles information: {(error as Error)?.message || 'An unknown error occurred'}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
       </div>
     </>
