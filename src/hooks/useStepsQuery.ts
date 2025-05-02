@@ -7,7 +7,7 @@ export interface Step {
   step_type_id: string;
   step_order: number;
   config: Record<string, unknown>;
-  target_role_id: string;
+  target_role_id: string | null;
   is_mandatory: boolean;
   is_active: boolean;
   created_at: string;

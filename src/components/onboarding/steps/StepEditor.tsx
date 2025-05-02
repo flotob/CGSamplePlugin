@@ -4,16 +4,32 @@ import { Button } from '@/components/ui/button';
 import { useStepTypesQuery, StepType } from '@/hooks/useStepTypesQuery';
 import { UseMutationResult } from '@tanstack/react-query';
 import { CreateStepPayload } from '../WizardStepEditorPage';
+import { CommonStepPresentationSettings, PresentationConfig } from './CommonStepPresentationSettings';
+import { EnsStepConfig, EnsSpecificConfig } from './EnsStepConfig';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Label } from '@/components/ui/label';
+import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Info } from 'lucide-react';
 
 interface CommunityRole {
   id: string;
   title: string;
 }
 
-interface StepFormData {
-  target_role_id: string;
+interface StepFullData {
+  target_role_id: string | null;
   is_mandatory: boolean;
   is_active: boolean;
+  config: {
+    presentation: PresentationConfig;
+    specific: Record<string, unknown>;
+  };
 }
 
 interface StepEditorProps {
@@ -24,16 +40,17 @@ interface StepEditorProps {
   onDelete?: () => void;
   isCreating: boolean;
   stepTypeForCreate: StepType | null;
-  onCreate: (formData: StepFormData) => void;
+  onCreate: (formData: CreateStepPayload) => void;
   onCancelCreate: () => void;
   createStepMutation: UseMutationResult<{ step: Step }, Error, CreateStepPayload, unknown>;
 }
 
-const INITIAL_FORM_STATE: StepFormData = {
-  target_role_id: '',
-  is_mandatory: true,
-  is_active: true,
+const INITIAL_PRESENTATION_CONFIG: PresentationConfig = {
+  headline: null,
+  subtitle: null,
 };
+
+const INITIAL_SPECIFIC_CONFIG: Record<string, unknown> = {};
 
 export const StepEditor: React.FC<StepEditorProps> = ({
   wizardId,
@@ -48,22 +65,44 @@ export const StepEditor: React.FC<StepEditorProps> = ({
   createStepMutation,
 }) => {
   const { data: stepTypesData } = useStepTypesQuery();
-  const [form, setForm] = React.useState<StepFormData>(INITIAL_FORM_STATE);
+  
+  const [targetRoleId, setTargetRoleId] = React.useState<string>('');
+  const [isMandatory, setIsMandatory] = React.useState<boolean>(true);
+  const [isActive, setIsActive] = React.useState<boolean>(true);
+
+  const [presentationConfig, setPresentationConfig] = React.useState<PresentationConfig>(INITIAL_PRESENTATION_CONFIG);
+  const [specificConfig, setSpecificConfig] = React.useState<Record<string, unknown>>(INITIAL_SPECIFIC_CONFIG);
+
   const updateStep = useUpdateStep(wizardId, step?.id);
   const deleteStep = useDeleteStep(wizardId, step?.id);
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
 
+  const parseConfig = (config: Record<string, unknown> | undefined | null): { presentation: PresentationConfig, specific: Record<string, unknown> } => {
+    const parsedPresentation = config?.presentation as PresentationConfig || INITIAL_PRESENTATION_CONFIG;
+    const parsedSpecific = config?.specific as Record<string, unknown> || INITIAL_SPECIFIC_CONFIG;
+    return { presentation: parsedPresentation, specific: parsedSpecific };
+  };
+
   React.useEffect(() => {
     if (isCreating) {
-      setForm(INITIAL_FORM_STATE);
+      setTargetRoleId('');
+      setIsMandatory(true);
+      setIsActive(true);
+      setPresentationConfig(INITIAL_PRESENTATION_CONFIG);
+      setSpecificConfig(INITIAL_SPECIFIC_CONFIG);
     } else if (step) {
-      setForm({
-        target_role_id: step.target_role_id,
-        is_mandatory: step.is_mandatory,
-        is_active: step.is_active,
-      });
+      setTargetRoleId(step.target_role_id ?? '');
+      setIsMandatory(step.is_mandatory);
+      setIsActive(step.is_active);
+      const { presentation, specific } = parseConfig(step.config);
+      setPresentationConfig(presentation);
+      setSpecificConfig(specific);
     } else {
-      setForm(INITIAL_FORM_STATE);
+      setTargetRoleId('');
+      setIsMandatory(true);
+      setIsActive(true);
+      setPresentationConfig(INITIAL_PRESENTATION_CONFIG);
+      setSpecificConfig(INITIAL_SPECIFIC_CONFIG);
     }
     setShowDeleteConfirm(false);
   }, [step, isCreating]);
@@ -77,31 +116,42 @@ export const StepEditor: React.FC<StepEditorProps> = ({
   const stepTypeInfo = isCreating ? stepTypeForCreate : stepTypesData?.step_types.find(t => t.id === step?.step_type_id);
   const roleOptions = roles;
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type } = e.target;
-    if (type === 'checkbox') {
-      setForm(f => ({
-        ...f,
-        [name]: (e.target as HTMLInputElement).checked,
-      }));
-    } else {
-      setForm(f => ({
-        ...f,
-        [name]: value,
-      }));
-    }
-  };
+  const handlePresentationChange = React.useCallback((newConfig: PresentationConfig) => {
+    setPresentationConfig(newConfig);
+  }, []);
 
-  const handleRoleChange = (value: string) => {
-    setForm(f => ({ ...f, target_role_id: value }));
-  };
+  const handleSpecificConfigChange = React.useCallback((newConfig: Record<string, unknown>) => {
+    setSpecificConfig(newConfig);
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    const finalConfig = {
+      presentation: presentationConfig,
+      specific: specificConfig,
+    };
+    
+    const finalTargetRoleId = targetRoleId === '' ? null : targetRoleId;
+
     if (isCreating) {
-      onCreate(form);
+      if (!stepTypeInfo) return;
+      const payload: CreateStepPayload = {
+        step_type_id: stepTypeInfo.id,
+        target_role_id: finalTargetRoleId,
+        is_mandatory: isMandatory,
+        is_active: isActive,
+        config: finalConfig,
+      };
+      onCreate(payload);
     } else {
-      updateStep.mutate(form, {
+      const updatePayload: Partial<Step> = {
+        target_role_id: finalTargetRoleId,
+        is_mandatory: isMandatory,
+        is_active: isActive,
+        config: finalConfig,
+      }
+      updateStep.mutate(updatePayload, {
         onSuccess: () => onSave && onSave(),
       });
     }
@@ -114,6 +164,8 @@ export const StepEditor: React.FC<StepEditorProps> = ({
       onSuccess: () => onDelete && onDelete(),
     });
   };
+
+  const isSaveDisabled = currentMutation.isPending;
 
   return (
     <form onSubmit={handleSubmit} className="max-w-xl mx-auto p-6 flex flex-col gap-4">
@@ -128,50 +180,97 @@ export const StepEditor: React.FC<StepEditorProps> = ({
           )}
         </div>
       </div>
-      <div>
-        <label className="block text-sm font-medium mb-1">Target Role</label>
-        <select
-          name="target_role_id"
-          value={form.target_role_id}
-          onChange={(e) => handleRoleChange(e.target.value)}
-          required
-          className="w-full border border-input bg-background rounded-md text-sm p-2 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none h-9"
-        >
-          <option value="" disabled>Select a role...</option>
-          {roleOptions.map(role => (
-            <option key={role.id} value={role.id}>
-              {role.title}
-            </option>
-          ))}
-        </select>
-        {currentMutation.isError && (currentMutation.error.message.includes('target_role_id') || !form.target_role_id) && (
-           <p className="text-xs text-destructive mt-1">Target role is required.</p>
+      
+      <Accordion type="single" collapsible defaultValue="presentation-settings" className="w-full space-y-3 border-t border-border/30 pt-4 mt-4">
+        <AccordionItem value="presentation-settings">
+          <AccordionTrigger className="text-sm font-medium text-muted-foreground uppercase tracking-wide hover:no-underline py-2">
+            Presentation
+          </AccordionTrigger>
+          <AccordionContent className="pt-1">
+            <CommonStepPresentationSettings 
+              initialData={presentationConfig}
+              onChange={handlePresentationChange}
+              disabled={currentMutation.isPending}
+            />
+          </AccordionContent>
+        </AccordionItem>
+
+        <AccordionItem value="target-role">
+          <AccordionTrigger className="text-sm font-medium text-muted-foreground uppercase tracking-wide hover:no-underline py-2">
+             Target Role
+          </AccordionTrigger>
+          <AccordionContent className="pt-3">
+            <div>
+              <Label className="block text-sm font-medium mb-1">Target Role (Optional)</Label>
+              <select
+                name="target_role_id"
+                value={targetRoleId}
+                onChange={(e) => setTargetRoleId(e.target.value)}
+                className="w-full border border-input bg-background rounded-md text-sm p-2 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none h-9"
+                disabled={currentMutation.isPending}
+              >
+                <option value="">-- No Target Role --</option>
+                {roleOptions.map(role => (
+                  <option key={role.id} value={role.id}>
+                    {role.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
+        {stepTypeInfo?.name === 'ens' && (
+          <AccordionItem value="specific-config">
+            <AccordionTrigger className="text-sm font-medium text-muted-foreground uppercase tracking-wide hover:no-underline py-2">
+               ENS Configuration
+            </AccordionTrigger>
+            <AccordionContent className="pt-1">
+              <EnsStepConfig 
+                initialData={specificConfig as EnsSpecificConfig}
+                onChange={handleSpecificConfigChange}
+                disabled={currentMutation.isPending}
+              />
+            </AccordionContent>
+          </AccordionItem>
         )}
-      </div>
-      <div className="flex items-center gap-4">
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            name="is_mandatory"
-            checked={form.is_mandatory}
-            onChange={handleChange}
+      </Accordion>
+
+      <div className="space-y-3 border-t border-border/30 pt-4 mt-4">
+        <div className="flex items-center justify-between space-x-2">
+          <Label htmlFor="step-active" className="flex flex-col space-y-1">
+            <span>Include Step</span>
+            <span className="font-normal leading-snug text-muted-foreground text-xs">
+              If disabled, this step will be hidden from users in the wizard.
+            </span>
+          </Label>
+          <Switch
+            id="step-active"
+            checked={isActive}
+            onCheckedChange={setIsActive}
+            disabled={currentMutation.isPending}
           />
-          Mandatory
-        </label>
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            name="is_active"
-            checked={form.is_active}
-            onChange={handleChange}
+        </div>
+        <div className="flex items-center justify-between space-x-2">
+          <Label htmlFor="step-mandatory" className="flex flex-col space-y-1">
+            <span>Mandatory Step</span>
+            <span className="font-normal leading-snug text-muted-foreground text-xs">
+              If enabled, users must complete this step to finish the wizard.
+            </span>
+          </Label>
+          <Switch
+            id="step-mandatory"
+            checked={isMandatory}
+            onCheckedChange={setIsMandatory}
+            disabled={currentMutation.isPending}
           />
-          Active
-        </label>
+        </div>
       </div>
+
       <div className="flex gap-2 mt-4">
         <Button
           type="submit"
-          disabled={currentMutation.isPending || !form.target_role_id}
+          disabled={isSaveDisabled}
         >
           {currentMutation.isPending ? (isCreating ? 'Creating...' : 'Saving...') : (isCreating ? 'Create Step' : 'Save Changes')}
         </Button>

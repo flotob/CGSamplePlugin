@@ -15,7 +15,7 @@ interface WizardStepEditorPageProps {
 export interface CreateStepPayload {
   step_type_id: string;
   config: Record<string, unknown>;
-  target_role_id: string;
+  target_role_id: string | null;
   is_mandatory: boolean;
   is_active: boolean;
 }
@@ -49,15 +49,7 @@ export const WizardStepEditorPage: React.FC<WizardStepEditorPageProps> = ({ wiza
     setActiveStepId(null);
   };
 
-  const handleSaveNewStep = (formData: StepFormData) => {
-    if (!stepTypeToCreate) return;
-
-    const payload: CreateStepPayload = {
-      ...formData,
-      step_type_id: stepTypeToCreate.id,
-      config: {},
-    };
-
+  const handleSaveNewStep = (payload: CreateStepPayload) => {
     createStep.mutate(payload, {
       onSuccess: (res) => {
         setStepTypeToCreate(null);
