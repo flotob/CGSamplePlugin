@@ -6,6 +6,7 @@ import { Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 interface VerificationStateProps {
   message: string;
   details?: string;
+  requirement?: string | null;
 }
 
 /**
@@ -58,8 +59,11 @@ export const SuccessState: React.FC<VerificationStateProps & { credential?: stri
  */
 export const ErrorState: React.FC<VerificationStateProps> = ({ 
   message, 
-  details 
+  details,
+  requirement
 }) => {
+  const isRegex = requirement?.startsWith('/') && requirement.lastIndexOf('/') > 0;
+
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
       <div className="relative mb-4">
@@ -68,6 +72,19 @@ export const ErrorState: React.FC<VerificationStateProps> = ({
       </div>
       <h2 className="text-xl font-medium tracking-tight">{message}</h2>
       {details && <p className="text-muted-foreground/80 text-sm mt-3 max-w-md">{details}</p>}
+      
+      {requirement && (
+        <div className="mt-4 pt-4 border-t border-border/30 w-full max-w-sm">
+          <p className="text-xs text-muted-foreground mb-1">Required Pattern/Name:</p>
+          {isRegex ? (
+            <code className="block text-sm bg-muted/50 dark:bg-muted/30 text-foreground rounded px-2 py-1 font-mono break-all">
+              {requirement}
+            </code>
+          ) : (
+            <p className="text-sm font-medium text-foreground">{requirement}</p>
+          )}
+        </div>
+      )}
     </div>
   );
 };

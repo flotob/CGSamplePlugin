@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useAccount } from 'wagmi';
 import { useProfileDetails } from 'ethereum-identity-kit';
 import { Loader2, CheckCircle, Search } from 'lucide-react';
@@ -16,6 +16,42 @@ import { CredentialVerificationBase } from '@/components/onboarding/steps/Creden
 interface EnsStepSpecificConfig {
   domain_name?: string | null;
   minimum_age_days?: number | null;
+  // [key: string]: any; // Revert: Remove index signature
+}
+
+// Define interface for policy validation error state
+interface PolicyValidationErrorState {
+  message: string;
+  requirement: string | null;
+}
+
+// Type guard to check if an object conforms to EnsStepSpecificConfig
+// Use unknown for better type safety
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function isEnsStepSpecificConfig(config: any): config is EnsStepSpecificConfig {
+  // Initial check for null/non-object
+  if (config === null || typeof config !== 'object') {
+    return false;
+  }
+
+  // Cast to Record<string, unknown> for safe property checks
+  const obj = config as Record<string, unknown>;
+
+  // Check if domain_name is either missing, null, undefined, or a string
+  const hasValidDomain = 
+    !obj.hasOwnProperty('domain_name') ||
+    obj.domain_name === null ||
+    typeof obj.domain_name === 'undefined' ||
+    typeof obj.domain_name === 'string';
+
+  // Check minimum_age_days similarly (optional)
+  const hasValidAge = 
+     !obj.hasOwnProperty('minimum_age_days') ||
+     obj.minimum_age_days === null ||
+     typeof obj.minimum_age_days === 'undefined' ||
+     typeof obj.minimum_age_days === 'number';
+
+  return hasValidDomain && hasValidAge;
 }
 
 interface EnsVerificationStepDisplayProps {
@@ -34,13 +70,10 @@ export const EnsVerificationStepDisplay: React.FC<EnsVerificationStepDisplayProp
   // Initialize useRef for verification guard
   const verifyingRef = useRef(false);
   
-  // State for policy validation errors (domain/age checks)
-  const [policyValidationError, setPolicyValidationError] = useState<string | null>(null);
-  
   // Pass retry: false option to the hook
   const { 
     isVerifying, 
-    verificationError, 
+    verificationError: credentialHookError,
     verifyCredential 
   } = useCredentialVerification(step.wizard_id, step.id, { retry: false });
   
@@ -51,125 +84,142 @@ export const EnsVerificationStepDisplay: React.FC<EnsVerificationStepDisplayProp
   } = useProfileDetails({ addressOrName: address || '' });
   
   // For type safety - convert any error to a string message
-  const errorMessage = verificationError ? String(verificationError) : null;
+  const asyncErrorMessage = credentialHookError ? String(credentialHookError) : null;
 
-  // Effect for auto-verification - will only run when conditions are met
-  useEffect(() => {
-    // Clear policy validation error on each relevant change
-    setPolicyValidationError(null);
+  // Memoize the specific config value needed by the effect
+  const configuredDomainPattern = useMemo(() => {
+    const specificConfig = step.config?.specific;
+    // Use the type guard
+    if (isEnsStepSpecificConfig(specificConfig)) {
+      return specificConfig.domain_name ?? null;
+    }
+    return null;
+  }, [step.config?.specific]);
+
+  // ---------- 1. Pure calculation of validation state ----------
+  const validationError = useMemo<PolicyValidationErrorState | null>(() => {
+    // Log inputs on calculation
+    console.log('[Memo:validationError] Calculating:', {
+      isConnected, 
+      detailsLoading, // Keep logging it for info
+      completed: step.completed_at, 
+      ensName: ensDetails?.name, 
+      pattern: configuredDomainPattern
+    });
+
+    // Don't run validation if disconnected or already completed
+    if (!isConnected || step.completed_at) { 
+      return null; 
+    }
     
-    if (step.completed_at) {
-      verifyingRef.current = false; // Reset ref if completed
-      return;
+    const userEnsName = ensDetails?.name;
+
+    // Can't validate if no primary ENS name
+    if (!userEnsName) {
+      // Technically not an *error*, but a state where verification can't proceed.
+      // The UI should handle displaying "No primary ENS found".
+      // We return null here as it's not a policy *violation*.
+      return null; 
     }
 
-    const hasPrimaryEns = !!ensDetails?.name;
-    
-    // Check core conditions
-    if (isConnected && 
-        address && 
-        !detailsLoading && 
-        hasPrimaryEns) {
-      
-      // Guard against re-entry using ref
-      if (verifyingRef.current) {
-        console.log('Verification already in progress, skipping effect run.');
-        return; 
-      }
-        
-      // Run policy checks *before* calling verifyCredential
-      const userEnsName = ensDetails.name;
-      // Safely access nested config properties using the defined interface
-      const specificConfig = (step.config?.specific && typeof step.config.specific === 'object') 
-        ? step.config.specific as EnsStepSpecificConfig 
-        : null;
-      const configuredDomainPattern = specificConfig?.domain_name;
-      const configuredMinAge = specificConfig?.minimum_age_days;
-      
-      // Check if userEnsName is actually available before proceeding
-      if (!userEnsName) {
-          // This case should ideally be handled by the hasPrimaryEns check earlier,
-          // but good to double-check before using the value.
-          verifyingRef.current = false;
-          return; 
-      }
-
-      // --- Domain Name/Pattern Check ---
-      if (configuredDomainPattern) {
+    // --- Domain Name/Pattern Check ---
+    if (configuredDomainPattern) {
+      try {
         let patternToTest: RegExp | null = null;
         let isLiteralMatch = false;
         
-        // Determine if it's a regex literal or plain string
         if (configuredDomainPattern.startsWith('/') && configuredDomainPattern.lastIndexOf('/') > 0) {
           const lastSlashIndex = configuredDomainPattern.lastIndexOf('/');
           const pattern = configuredDomainPattern.substring(1, lastSlashIndex);
           const flags = configuredDomainPattern.substring(lastSlashIndex + 1);
-          try {
-            patternToTest = new RegExp(pattern, flags);
-          } catch (e) {
-            console.error('Invalid regex pattern configured for step:', configuredDomainPattern, e);
-            setPolicyValidationError('Step configuration error: Invalid regex pattern.');
-            verifyingRef.current = false; // Allow retry if config changes
-            return; // Stop verification
-          }
+          patternToTest = new RegExp(pattern, flags);
         } else {
-          // Treat as literal string match
           isLiteralMatch = true;
         }
 
-        // Perform the check (userEnsName is now guaranteed to be string here)
         const match = isLiteralMatch 
           ? userEnsName === configuredDomainPattern 
-          : patternToTest?.test(userEnsName) ?? false; // userEnsName is now string
+          : patternToTest?.test(userEnsName) ?? false;
           
         if (!match) {
-          setPolicyValidationError('Your primary ENS name does not match the requirement for this step.');
-          verifyingRef.current = false; // Allow retry if ENS name changes
-          return; // Stop verification
+           return { 
+             message: 'Your primary ENS name does not match the requirement for this step.',
+             requirement: configuredDomainPattern
+           };
         }
+      } catch (e) {
+         console.error('Invalid regex pattern configured for step:', configuredDomainPattern, e);
+         return { 
+           message: 'Step configuration error: Invalid regex pattern.',
+           requirement: configuredDomainPattern
+         };
       }
-      
-      // --- Minimum Age Check (Skipped for now based on user request) ---
-      // if (configuredMinAge && configuredMinAge > 0) { ... }
+    }
+    // --- End Domain Check ---
 
-      // --- If all checks passed, proceed to verify --- 
-      console.log('Policy checks passed. Starting ENS Verification effect for:', userEnsName);
-      verifyingRef.current = true; // Set ref before async operation
-      
+    // --- Minimum Age Check (Skipped for now based on user request) ---
+    // ... future age check logic would go here, returning an error object if failed ...
+
+    // If all checks passed
+    return null;
+  }, [
+    isConnected, 
+    detailsLoading, 
+    step.completed_at, 
+    ensDetails?.name, 
+    configuredDomainPattern
+  ]);
+
+  // ---------- 3. Run side-effect *only* when validation passes ----------
+  useEffect(() => {
+    // Log inputs on effect
+    console.log('[Effect:Verification] Running effect. Current validationError:', validationError);
+
+    // Only proceed if:
+    // - No validation error from the checks above
+    // - Step isn't already completed
+    // - Not already verifying (guard)
+    // - Wallet connected and address available (essential for verifyCredential)
+    if (
+      !validationError && 
+      !step.completed_at &&
+      !verifyingRef.current &&
+      isConnected &&
+      address &&
+      ensDetails?.name // Ensure we have the name to send
+    ) {
+      console.log('Conditions met for verification side effect. Starting...', ensDetails.name);
+      verifyingRef.current = true;
+
       verifyCredential({
-        ensName: userEnsName,
+        ensName: ensDetails.name, // Send the verified name
         address: address
       }).then(() => {
         // Only call onComplete if verification succeeded
-        console.log('Verification succeeded, calling onComplete.');
+        console.log('Verification side effect succeeded, calling onComplete.');
         onComplete();
       }).catch((error) => {
-        // Error is already handled within useCredentialVerification/useCompleteStepMutation
-        console.error("ENS verification promise rejected:", error); 
+        // Error is handled internally by useCredentialVerification (sets its own error state)
+        // We could potentially set a local state here too if needed for UI feedback
+        console.error("Verification side effect promise rejected:", error); 
       }).finally(() => {
-        // Always reset the ref after operation finishes (success or error)
+        // Always reset the ref after operation finishes
         verifyingRef.current = false;
-        console.log('Resetting verifyingRef.');
+        console.log('Verification side effect finished, resetting verifyingRef.');
       });
     }
-  },
-    // Updated Dependencies:
-    // - Only include values that truly trigger re-verification if they change.
-    // - Remove verifyCredential, onComplete as they should be stable refs/callbacks.
-    // - isVerifying is internal state of the hook, don't depend on it here.
-    [
-      step.completed_at,
-      isConnected,
-      address,
-      detailsLoading,
-      ensDetails?.name, // Trigger if ENS name appears/changes
-      step.id, // Include step.id in case the step itself changes
-      step.wizard_id, // Include wizard_id for completeness
-      verifyCredential,
-      onComplete,
-      policyValidationError
-    ]
-  );
+  }, [
+    // Dependencies for triggering the *verification* side effect:
+    validationError,      // Calculated validation state
+    step.completed_at,    // Step completion status
+    isConnected,          // Wallet connection status
+    address,              // Wallet address
+    ensDetails?.name,     // User's ENS name (needed for the API call)
+    verifyCredential,     // Verification function (assume stable or apply useRef fix)
+    onComplete,            // Completion callback (assume stable)
+    configuredDomainPattern
+    // Note: `step.id`, `step.wizard_id` are implicitly handled by `verifyCredential`
+  ]);
 
   // If the user isn't connected to a wallet, show the connect view
   if (!isConnected) {
@@ -186,8 +236,8 @@ export const EnsVerificationStepDisplay: React.FC<EnsVerificationStepDisplayProp
       ensDetails={ensDetails}
       detailsLoading={detailsLoading}
       isVerifying={isVerifying}
-      verificationError={errorMessage}
-      policyValidationError={policyValidationError}
+      verificationError={asyncErrorMessage}
+      validationErrorResult={validationError}
     />
   );
 };
@@ -221,7 +271,7 @@ const EnsDashboard: React.FC<{
   detailsLoading: boolean;
   isVerifying: boolean;
   verificationError: string | null;
-  policyValidationError: string | null;
+  validationErrorResult: PolicyValidationErrorState | null;
 }> = ({ 
   address, 
   step, 
@@ -233,12 +283,16 @@ const EnsDashboard: React.FC<{
   detailsLoading, 
   isVerifying, 
   verificationError,
-  policyValidationError
+  validationErrorResult
 }) => {
   if (!address) return null;
   
   const hasPrimaryEns = !!ensDetails?.name;
   
+  // Determine the most relevant error to display
+  const displayError = verificationError || validationErrorResult?.message || null;
+  const displayRequirement = validationErrorResult?.requirement || null; // Only policy errors have requirements
+
   return (
     <div className="flex flex-col h-full">
       {/* Header with wallet */}
@@ -254,8 +308,9 @@ const EnsDashboard: React.FC<{
         <CredentialVerificationBase
           step={step}
           isVerifying={isVerifying || detailsLoading}
-          verificationError={verificationError}
-          policyValidationError={policyValidationError}
+          verificationError={displayError}
+          policyValidationError={null}
+          policyRequirement={displayRequirement}
           successMessage="ENS Name Verified"
           credential={ensDetails?.name}
           renderVerificationUI={() => (

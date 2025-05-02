@@ -137,7 +137,7 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
         // Error toast is handled within the hook, but could add specific UI feedback here too
       }
     });
-  }, [currentStep, completeStepMutation, wizardId]);
+  }, [currentStep?.id, completeStepMutation, wizardId]);
 
   // Determine if Next button should be disabled 
   const isCompleted = !!currentStep?.completed_at;

@@ -20,8 +20,12 @@ export function validateEnsDomainOrPattern(value: string | null | undefined): { 
       try {
         new RegExp(pattern, flags);
         return { isValid: true, error: null }; // Valid regex literal syntax
-      } catch (e: any) { 
-        return { isValid: false, error: `Invalid regex pattern syntax: ${e.message}` };
+      } catch (e: unknown) {
+        if (e instanceof Error) {
+          return { isValid: false, error: `Invalid regex pattern syntax: ${e.message}` };
+        } else {
+          return { isValid: false, error: 'An unknown error occurred' };
+        }
       }
     } else {
       // Starts with / but no valid closing / -> Invalid format
@@ -33,9 +37,13 @@ export function validateEnsDomainOrPattern(value: string | null | undefined): { 
     try {
       new RegExp(trimmedValue); // This will throw on many invalid chars/syntax
       return { isValid: true, error: null }; // Valid pattern or domain-like string
-    } catch (e: any) {
-      // Likely contains invalid characters for a pattern/domain OR invalid regex syntax
-      return { isValid: false, error: `Invalid characters or pattern syntax: ${e.message}` };
+    } catch (e: unknown) {
+      if (e instanceof Error) {
+        // Likely contains invalid characters for a pattern/domain OR invalid regex syntax
+        return { isValid: false, error: `Invalid characters or pattern syntax: ${e.message}` };
+      } else {
+        return { isValid: false, error: 'An unknown error occurred' };
+      }
     }
   }
 }

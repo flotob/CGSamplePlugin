@@ -34,7 +34,7 @@ export const PUT = withAuth(async (req, context) => {
 
   // --- START: Validate config.specific.domain_name using shared function ---
   if (config && typeof config === 'object' && config !== null && 'specific' in config) {
-    const specificConfig = config.specific as any; // Type assertion for simplicity
+    const specificConfig = config.specific as Record<string, unknown>;
     if (specificConfig && typeof specificConfig === 'object' && specificConfig !== null && 'domain_name' in specificConfig) {
       const domainName = specificConfig.domain_name as string | null | undefined;
       // Validate using the shared utility

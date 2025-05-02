@@ -32,6 +32,11 @@ export interface CredentialVerificationBaseProps {
   policyValidationError: string | null;
 
   /**
+   * The specific requirement string (e.g., domain pattern) that caused the policy validation error.
+   */
+  policyRequirement?: string | null;
+
+  /**
    * Function to render custom UI when waiting for user to initiate verification
    */
   renderVerificationUI: () => React.ReactNode;
@@ -61,6 +66,7 @@ export const CredentialVerificationBase: React.FC<CredentialVerificationBaseProp
   isVerifying,
   verificationError,
   policyValidationError,
+  policyRequirement,
   renderVerificationUI,
   renderSuccessUI,
   successMessage = 'Verification Complete',
@@ -84,7 +90,13 @@ export const CredentialVerificationBase: React.FC<CredentialVerificationBaseProp
 
   // If policy validation error, show that first
   if (policyValidationError) {
-    return <ErrorState message="Requirement Not Met" details={policyValidationError} />;
+    return (
+      <ErrorState 
+        message="Requirement Not Met" 
+        details={policyValidationError}
+        requirement={policyRequirement}
+      />
+    );
   }
 
   // If verifying, show loading state
