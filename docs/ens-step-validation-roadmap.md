@@ -19,55 +19,38 @@ Modify the verification logic in `EnsVerificationStepDisplay.tsx` to incorporate
 
 ### 4.1. Backend / Data Preparation
 
-*   **Verify Config Availability:** Ensure the `step.config.specific` object containing `domain_name` and `minimum_age_days` is correctly fetched and passed down to `EnsVerificationStepDisplay.tsx`. (The `useUserWizardStepsQuery` likely already provides this via the `step` prop).
-*   **Validate Regex Input on Save (Security):** 
-    *   Identify the API endpoint responsible for saving/updating step configurations (Likely `PUT /api/wizards/[id]/steps/[stepId]`, but verify).
-    *   In the backend handler for that endpoint, **before** saving the step configuration:
-        *   Check if `config.specific.domain_name` is present and intended to be a regex (e.g., based on format or a separate flag if added later).
-        *   If it is a regex, attempt to compile it using `new RegExp(config.specific.domain_name)` within a `try...catch` block.
-        *   If the constructor throws an error, reject the request with a 400 Bad Request status, indicating an invalid regex pattern.
-        *   If successful, proceed to save the *original string* representation.
+*   **Verify Config Availability:** Ensure `step.config.specific` is available in `EnsVerificationStepDisplay.tsx`. (Verified)
+*   **Validate Regex Input on Save (Security):** Add server-side `new RegExp()` validation to `PUT /api/wizards/[id]/steps/[stepId]`. (Implemented)
+*   **Create Backend Proxy for ENS Subgraph Query (Security & Age Check):**
+    *   Create a new API route (e.g., `GET /api/ens-age?name=[ensName]`).
+    *   This route will receive an ENS name as a query parameter.
+    *   Securely load The Graph API Key from server-side environment variables (e.g., `process.env.GRAPH_API_KEY`). **Action:** Add `GRAPH_API_KEY` to `.env.example` and documentation.
+    *   Implement logic using `fetch` to send the GraphQL query (`query { registrations(first: 1, where: { domain_: { name: $name } }) { registrationDate } }`) to the ENS Subgraph endpoint (`https://gateway.thegraph.com/api/${process.env.GRAPH_API_KEY}/subgraphs/id/5XqPmWe6gjyrJtFn9cLy237i4cWw2j9HcUJEXsP5qGtH`).
+    *   Parse the response and return the `registrationDate` (as a number or string) or an appropriate error status (e.g., 404 if not found, 500 on fetch error).
 
 ### 4.2. Frontend Logic (`EnsStepConfig.tsx` - Admin UI)
 
-*   **Add Regex Format Hint:** Update the label or description for the `domain_name` input in `EnsStepConfig.tsx` to clearly indicate the expected format (e.g., "Enter exact domain or JS regex like `/^.+\.eth$/`").
-*   **Add Frontend Regex Validation (UX - Optional but Recommended):**
-    *   In `EnsStepConfig.tsx`, when the `domain_name` input changes and is likely intended as a regex:
-        *   Attempt to compile it using `new RegExp(domain_name)` within a `try...catch` block.
-        *   If it fails, update the `domainError` state to show an immediate "Invalid regex pattern" message to the admin.
+*   **Add Regex Format Hint:** Add description for domain/regex input. (Implemented)
+*   **Add Frontend Regex Validation (UX):** Add immediate `try/catch` validation for regex input. (Implemented via shared util)
 
 ### 4.3. Frontend Logic (`EnsVerificationStepDisplay.tsx` - User UI)
 
-*   **Modify Verification Effect:** Adjust the `useEffect` hook that currently triggers automatic verification.
-*   **Access Step Config:** Inside the effect, safely access `step.config?.specific?.domain_name` and `step.config?.specific?.minimum_age_days`.
-*   **Implement Domain Name Check:**
-    *   If `domain_name` is configured:
-        *   Determine if it's a regex pattern or a literal string (e.g., check for `/.../` delimiters or assume regex if it contains special characters that aren't typical domain chars).
-        *   **Safely Create RegExp:** If it's a regex pattern, create the `RegExp` object *within a `try...catch` block*: `try { const pattern = new RegExp(domain_name); /* use pattern */ } catch (e) { /* handle error - e.g., treat as non-match or show config error */ }`.
-        *   Compare `ensDetails.name` against the `domain_name` (literal string comparison or `pattern.test()`).
-        *   If the check fails:
-            *   Set a specific error state (e.g., `setValidationError("ENS name does not match required pattern.")`).
-            *   Prevent calling `verifyCredential`.
-            *   Ensure the UI displays this specific error.
+*   **Modify Verification Effect:** Adjust the `useEffect` hook.
+*   **Access Step Config:** Access `step.config?.specific?.domain_name` and `minimum_age_days`.
+*   **Implement Domain Name Check:** Compare `ensDetails.name` using literal string or safe `new RegExp()` from shared util.
 *   **Implement Minimum Age Check:**
-    *   If `minimum_age_days` is configured and greater than 0:
-        *   **Research & Integration:** Find and integrate a method to fetch the registration or expiry date for the given `ensDetails.name`. Potential options:
-            *   **ENS Subgraph:** Query the official ENS subgraph for registration/expiry data. This is the most likely approach. (Requires adding a GraphQL client or using a simple fetch).
-            *   **Direct Contract Calls:** Use `wagmi`/`viem` to call ENS registry/registrar contract functions (potentially more complex).
-            *   **Third-party API/Library:** Check if `ethereum-identity-kit` or another library offers this.
-        *   Add necessary state to handle loading of registration date data.
-        *   Once the registration date is fetched:
-            *   Calculate the name's age in days.
-            *   Compare the age against `minimum_age_days`.
-        *   If the check fails:
-            *   Set a specific error state (e.g., `setValidationError("ENS name does not meet the minimum age requirement.")`).
-            *   Prevent calling `verifyCredential`.
-            *   Ensure the UI displays this specific error.
-*   **Conditional Verification:** Only call `verifyCredential({ ensName: ensDetails.name, address: address })` if *all* configured checks (domain and age) pass *and* the base condition (has primary ENS) is met.
+    *   If `minimum_age_days` is configured:
+        *   **Call Backend Proxy:** Fetch the registration date by calling our new backend API route (`GET /api/ens-age?name=${ensDetails.name}`).
+        *   **State Management:** Add state variables to track the loading and potential errors from this fetch call (e.g., `isFetchingAge`, `ageFetchError`).
+        *   **Calculate Age:** Once `registrationDate` is successfully fetched, calculate the age: `(Date.now()/1000 - registrationDate) / 86400;`.
+        *   **Compare:** Compare calculated age against `minimum_age_days`.
+        *   Handle errors from the proxy route (e.g., name not found).
+*   **Set Validation Error State:** If domain or age check fails, set a specific validation error message.
+*   **Conditional Verification:** Only call `verifyCredential(...)` if user has primary ENS AND *all* configured checks (domain, age) pass AND age data has finished loading without errors.
 *   **UI Feedback (`EnsStatusView` / `CredentialVerificationBase`):**
-    *   Modify the UI components to display specific validation error messages passed from the parent.
-    *   Update loading states to account for fetching registration dates if applicable.
-    *   Ensure the "Verifying..." state is only shown when *all* preliminary checks have passed and the actual `verifyCredential` call is pending.
+    *   Display specific validation errors (from domain check, age check, or age fetch errors).
+    *   Show loading state while fetching age data.
+    *   Ensure "Verifying..." state reflects waiting for `verifyCredential` *after* all checks pass.
 
 ### 4.4. Testing
 
@@ -83,6 +66,9 @@ Modify the verification logic in `EnsVerificationStepDisplay.tsx` to incorporate
 *   Test cases combining both domain and age checks.
 *   Test cases where no specific policies are configured (should behave as currently).
 *   Test cases where the user has no primary ENS.
+*   **Add Age Check Tests:**
+    *   Test calling the proxy route directly.
+    *   Test frontend handling of age loading, success (passes/fails), and fetch errors.
 
 ## 5. Future Considerations
 

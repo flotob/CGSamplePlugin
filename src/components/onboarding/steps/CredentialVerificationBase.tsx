@@ -22,9 +22,14 @@ export interface CredentialVerificationBaseProps {
   isVerifying: boolean;
 
   /**
-   * Error message if verification failed
+   * Error message if verification submission failed (e.g., API error)
    */
   verificationError: string | null;
+
+  /**
+   * Error message if initial policy validation failed (e.g., ENS name doesn't match pattern)
+   */
+  policyValidationError: string | null;
 
   /**
    * Function to render custom UI when waiting for user to initiate verification
@@ -55,6 +60,7 @@ export const CredentialVerificationBase: React.FC<CredentialVerificationBaseProp
   step,
   isVerifying,
   verificationError,
+  policyValidationError,
   renderVerificationUI,
   renderSuccessUI,
   successMessage = 'Verification Complete',
@@ -74,6 +80,11 @@ export const CredentialVerificationBase: React.FC<CredentialVerificationBaseProp
         credential={credential || (step.verified_data?.credential as string)}
       />
     );
+  }
+
+  // If policy validation error, show that first
+  if (policyValidationError) {
+    return <ErrorState message="Requirement Not Met" details={policyValidationError} />;
   }
 
   // If verifying, show loading state

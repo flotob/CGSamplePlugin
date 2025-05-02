@@ -12,6 +12,12 @@ import { normalize } from 'viem/ens';
 import { useCredentialVerification } from '@/hooks/useCredentialVerification';
 import { CredentialVerificationBase } from '@/components/onboarding/steps/CredentialVerificationBase';
 
+// Define interface for ENS specific config
+interface EnsStepSpecificConfig {
+  domain_name?: string | null;
+  minimum_age_days?: number | null;
+}
+
 interface EnsVerificationStepDisplayProps {
   step: UserStepProgress;
   stepType: StepType;
@@ -27,6 +33,9 @@ export const EnsVerificationStepDisplay: React.FC<EnsVerificationStepDisplayProp
   
   // Initialize useRef for verification guard
   const verifyingRef = useRef(false);
+  
+  // State for policy validation errors (domain/age checks)
+  const [policyValidationError, setPolicyValidationError] = useState<string | null>(null);
   
   // Pass retry: false option to the hook
   const { 
@@ -46,7 +55,9 @@ export const EnsVerificationStepDisplay: React.FC<EnsVerificationStepDisplayProp
 
   // Effect for auto-verification - will only run when conditions are met
   useEffect(() => {
-    // Check if already completed
+    // Clear policy validation error on each relevant change
+    setPolicyValidationError(null);
+    
     if (step.completed_at) {
       verifyingRef.current = false; // Reset ref if completed
       return;
@@ -66,11 +77,67 @@ export const EnsVerificationStepDisplay: React.FC<EnsVerificationStepDisplayProp
         return; 
       }
         
-      console.log('Starting ENS Verification effect for:', ensDetails.name);
+      // Run policy checks *before* calling verifyCredential
+      const userEnsName = ensDetails.name;
+      // Safely access nested config properties using the defined interface
+      const specificConfig = (step.config?.specific && typeof step.config.specific === 'object') 
+        ? step.config.specific as EnsStepSpecificConfig 
+        : null;
+      const configuredDomainPattern = specificConfig?.domain_name;
+      const configuredMinAge = specificConfig?.minimum_age_days;
+      
+      // Check if userEnsName is actually available before proceeding
+      if (!userEnsName) {
+          // This case should ideally be handled by the hasPrimaryEns check earlier,
+          // but good to double-check before using the value.
+          verifyingRef.current = false;
+          return; 
+      }
+
+      // --- Domain Name/Pattern Check ---
+      if (configuredDomainPattern) {
+        let patternToTest: RegExp | null = null;
+        let isLiteralMatch = false;
+        
+        // Determine if it's a regex literal or plain string
+        if (configuredDomainPattern.startsWith('/') && configuredDomainPattern.lastIndexOf('/') > 0) {
+          const lastSlashIndex = configuredDomainPattern.lastIndexOf('/');
+          const pattern = configuredDomainPattern.substring(1, lastSlashIndex);
+          const flags = configuredDomainPattern.substring(lastSlashIndex + 1);
+          try {
+            patternToTest = new RegExp(pattern, flags);
+          } catch (e) {
+            console.error('Invalid regex pattern configured for step:', configuredDomainPattern, e);
+            setPolicyValidationError('Step configuration error: Invalid regex pattern.');
+            verifyingRef.current = false; // Allow retry if config changes
+            return; // Stop verification
+          }
+        } else {
+          // Treat as literal string match
+          isLiteralMatch = true;
+        }
+
+        // Perform the check (userEnsName is now guaranteed to be string here)
+        const match = isLiteralMatch 
+          ? userEnsName === configuredDomainPattern 
+          : patternToTest?.test(userEnsName) ?? false; // userEnsName is now string
+          
+        if (!match) {
+          setPolicyValidationError('Your primary ENS name does not match the requirement for this step.');
+          verifyingRef.current = false; // Allow retry if ENS name changes
+          return; // Stop verification
+        }
+      }
+      
+      // --- Minimum Age Check (Skipped for now based on user request) ---
+      // if (configuredMinAge && configuredMinAge > 0) { ... }
+
+      // --- If all checks passed, proceed to verify --- 
+      console.log('Policy checks passed. Starting ENS Verification effect for:', userEnsName);
       verifyingRef.current = true; // Set ref before async operation
       
       verifyCredential({
-        ensName: ensDetails.name,
+        ensName: userEnsName,
         address: address
       }).then(() => {
         // Only call onComplete if verification succeeded
@@ -99,7 +166,8 @@ export const EnsVerificationStepDisplay: React.FC<EnsVerificationStepDisplayProp
       step.id, // Include step.id in case the step itself changes
       step.wizard_id, // Include wizard_id for completeness
       verifyCredential,
-      onComplete 
+      onComplete,
+      policyValidationError
     ]
   );
 
@@ -119,6 +187,7 @@ export const EnsVerificationStepDisplay: React.FC<EnsVerificationStepDisplayProp
       detailsLoading={detailsLoading}
       isVerifying={isVerifying}
       verificationError={errorMessage}
+      policyValidationError={policyValidationError}
     />
   );
 };
@@ -152,6 +221,7 @@ const EnsDashboard: React.FC<{
   detailsLoading: boolean;
   isVerifying: boolean;
   verificationError: string | null;
+  policyValidationError: string | null;
 }> = ({ 
   address, 
   step, 
@@ -162,7 +232,8 @@ const EnsDashboard: React.FC<{
   ensDetails, 
   detailsLoading, 
   isVerifying, 
-  verificationError 
+  verificationError,
+  policyValidationError
 }) => {
   if (!address) return null;
   
@@ -184,6 +255,7 @@ const EnsDashboard: React.FC<{
           step={step}
           isVerifying={isVerifying || detailsLoading}
           verificationError={verificationError}
+          policyValidationError={policyValidationError}
           successMessage="ENS Name Verified"
           credential={ensDetails?.name}
           renderVerificationUI={() => (
