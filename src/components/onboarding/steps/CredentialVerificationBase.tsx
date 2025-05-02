@@ -106,7 +106,7 @@ export const CredentialVerificationBase: React.FC<CredentialVerificationBaseProp
 
   // If verification error, show error state
   if (verificationError) {
-    return <ErrorState message="Verification Failed" details={verificationError} />;
+    return <ErrorState message="Verification Failed" details={verificationError} requirement={policyRequirement} />;
   }
 
   // Otherwise, render the custom verification UI
