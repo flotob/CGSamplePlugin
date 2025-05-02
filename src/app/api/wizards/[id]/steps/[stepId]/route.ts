@@ -2,6 +2,7 @@ import { withAuth } from '@/lib/withAuth';
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import type { JwtPayload } from '@/app/api/auth/session/route';
+import { validateEnsDomainOrPattern } from '@/lib/validationUtils'; // Import shared function
 
 // PUT: Update a step
 export const PUT = withAuth(async (req, context) => {
@@ -30,6 +31,24 @@ export const PUT = withAuth(async (req, context) => {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
   const { step_type_id, config, target_role_id, is_mandatory, is_active } = body;
+
+  // --- START: Validate config.specific.domain_name using shared function ---
+  if (config && typeof config === 'object' && config !== null && 'specific' in config) {
+    const specificConfig = config.specific as any; // Type assertion for simplicity
+    if (specificConfig && typeof specificConfig === 'object' && specificConfig !== null && 'domain_name' in specificConfig) {
+      const domainName = specificConfig.domain_name as string | null | undefined;
+      // Validate using the shared utility
+      const validationResult = validateEnsDomainOrPattern(domainName);
+      if (!validationResult.isValid) {
+        // If validation fails, return 400 with the specific error message
+        console.error(`Invalid domain_name pattern received: ${domainName}`, validationResult.error);
+        return NextResponse.json({ error: validationResult.error || 'Invalid domain_name pattern provided.' }, { status: 400 });
+      }
+      // If valid, proceed (no action needed here, just don't return error)
+    }
+  }
+  // --- END: Validate config.specific.domain_name ---
+
   // Only update provided fields
   const fields = [];
   const values = [stepId];

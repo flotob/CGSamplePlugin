@@ -48,6 +48,12 @@ const INITIAL_PRESENTATION_CONFIG: PresentationConfig = {
 
 const INITIAL_SPECIFIC_CONFIG: Record<string, unknown> = {};
 
+// Combined initial state for the entire config
+const INITIAL_STEP_CONFIG = {
+  presentation: INITIAL_PRESENTATION_CONFIG,
+  specific: INITIAL_SPECIFIC_CONFIG,
+};
+
 export const StepEditor: React.FC<StepEditorProps> = ({
   wizardId,
   step,
@@ -66,18 +72,19 @@ export const StepEditor: React.FC<StepEditorProps> = ({
   const [isMandatory, setIsMandatory] = React.useState<boolean>(true);
   const [isActive, setIsActive] = React.useState<boolean>(true);
 
+  // Unified state for the entire config object
+  const [stepConfig, setStepConfig] = React.useState(INITIAL_STEP_CONFIG);
+
   // State for enabling/disabling role assignment
   const [isRoleAssignmentEnabled, setIsRoleAssignmentEnabled] = React.useState<boolean>(false);
 
-  const [presentationConfig, setPresentationConfig] = React.useState<PresentationConfig>(INITIAL_PRESENTATION_CONFIG);
-  const [specificConfig, setSpecificConfig] = React.useState<Record<string, unknown>>(INITIAL_SPECIFIC_CONFIG);
-
-  const handlePresentationChange = React.useCallback((newConfig: PresentationConfig) => {
-    setPresentationConfig(newConfig);
+  // ADD BACK the change handlers, modified for unified state
+  const handlePresentationChange = React.useCallback((newPresentationConfig: PresentationConfig) => {
+    setStepConfig(prev => ({ ...prev, presentation: newPresentationConfig }));
   }, []);
 
-  const handleSpecificConfigChange = React.useCallback((newConfig: Record<string, unknown>) => {
-    setSpecificConfig(newConfig);
+  const handleSpecificConfigChange = React.useCallback((newSpecificConfig: Record<string, unknown>) => {
+    setStepConfig(prev => ({ ...prev, specific: newSpecificConfig }));
   }, []);
 
   const updateStep = useUpdateStep(wizardId, step?.id);
@@ -91,29 +98,29 @@ export const StepEditor: React.FC<StepEditorProps> = ({
   };
 
   React.useEffect(() => {
+    // Reset mutation status when step/mode changes
+    updateStep.reset();
+    createStepMutation.reset(); // Also reset create mutation
+
     if (isCreating) {
       setTargetRoleId('');
       setIsMandatory(true);
       setIsActive(true);
-      setPresentationConfig(INITIAL_PRESENTATION_CONFIG);
-      setSpecificConfig(INITIAL_SPECIFIC_CONFIG);
-      setIsRoleAssignmentEnabled(false); // Default to disabled for new steps
+      setStepConfig(INITIAL_STEP_CONFIG); // Reset unified config
+      setIsRoleAssignmentEnabled(false); 
     } else if (step) {
       const shouldEnableRole = !!step.target_role_id;
       setTargetRoleId(step.target_role_id ?? '');
       setIsMandatory(step.is_mandatory);
       setIsActive(step.is_active);
-      const { presentation, specific } = parseConfig(step.config);
-      setPresentationConfig(presentation);
-      setSpecificConfig(specific);
+      setStepConfig(parseConfig(step.config)); // Set unified config
       setIsRoleAssignmentEnabled(shouldEnableRole);
     } else {
       // Reset case (e.g., if step becomes null)
       setTargetRoleId('');
       setIsMandatory(true);
       setIsActive(true);
-      setPresentationConfig(INITIAL_PRESENTATION_CONFIG);
-      setSpecificConfig(INITIAL_SPECIFIC_CONFIG);
+      setStepConfig(INITIAL_STEP_CONFIG); // Reset unified config
       setIsRoleAssignmentEnabled(false);
     }
     setShowDeleteConfirm(false);
@@ -131,11 +138,6 @@ export const StepEditor: React.FC<StepEditorProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const finalConfig = {
-      presentation: presentationConfig,
-      specific: specificConfig,
-    };
-    
     const finalTargetRoleId = targetRoleId === '' ? null : targetRoleId;
 
     if (isCreating) {
@@ -145,7 +147,7 @@ export const StepEditor: React.FC<StepEditorProps> = ({
         target_role_id: finalTargetRoleId,
         is_mandatory: isMandatory,
         is_active: isActive,
-        config: finalConfig,
+        config: stepConfig, // Use unified config state
       };
       onCreate(payload);
     } else {
@@ -153,7 +155,7 @@ export const StepEditor: React.FC<StepEditorProps> = ({
         target_role_id: finalTargetRoleId,
         is_mandatory: isMandatory,
         is_active: isActive,
-        config: finalConfig,
+        config: stepConfig, // Use unified config state
       }
       updateStep.mutate(updatePayload, {
         onSuccess: () => onSave && onSave(),
@@ -192,7 +194,7 @@ export const StepEditor: React.FC<StepEditorProps> = ({
           </AccordionTrigger>
           <AccordionContent className="pt-1">
             <CommonStepPresentationSettings 
-              initialData={presentationConfig}
+              initialData={stepConfig.presentation} // Pass presentation part
               onChange={handlePresentationChange}
               disabled={currentMutation.isPending}
             />
@@ -261,7 +263,7 @@ export const StepEditor: React.FC<StepEditorProps> = ({
             </AccordionTrigger>
             <AccordionContent className="pt-1">
               <EnsStepConfig 
-                initialData={specificConfig as EnsSpecificConfig}
+                initialData={stepConfig.specific as EnsSpecificConfig} // Pass specific part
                 onChange={handleSpecificConfigChange}
                 disabled={currentMutation.isPending}
               />
