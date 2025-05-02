@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   Card,
   CardContent,
@@ -8,26 +8,108 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Wand2, CheckCircle, Loader2, AlertCircle, CirclePlay, CircleCheck } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { Wand2, CheckCircle, Loader2, AlertCircle, CirclePlay, CircleCheck, Ticket, ExternalLink } from 'lucide-react';
 import { useUserWizardsQuery } from '@/hooks/useUserWizardsQuery';
 import { useWizardSlideshow } from '@/context/WizardSlideshowContext';
+
+// --- Added hooks for earnable roles calculation ---
+import { useCgLib } from '@/context/CgLibContext';
+import { useCgQuery } from '@/hooks/useCgQuery';
+import { useActiveWizardsQuery } from '@/hooks/useActiveWizardsQuery';
+import { useRelevantStepsQuery } from '@/hooks/useRelevantStepsQuery';
+import { useUserWizardCompletionsQuery } from '@/hooks/useUserWizardCompletionsQuery';
+import type { CommunityInfoResponsePayload, UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib'; // Added CG Lib Types
+// --- End Added hooks ---
+
+// Define Role type alias using the imported payload
+type Role = NonNullable<CommunityInfoResponsePayload['roles']>[number];
 
 // Define props - currently none needed, but keep interface for consistency
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface WizardViewProps {}
 
 export const WizardView: React.FC<WizardViewProps> = () => {
-  const { data: wizardsData, isLoading, error } = useUserWizardsQuery();
+  const { data: userWizardsData, isLoading: isLoadingUserWizards, error: userWizardsError } = useUserWizardsQuery();
   const { setActiveSlideshowWizardId } = useWizardSlideshow();
+
+  // --- Added data fetching for earnable roles --- 
+  const { isInitializing, iframeUid } = useCgLib(); 
+  const { data: userInfo, isLoading: isLoadingUserInfo, error: userInfoError } = useCgQuery<
+    UserInfoResponsePayload,
+    Error
+  >(
+    ['userInfo', iframeUid],
+    async (instance) => (await instance.getUserInfo()).data,
+    { enabled: !!iframeUid }
+  );
+  const { data: communityInfo, isLoading: isLoadingCommunityInfo, error: communityInfoError } = useCgQuery<
+    CommunityInfoResponsePayload,
+    Error
+  >(
+    ['communityInfo', iframeUid],
+    async (instance) => (await instance.getCommunityInfo()).data,
+    { enabled: !!iframeUid }
+  );
+  const { data: activeWizardsData, isLoading: isLoadingActiveWizards } = useActiveWizardsQuery();
+  const { data: relevantStepsData, isLoading: isLoadingRelevantSteps } = useRelevantStepsQuery();
+  const { data: completionsData, isLoading: isLoadingCompletions } = useUserWizardCompletionsQuery();
+  // --- End added data fetching ---
 
   // Memoize filtered lists
   const availableWizards = React.useMemo(() => {
-    return wizardsData?.wizards.filter(w => w.progressStatus === 'not_started' || w.progressStatus === 'started') ?? [];
-  }, [wizardsData]);
+    return userWizardsData?.wizards.filter(w => w.progressStatus === 'not_started' || w.progressStatus === 'started') ?? [];
+  }, [userWizardsData]);
 
   const completedWizards = React.useMemo(() => {
-    return wizardsData?.wizards.filter(w => w.progressStatus === 'completed') ?? [];
-  }, [wizardsData]);
+    return userWizardsData?.wizards.filter(w => w.progressStatus === 'completed') ?? [];
+  }, [userWizardsData]);
+
+  // --- Added earnableRoles calculation --- 
+  const userRoleIds = userInfo?.roles || [];
+  const allCommunityRoles = communityInfo?.roles || [];
+  const earnableRoles = useMemo(() => {
+    if (!userInfo || !communityInfo || !activeWizardsData || !relevantStepsData || !completionsData || !allCommunityRoles) {
+      return []; 
+    }
+
+    const unearnedRoles = allCommunityRoles.filter((role: Role) => !userRoleIds.includes(role.id));
+    if (unearnedRoles.length === 0) return [];
+
+    const activeWizardsMap = new Map(activeWizardsData.wizards.map(w => [w.id, w]));
+    const completedWizardIds = new Set(completionsData.completed_wizard_ids);
+    
+    const rolesToWizardsMap = new Map<string, { roleInfo: Role, grantingWizards: { wizard_id: string, wizard_name: string }[] }>();
+
+    for (const step of relevantStepsData.steps) {
+      const wizardInfo = activeWizardsMap.get(step.wizard_id);
+      if (!wizardInfo || completedWizardIds.has(step.wizard_id)) {
+        continue;
+      }
+      
+      const targetRole = unearnedRoles.find(r => r.id === step.target_role_id);
+      if (!targetRole) {
+        continue;
+      }
+
+      if (!rolesToWizardsMap.has(targetRole.id)) {
+        rolesToWizardsMap.set(targetRole.id, { roleInfo: targetRole, grantingWizards: [] });
+      }
+
+      const entry = rolesToWizardsMap.get(targetRole.id)!;
+      if (!entry.grantingWizards.some(w => w.wizard_id === wizardInfo.id)) {
+        entry.grantingWizards.push({ wizard_id: wizardInfo.id, wizard_name: wizardInfo.name });
+      }
+    }
+
+    return Array.from(rolesToWizardsMap.values()).sort((a, b) => a.roleInfo.title.localeCompare(b.roleInfo.title));
+
+  }, [userInfo, communityInfo, activeWizardsData, relevantStepsData, completionsData, allCommunityRoles, userRoleIds]);
+  // --- End earnableRoles calculation ---
+
+  // Combine loading states
+  const isLoading = isInitializing || isLoadingUserWizards || isLoadingUserInfo || isLoadingCommunityInfo || isLoadingActiveWizards || isLoadingRelevantSteps || isLoadingCompletions;
+  const error = userWizardsError || userInfoError || communityInfoError;
 
   // Handle Loading State
   if (isLoading) {
@@ -106,6 +188,63 @@ export const WizardView: React.FC<WizardViewProps> = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* --- Added Roles to Earn Card --- */}
+        <Card className="animate-in fade-in slide-in-from-bottom-5 duration-500 delay-225" interactive>
+           <CardHeader className="pb-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-full bg-primary/10">
+                <Ticket className="h-4 w-4 text-primary" /> 
+              </div>
+              <CardTitle>Roles to Earn</CardTitle>
+            </div>
+            <CardDescription className="pt-1 pl-10">Complete available wizards to earn these roles.</CardDescription> 
+          </CardHeader>
+          <CardContent className='flex flex-col gap-4'>
+            {isLoading ? (
+               <div className="flex items-center justify-center p-8">
+                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+               </div>
+            ) : earnableRoles && earnableRoles.length > 0 ? (
+                earnableRoles.map(({ roleInfo, grantingWizards }) => (
+                  <div key={roleInfo.id} className="p-3 border rounded-md bg-card/50">
+                    <p className="font-medium mb-1">{roleInfo.title}</p>
+                    {/* Assume description is on Role type from lib - adjust if not */}
+                    {/* {roleInfo.description && ( <p className="text-xs text-muted-foreground mb-2">{roleInfo.description}</p> )} */}
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className="text-xs text-muted-foreground mr-1">Earn via:</span>
+                      {grantingWizards.length > 0 ? (
+                         grantingWizards.map(wizard => (
+                           <Button 
+                             key={wizard.wizard_id} 
+                             variant="link"
+                             size="sm"
+                             className="h-auto p-0 text-xs text-primary hover:text-primary/80 flex items-center gap-1"
+                             onClick={() => setActiveSlideshowWizardId(wizard.wizard_id)}
+                           >
+                             <span>{wizard.wizard_name}</span>
+                             <ExternalLink className="h-3 w-3"/>
+                           </Button>
+                         ))
+                      ) : (
+                         <span className="text-xs italic text-muted-foreground">Error: No wizards found for this role.</span> // Should not happen based on calc
+                      )}
+                    </div>
+                  </div>
+                ))
+            ) : (
+              <p className="text-sm text-muted-foreground italic p-4 text-center">No further roles currently earnable via wizards.</p>
+            )}
+            {/* Display general error for hooks if needed */}
+            {error && !isLoading && !(earnableRoles && earnableRoles.length > 0) && (
+                 <div className="text-destructive flex items-center gap-2 p-2 bg-destructive/10 rounded-md">
+                 <AlertCircle className="h-4 w-4" />
+                 <p>Error loading roles information: {(error as Error)?.message || 'An unknown error occurred'}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        {/* --- End Roles to Earn Card --- */}
 
         {/* Completed Wizards Card */}
         <Card className="animate-in fade-in slide-in-from-bottom-5 duration-500 delay-300" interactive>

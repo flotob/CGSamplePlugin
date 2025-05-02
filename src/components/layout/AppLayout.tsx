@@ -12,10 +12,10 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ sidebar, header, children 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
-    <div className="flex h-full min-h-screen w-full relative">
+    <div className="flex h-screen w-full relative overflow-hidden">
       {/* Sidebar Area - flush with the edge of the screen with inset shadow */}
       <div 
-        className="fixed top-0 left-0 z-30 h-full w-60 border-r border-border bg-card shadow-sm hidden md:block"
+        className="fixed top-0 left-0 z-30 h-full w-60 border-r border-border bg-card shadow-sm hidden md:block overflow-y-auto"
         style={{ boxShadow: 'inset -2px 0 4px rgba(0, 0, 0, 0.1), 2px 0 5px -2px rgba(0, 0, 0, 0.05)' }}
       >
         {sidebar} 
@@ -33,7 +33,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ sidebar, header, children 
         
         {/* Sidebar - with inset shadow for mobile too */}
         <div 
-          className={`absolute left-0 top-0 h-full w-64 bg-card border-r border-border transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out shadow-lg`}
+          className={`absolute left-0 top-0 h-full w-64 bg-card border-r border-border transform ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} transition-transform duration-300 ease-in-out shadow-lg overflow-y-auto`}
           style={{ boxShadow: 'inset -2px 0 4px rgba(0, 0, 0, 0.1), 2px 0 5px -2px rgba(0, 0, 0, 0.05)' }}
         >
           {sidebar}
@@ -46,7 +46,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ sidebar, header, children 
         {header && <header>{header}</header>}
 
         {/* Main Content Area - with improved spacing and layout */}
-        <main className="flex-grow p-4 pt-6 md:p-6 relative">
+        <main className="flex-grow p-4 pt-6 md:p-6 relative overflow-y-auto">
           <div className="max-w-6xl mx-auto space-y-8">
             {children}
           </div>
