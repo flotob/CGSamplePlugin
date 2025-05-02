@@ -42,35 +42,48 @@ export const EnsStepConfig: React.FC<EnsStepConfigProps> = ({
   const [domainError, setDomainError] = React.useState<string | null>(null);
   const [ageError, setAgeError] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
-    const hasInitialDomain = initialData?.domain_name !== null && initialData?.domain_name !== undefined;
-    const hasInitialAge = initialData?.minimum_age_days !== null && initialData?.minimum_age_days !== undefined;
+  // Ref to track initial mount / data change
+  const isInitialRenderRef = React.useRef(true);
 
-    setCheckSpecificDomain(hasInitialDomain);
-    setDomainName(hasInitialDomain ? initialData!.domain_name! : '');
-    
-    setCheckMinimumAge(hasInitialAge);
-    if (hasInitialAge) {
+  // Initialization effect (runs on initialData change)
+  React.useEffect(() => {
+    // Determine desired state from props
+    const shouldCheckDomain = initialData?.domain_name !== null && initialData?.domain_name !== undefined;
+    const desiredDomainName = shouldCheckDomain ? initialData!.domain_name! : '';
+    const shouldCheckAge = initialData?.minimum_age_days !== null && initialData?.minimum_age_days !== undefined;
+    let desiredAgeOption = '7';
+    let desiredCustomAge = '';
+    if (shouldCheckAge) {
       const initialAge = initialData!.minimum_age_days!;
       const existingOption = ageOptions.find(opt => opt.value === initialAge.toString());
       if (existingOption) {
-        setSelectedAgeOption(existingOption.value);
-        setCustomAgeDays('');
+        desiredAgeOption = existingOption.value;
       } else {
-        setSelectedAgeOption('custom');
-        setCustomAgeDays(initialAge.toString());
+        desiredAgeOption = 'custom';
+        desiredCustomAge = initialAge.toString();
       }
-    } else {
-      setSelectedAgeOption('7');
-      setCustomAgeDays('');
     }
 
+    // Only update state if it differs
+    if (checkSpecificDomain !== shouldCheckDomain) setCheckSpecificDomain(shouldCheckDomain);
+    if (domainName !== desiredDomainName) setDomainName(desiredDomainName);
+    if (checkMinimumAge !== shouldCheckAge) setCheckMinimumAge(shouldCheckAge);
+    if (selectedAgeOption !== desiredAgeOption) setSelectedAgeOption(desiredAgeOption);
+    if (customAgeDays !== desiredCustomAge) setCustomAgeDays(desiredCustomAge);
+
+    // Reset flag indicating initial load is complete for subsequent validation runs
+    isInitialRenderRef.current = true;
+
+    // Clear errors when initialData changes
     setDomainError(null); 
     setAgeError(null);
+    
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialData]); 
 
-  }, [initialData]);
-
+  // Validation and onChange effect (runs on internal state change)
   React.useEffect(() => {
+    // --- Validation Logic (remains the same) ---
     let currentDomainError: string | null = null;
     if (checkSpecificDomain && !domainName.trim()) {
       currentDomainError = 'Domain name or pattern is required when check is enabled.';
@@ -81,7 +94,6 @@ export const EnsStepConfig: React.FC<EnsStepConfigProps> = ({
 
     let currentAgeError: string | null = null;
     let finalAgeNum: number | null = null;
-
     if (checkMinimumAge) {
       if (selectedAgeOption === 'custom') {
         if (customAgeDays === '') {
@@ -95,23 +107,33 @@ export const EnsStepConfig: React.FC<EnsStepConfigProps> = ({
         }
       } else {
         finalAgeNum = parseInt(selectedAgeOption, 10);
-        if (isNaN(finalAgeNum) || !isValidAgeDays(finalAgeNum)) {
+        if (isNaN(finalAgeNum) || !isValidAgeDays(finalAgeNum)) { 
              currentAgeError = 'Selected age must be a non-negative integer.';
              finalAgeNum = null; 
         }
       }
       if (finalAgeNum === 0) finalAgeNum = null; 
     } else {
-      finalAgeNum = null;
+      finalAgeNum = null; 
     }
     setAgeError(currentAgeError);
+    // --- End Validation Logic ---
 
+    // Prevent calling onChange on initial render or right after initialData changes
+    if (isInitialRenderRef.current) {
+      isInitialRenderRef.current = false; // Flip the flag for subsequent changes
+      return; // Skip onChange call this time
+    }
+
+    // Only call onChange if data is valid AND it's not the initial render cycle
     if (currentDomainError === null && currentAgeError === null) {
       onChange({
         domain_name: checkSpecificDomain ? domainName.trim() : null,
-        minimum_age_days: finalAgeNum,
+        minimum_age_days: finalAgeNum, 
       });
     }
+    
+    // Dependencies are the internal state values that trigger validation/onChange
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [checkSpecificDomain, domainName, checkMinimumAge, selectedAgeOption, customAgeDays]); 
 
