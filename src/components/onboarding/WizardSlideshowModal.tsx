@@ -266,12 +266,34 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
         {/* Header Area */}
         <div className="flex items-center justify-between p-4 border-b min-h-[60px]">
           <div>
-            <h2 className="text-lg font-semibold">
-              {currentStepType ? currentStepType.name.replace(/_/g, ' ') : `Wizard: ${wizardId}`}
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              {totalSteps > 0 ? `Step ${currentStepIndex + 1} of ${totalSteps}` : 'Loading steps...'}
-            </p>
+            {(() => { 
+              let stepTitle: string;
+              let stepSubtitle: string;
+
+              if (showSummary) {
+                stepTitle = "Wizard Completed";
+                stepSubtitle = "Summary of your progress";
+              } else {
+                // Logic for regular step titles (existing logic)
+                const presentationConfig = currentStep?.config?.presentation as { headline?: string | null, subtitle?: string | null } | undefined;
+                const headline = presentationConfig?.headline;
+                const subtitle = presentationConfig?.subtitle;
+                const fallbackTitle = currentStepType ? currentStepType.name.replace(/_/g, ' ') : `Step ${currentStepIndex + 1}`;
+                stepTitle = headline || fallbackTitle;
+                stepSubtitle = subtitle || (totalSteps > 0 ? `Step ${currentStepIndex + 1} of ${totalSteps}` : 'Loading steps...');
+              }
+
+              return (
+                <>
+                  <h2 className="text-lg font-semibold">
+                    {stepTitle}
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    {stepSubtitle}
+                  </p>
+                </>
+              );
+            })()}
           </div>
           <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close wizard">
             <X className="h-5 w-5" />
