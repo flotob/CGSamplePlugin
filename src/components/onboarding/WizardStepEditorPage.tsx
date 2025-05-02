@@ -124,8 +124,9 @@ export const WizardStepEditorPage: React.FC<WizardStepEditorPageProps> = ({ wiza
           stepTypeToCreate={stepTypeToCreate}
         />
       </div>
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 overflow-y-auto">
         <StepEditor
+          key={isCreating ? 'creating' : activeStep?.id || 'no-selection'}
           wizardId={wizardId}
           step={activeStep}
           roles={assignableRoles}

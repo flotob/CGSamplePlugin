@@ -1,12 +1,12 @@
 import React from 'react';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { isValidEnsDomain, isValidAgeDays } from '@/lib/step-logic/ens';
 import { AlertCircle } from 'lucide-react';
 
 export interface EnsSpecificConfig {
-  requirement_type?: 'any_primary' | 'specific_domain' | null;
   domain_name?: string | null;
   minimum_age_days?: number | null;
 }
@@ -17,118 +17,204 @@ interface EnsStepConfigProps {
   disabled?: boolean;
 }
 
-const DEFAULT_REQUIREMENT_TYPE = 'any_primary';
+const ageOptions = [
+  { value: '0', label: 'Any age' },
+  { value: '7', label: '7 days' },
+  { value: '30', label: '30 days' },
+  { value: '90', label: '90 days' },
+  { value: '180', label: '180 days' },
+  { value: '365', label: '1 year (365 days)' },
+  { value: 'custom', label: 'Custom...' },
+];
 
 export const EnsStepConfig: React.FC<EnsStepConfigProps> = ({
   initialData,
   onChange,
   disabled = false,
 }) => {
-  const [requirementType, setRequirementType] = React.useState(initialData?.requirement_type ?? DEFAULT_REQUIREMENT_TYPE);
-  const [domainName, setDomainName] = React.useState(initialData?.domain_name ?? '');
-  const [minAgeDays, setMinAgeDays] = React.useState<string>(initialData?.minimum_age_days?.toString() ?? ''); // Store as string for input
+  const [checkSpecificDomain, setCheckSpecificDomain] = React.useState(false);
+  const [checkMinimumAge, setCheckMinimumAge] = React.useState(false);
+
+  const [domainName, setDomainName] = React.useState('');
+  const [selectedAgeOption, setSelectedAgeOption] = React.useState<string>('7');
+  const [customAgeDays, setCustomAgeDays] = React.useState<string>('');
 
   const [domainError, setDomainError] = React.useState<string | null>(null);
   const [ageError, setAgeError] = React.useState<string | null>(null);
 
-  // Update local state if initialData changes
   React.useEffect(() => {
-    setRequirementType(initialData?.requirement_type ?? DEFAULT_REQUIREMENT_TYPE);
-    setDomainName(initialData?.domain_name ?? '');
-    setMinAgeDays(initialData?.minimum_age_days?.toString() ?? '');
-    setDomainError(null); // Clear errors on step change
+    const hasInitialDomain = initialData?.domain_name !== null && initialData?.domain_name !== undefined;
+    const hasInitialAge = initialData?.minimum_age_days !== null && initialData?.minimum_age_days !== undefined;
+
+    setCheckSpecificDomain(hasInitialDomain);
+    setDomainName(hasInitialDomain ? initialData!.domain_name! : '');
+    
+    setCheckMinimumAge(hasInitialAge);
+    if (hasInitialAge) {
+      const initialAge = initialData!.minimum_age_days!;
+      const existingOption = ageOptions.find(opt => opt.value === initialAge.toString());
+      if (existingOption) {
+        setSelectedAgeOption(existingOption.value);
+        setCustomAgeDays('');
+      } else {
+        setSelectedAgeOption('custom');
+        setCustomAgeDays(initialAge.toString());
+      }
+    } else {
+      setSelectedAgeOption('7');
+      setCustomAgeDays('');
+    }
+
+    setDomainError(null); 
     setAgeError(null);
+
   }, [initialData]);
 
-  // Validate and notify parent on change
   React.useEffect(() => {
     let currentDomainError: string | null = null;
-    if (requirementType === 'specific_domain' && !domainName.trim()) {
-      currentDomainError = 'Domain name is required for specific domain requirement.';
-    } else if (requirementType === 'specific_domain' && !isValidEnsDomain(domainName)) {
-      currentDomainError = 'Invalid ENS domain name format.';
+    if (checkSpecificDomain && !domainName.trim()) {
+      currentDomainError = 'Domain name or pattern is required when check is enabled.';
+    } else if (checkSpecificDomain && !isValidEnsDomain(domainName)) {
+      currentDomainError = 'Invalid format (or potentially invalid regex). Check syntax.'; 
     }
     setDomainError(currentDomainError);
 
     let currentAgeError: string | null = null;
-    const ageNum = minAgeDays === '' ? null : parseInt(minAgeDays, 10);
-    if (minAgeDays !== '' && (isNaN(ageNum ?? NaN) || !isValidAgeDays(ageNum))) {
-       currentAgeError = 'Minimum age must be a non-negative integer.';
+    let finalAgeNum: number | null = null;
+
+    if (checkMinimumAge) {
+      if (selectedAgeOption === 'custom') {
+        if (customAgeDays === '') {
+          currentAgeError = 'Custom age requires a value when check is enabled.';
+        } else {
+          finalAgeNum = parseInt(customAgeDays, 10);
+          if (isNaN(finalAgeNum) || !isValidAgeDays(finalAgeNum)) {
+            currentAgeError = 'Custom age must be a non-negative integer.';
+            finalAgeNum = null; 
+          }
+        }
+      } else {
+        finalAgeNum = parseInt(selectedAgeOption, 10);
+        if (isNaN(finalAgeNum) || !isValidAgeDays(finalAgeNum)) {
+             currentAgeError = 'Selected age must be a non-negative integer.';
+             finalAgeNum = null; 
+        }
+      }
+      if (finalAgeNum === 0) finalAgeNum = null; 
+    } else {
+      finalAgeNum = null;
     }
     setAgeError(currentAgeError);
 
-    // Only call onChange if data is valid
     if (currentDomainError === null && currentAgeError === null) {
       onChange({
-        requirement_type: requirementType,
-        domain_name: requirementType === 'specific_domain' ? domainName.trim() : null,
-        minimum_age_days: ageNum,
+        domain_name: checkSpecificDomain ? domainName.trim() : null,
+        minimum_age_days: finalAgeNum,
       });
     }
-    // We want this to run whenever inputs change
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [requirementType, domainName, minAgeDays]); // Exclude onChange to prevent loops
+  }, [checkSpecificDomain, domainName, checkMinimumAge, selectedAgeOption, customAgeDays]); 
 
   return (
-    <div className="space-y-4 border-t border-border/30 pt-4 mt-4">
-      <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">ENS Configuration</h3>
-      
-      <div className="space-y-1.5">
-        <Label>Requirement Type</Label>
-        <RadioGroup 
-          value={requirementType}
-          onValueChange={(value: 'any_primary' | 'specific_domain') => setRequirementType(value)}
-          className="flex items-center gap-6 pt-1"
-          disabled={disabled}
-        >
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="any_primary" id="ens-any" />
-            <Label htmlFor="ens-any" className="font-normal">Any Primary ENS</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="specific_domain" id="ens-specific" />
-            <Label htmlFor="ens-specific" className="font-normal">Specific ENS Domain</Label>
-          </div>
-        </RadioGroup>
-      </div>
+    <div className="space-y-6">
+      <div className="space-y-3 p-4 border rounded-md bg-muted/20">
+         <div className="flex items-center space-x-3">
+           <Checkbox 
+             id="check-specific-domain"
+             checked={checkSpecificDomain}
+             onCheckedChange={(checked) => setCheckSpecificDomain(Boolean(checked))}
+             disabled={disabled}
+           />
+           <Label htmlFor="check-specific-domain" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+             Verify Specific Domain/Pattern
+           </Label>
+         </div>
+         <p className="text-xs text-muted-foreground pl-7">
+            Enable this to require the user's primary ENS name to match a specific name or regex pattern. If disabled, any primary ENS is sufficient (unless other checks apply).
+         </p>
+         {checkSpecificDomain && (
+            <div className="space-y-1.5 pl-7 pt-2">
+              <Label htmlFor="ens-domain-name">Required Domain Name or Regex Pattern</Label>
+               <p className="text-xs text-muted-foreground">
+                 Enter the exact ENS domain (e.g., `vitalik.eth`) or a Javascript regex pattern (e.g., `/^\d+\.eth$/` for numeric ENS names).
+               </p>
+              <Input 
+                id="ens-domain-name"
+                value={domainName}
+                onChange={(e) => setDomainName(e.target.value)}
+                placeholder="e.g., yourproject.eth or /^.+\.mydao\.eth$/"
+                disabled={disabled}
+                required
+                className="mt-1"
+              />
+              {domainError && (
+                <p className="text-xs text-destructive flex items-center gap-1 pt-1">
+                    <AlertCircle className="h-3.5 w-3.5"/> {domainError}
+                </p>
+              )}
+            </div>
+         )}
+       </div>
 
-      {requirementType === 'specific_domain' && (
-        <div className="space-y-1.5">
-          <Label htmlFor="ens-domain-name">Required Domain Name</Label>
-          <Input 
-            id="ens-domain-name"
-            value={domainName}
-            onChange={(e) => setDomainName(e.target.value)}
-            placeholder="e.g., yourproject.eth"
-            disabled={disabled}
-            required
-          />
-          {domainError && (
-            <p className="text-xs text-destructive flex items-center gap-1 pt-1">
-                <AlertCircle className="h-3.5 w-3.5"/> {domainError}
-            </p>
-          )}
-        </div>
-      )}
+       <div className="space-y-3 p-4 border rounded-md bg-muted/20">
+         <div className="flex items-center space-x-3">
+           <Checkbox 
+             id="check-minimum-age"
+             checked={checkMinimumAge}
+             onCheckedChange={(checked) => setCheckMinimumAge(Boolean(checked))}
+             disabled={disabled}
+           />
+           <Label htmlFor="check-minimum-age" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+             Verify Minimum Registration Age
+           </Label>
+         </div>
+          <p className="text-xs text-muted-foreground pl-7">
+             Enable this to require the user's primary ENS name to have been registered for a minimum duration.
+         </p>
+         {checkMinimumAge && (
+          <div className="space-y-3 pl-7 pt-2">
+             <Select 
+               value={selectedAgeOption}
+               onValueChange={setSelectedAgeOption}
+               disabled={disabled}
+             >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select minimum age..." />
+              </SelectTrigger>
+              <SelectContent>
+                {ageOptions.map(option => (
+                   <SelectItem key={option.value} value={option.value} disabled={option.value === '0'}>
+                     {option.label}
+                   </SelectItem>
+                ))}
+              </SelectContent>
+             </Select>
 
-      <div className="space-y-1.5">
-        <Label htmlFor="ens-min-age">Minimum Age (Days, Optional)</Label>
-        <Input 
-          id="ens-min-age"
-          type="number"
-          value={minAgeDays}
-          onChange={(e) => setMinAgeDays(e.target.value)}
-          placeholder="e.g., 30 (requires ENS to be registered for 30 days)"
-          min="0"
-          step="1"
-          disabled={disabled}
-        />
-         {ageError && (
-            <p className="text-xs text-destructive flex items-center gap-1 pt-1">
-                <AlertCircle className="h-3.5 w-3.5"/> {ageError}
-            </p>
-          )}
-      </div>
+            {selectedAgeOption === 'custom' && (
+              <div className="space-y-1.5 pt-2">
+                <Label htmlFor="ens-custom-age">Custom Minimum Age (Days)</Label>
+                <Input 
+                  id="ens-custom-age"
+                  type="number"
+                  value={customAgeDays}
+                  onChange={(e) => setCustomAgeDays(e.target.value)}
+                  placeholder="Enter number of days"
+                  min="1"
+                  step="1"
+                  disabled={disabled}
+                  required
+                />
+              </div>
+            )}
+             {ageError && (
+                <p className="text-xs text-destructive flex items-center gap-1 pt-1">
+                    <AlertCircle className="h-3.5 w-3.5"/> {ageError}
+                </p>
+              )}
+           </div>
+         )}
+       </div>
+
     </div>
   );
 }; 

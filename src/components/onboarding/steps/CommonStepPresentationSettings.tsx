@@ -41,8 +41,7 @@ export const CommonStepPresentationSettings: React.FC<CommonStepPresentationSett
   }, [headline, subtitle]); // We deliberately exclude onChange here to avoid potential loops if parent re-renders
 
   return (
-    <div className="space-y-4 border-t border-border/30 pt-4 mt-4">
-       <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Presentation</h3>
+    <div className="space-y-4">
        <div className="space-y-1.5">
          <Label htmlFor="step-headline">Headline (Optional)</Label>
          <Input 

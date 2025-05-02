@@ -201,7 +201,10 @@ export const StepEditor: React.FC<StepEditorProps> = ({
           </AccordionTrigger>
           <AccordionContent className="pt-3">
             <div>
-              <Label className="block text-sm font-medium mb-1">Target Role (Optional)</Label>
+              <p className="text-xs text-muted-foreground mb-2">
+                Select a role to assign to the user if they successfully complete this step.
+                Leave as '-- No Target Role --' if no role should be assigned here.
+              </p>
               <select
                 name="target_role_id"
                 value={targetRoleId}
