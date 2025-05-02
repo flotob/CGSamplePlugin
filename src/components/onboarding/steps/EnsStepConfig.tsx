@@ -174,7 +174,7 @@ export const EnsStepConfig: React.FC<EnsStepConfigProps> = ({
              id="check-minimum-age"
              checked={checkMinimumAge}
              onCheckedChange={handleAgeCheckChange}
-             disabled={disabled}
+             disabled={true}
            />
            <Label htmlFor="check-minimum-age" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
              Verify Minimum Registration Age
@@ -188,7 +188,7 @@ export const EnsStepConfig: React.FC<EnsStepConfigProps> = ({
              <Select 
                value={selectedAgeOption}
                onValueChange={handleAgeSelectChange}
-               disabled={disabled}
+               disabled={true}
              >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Select minimum age..." />
@@ -213,7 +213,7 @@ export const EnsStepConfig: React.FC<EnsStepConfigProps> = ({
                   placeholder="Enter number of days"
                   min="1"
                   step="1"
-                  disabled={disabled}
+                  disabled={true}
                   required
                 />
               </div>
