@@ -15,9 +15,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 // Import Icons
-import { User, Users, Award, BadgeCheck } from 'lucide-react';
+import { User, Users, Award, BadgeCheck, Wallet } from 'lucide-react';
 // Import the new UserAvatar component
 import { UserAvatar } from './UserAvatar';
+import { ConnectButton } from '@rainbow-me/rainbowkit';
 
 // Define props expected from PluginContainer
 interface UserViewProps {
@@ -26,7 +27,7 @@ interface UserViewProps {
   friends: UserFriendsResponsePayload | undefined;
   // Use the inferred type for roles directly from the communityInfo payload
   assignableRoles: CommunityInfoResponsePayload['roles'] | undefined;
-  handleAssignRoleClick: (roleId: string | undefined) => void;
+  handleAssignRoleClick: (roleId: string | null) => void;
   isAssigningRole: boolean;
   assignRoleError: Error | null;
   activeSection: string; // Receive activeSection prop
@@ -85,8 +86,8 @@ export const UserView: React.FC<UserViewProps> = ({
         </p>
       </div>
 
-      {/* Main content grid */}
-      <div className="w-full max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Grid layout back to 2 cols on medium */}
+      <div className="w-full max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6"> 
         {/* User Info Card */}
         <Card className="md:col-span-1 animate-in fade-in slide-in-from-bottom-5 duration-500 delay-150" interactive>
           <CardHeader className="pb-3">
@@ -97,7 +98,7 @@ export const UserView: React.FC<UserViewProps> = ({
               <CardTitle>Your Details</CardTitle>
             </div>
           </CardHeader>
-          <CardContent className='flex flex-col gap-2.5 text-sm'>
+          <CardContent className='flex flex-col gap-2.5 text-sm'> {/* Reverted gap change */}
             {isLoadingUserInfo ? (
               <div className="flex items-center justify-center p-4">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
@@ -111,17 +112,19 @@ export const UserView: React.FC<UserViewProps> = ({
               </div>
             ) : (
               <>
-                <div className="flex items-center gap-3 mb-1">
-                  <UserAvatar 
-                    imageUrl={userInfo?.imageUrl} 
-                    name={userInfo?.name} 
-                    userId={userInfo?.id} 
-                    size={36} 
-                    className="ring-2 ring-primary/20"
-                  />
-                  <div>
-                    <p className="font-medium">{userInfo?.name}</p>
-                    <p className="text-xs text-muted-foreground">ID: {userInfo?.id?.substring(0, 10)}...</p>
+                <div className="flex items-start justify-between gap-3 mb-1">
+                  <div className="flex items-center gap-3">
+                    <UserAvatar 
+                      imageUrl={userInfo?.imageUrl} 
+                      name={userInfo?.name} 
+                      userId={userInfo?.id} 
+                      size={36} 
+                      className="ring-2 ring-primary/20"
+                    />
+                    <div>
+                      <p className="font-medium">{userInfo?.name}</p>
+                      <p className="text-xs text-muted-foreground">ID: {userInfo?.id?.substring(0, 10)}...</p>
+                    </div>
                   </div>
                 </div>
                 
@@ -157,136 +160,145 @@ export const UserView: React.FC<UserViewProps> = ({
           </CardContent>
         </Card>
 
-        {/* Friends list Card */}
-        {!isLoadingFriends && !friendsError && friends && friends.friends.length > 0 && (
-          <Card className="md:col-span-1 animate-in fade-in slide-in-from-bottom-5 duration-500 delay-300" interactive>
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full bg-primary/10">
-                  <Users className="h-4 w-4 text-primary" />
-                </div>
-                <CardTitle>Your Community</CardTitle>
+        {/* Wallet Connection Card */}
+        <Card className="md:col-span-1 animate-in fade-in slide-in-from-bottom-5 duration-500 delay-200" interactive>
+           <CardHeader className="pb-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-full bg-primary/10">
+                <Wallet className="h-4 w-4 text-primary" />
               </div>
-            </CardHeader>
-            <CardContent className='flex flex-col gap-3'>
-              {friends.friends.map((friend, index) => (
-                <div 
-                  key={friend.id} 
-                  className='flex items-center gap-3 p-2 rounded-md transition-colors hover:bg-secondary/40'
-                  style={{ animationDelay: `${150 + (index * 50)}ms` }}
-                >
-                  <UserAvatar 
-                    imageUrl={friend.imageUrl} 
-                    name={friend.name} 
-                    userId={friend.id} 
-                    size={32}
-                  />
-                  <span className="font-medium">{friend.name}</span>
+              <CardTitle>Wallet Connection</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="flex items-center justify-center pt-4"> 
+            <ConnectButton showBalance={false} />
+          </CardContent>
+        </Card>
+
+        {/* Friends list Card (will wrap below on md screens) */}
+        {/* Make it span full width if roles aren't shown, otherwise half */}
+        {((!isLoadingFriends && !friendsError && friends && friends.friends.length > 0) || isLoadingFriends) && (
+           // Safely check friends?.friends before accessing length
+           <Card className={`animate-in fade-in slide-in-from-bottom-5 duration-500 delay-300 ${(!isLoadingCommunityInfo && assignableRoles && assignableRoles.length > 0) || isLoadingCommunityInfo ? 'md:col-span-1' : 'md:col-span-2'}`} interactive>
+             <CardHeader className="pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-full bg-primary/10">
+                    <Users className="h-4 w-4 text-primary" />
+                  </div>
+                  <CardTitle>Your Friends</CardTitle>
                 </div>
-              ))}
-            </CardContent>
-          </Card>
-        )}
-        {/* Loading state for friends card */}
-        {isLoadingFriends && (
-          <Card className="md:col-span-1 animate-in fade-in slide-in-from-bottom-5 duration-500 delay-300">
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full bg-primary/10">
-                  <Users className="h-4 w-4 text-primary" />
-                </div>
-                <CardTitle>Your Community</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className='flex items-center justify-center p-8'>
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-            </CardContent>
-          </Card>
+              </CardHeader>
+              {/* Render content only if not loading and friends exist */}
+              {!isLoadingFriends && friends?.friends && friends.friends.length > 0 && (
+                <CardContent className='flex flex-col gap-3'>
+                   {friends.friends.map((friend, index) => (
+                    <div 
+                      key={friend.id} 
+                      className='flex items-center gap-3 p-2 rounded-md transition-colors hover:bg-secondary/40'
+                      style={{ animationDelay: `${150 + (index * 50)}ms` }}
+                    >
+                      <UserAvatar 
+                        imageUrl={friend.imageUrl} 
+                        name={friend.name} 
+                        userId={friend.id} 
+                        size={32}
+                      />
+                      <span className="font-medium">{friend.name}</span>
+                    </div>
+                  ))}
+                 </CardContent>
+              )}
+              {/* Show loading inside if loading */}
+               {isLoadingFriends && (
+                  <CardContent className='flex items-center justify-center p-8'>
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                  </CardContent>
+               )}
+           </Card>
         )}
 
-        {/* Assignable roles Card */}
-        {!isLoadingCommunityInfo && !communityInfoError && assignableRoles && assignableRoles.length > 0 && (
-          <Card className="md:col-span-2 animate-in fade-in slide-in-from-bottom-5 duration-500 delay-450" interactive>
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full bg-primary/10">
-                  <Award className="h-4 w-4 text-primary" />
-                </div>
-                <div>
-                  <CardTitle>Available Roles</CardTitle>
-                  <CardDescription className="mt-1">Get roles by meeting criteria or manual assignment.</CardDescription>
-                </div>
-              </div>
-              {isAssigningRole && (
-                <div className='text-blue-500 pt-2 flex items-center gap-2'>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
-                  <p className="text-sm">Assigning role...</p>
-                </div>
-              )}
-              {assignRoleError && (
-                <div className='text-destructive pt-2 flex items-center gap-2 p-2 bg-destructive/10 rounded-md'>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10"/>
-                    <line x1="12" x2="12" y1="8" y2="12"/>
-                    <line x1="12" x2="12.01" y1="16" y2="16"/>
-                  </svg>
-                  <p className="text-sm">Error: {assignRoleError.message}</p>
-                </div>
-              )}
-            </CardHeader>
-            <CardContent className='grid grid-cols-1 md:grid-cols-2 gap-3'>
-              {assignableRoles?.map((role, index) => (
-                <div 
-                  className='flex items-center justify-between p-3 rounded-md border border-border bg-card transition-all hover:bg-secondary/20' 
-                  key={role.id}
-                  style={{ animationDelay: `${450 + (index * 50)}ms` }}
-                >
+        {/* Assignable roles Card (will wrap below on md screens) */}
+         {/* Make it span full width if friends aren't shown, otherwise half */} 
+        {((!isLoadingCommunityInfo && !communityInfoError && assignableRoles && assignableRoles.length > 0) || isLoadingCommunityInfo) && (
+             // Safely check friends?.friends before accessing length
+             <Card className={`animate-in fade-in slide-in-from-bottom-5 duration-500 delay-450 ${(!isLoadingFriends && friends?.friends && friends.friends.length > 0) || isLoadingFriends ? 'md:col-span-1' : 'md:col-span-2'}`} interactive>
+                {/* Role Card Content Here */} 
+                 <CardHeader className="pb-3">
                   <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-accent flex items-center justify-center text-accent-foreground">
-                      {role.title.charAt(0)}
+                    <div className="p-2 rounded-full bg-primary/10">
+                      <Award className="h-4 w-4 text-primary" />
                     </div>
                     <div>
-                      <p className="font-medium">{role.title}</p>
-                      <p className="text-xs text-muted-foreground">ID: {role.id.substring(0, 6)}...</p>
+                      <CardTitle>Available Roles</CardTitle>
+                      <CardDescription className="mt-1">Get roles by meeting criteria or manual assignment.</CardDescription>
                     </div>
                   </div>
-                  {userInfo?.roles?.includes(role.id) ? (
-                    <div className='text-xs flex items-center gap-1.5 text-primary px-2.5 py-1.5 border-primary/20 border rounded-md bg-primary/10'>
-                      <BadgeCheck className="h-3.5 w-3.5" />
-                      <span>Assigned</span>
+                   {/* ... Assigning/Error indicators ... */} 
+                  {isAssigningRole && (
+                    <div className='text-blue-500 pt-2 flex items-center gap-2'>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
+                      <p className="text-sm">Assigning role...</p>
                     </div>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleAssignRoleClick(role.id)}
-                      disabled={isAssigningRole}
-                      className="transition-all duration-200"
-                    >
-                      Get Role
-                    </Button>
                   )}
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+                  {assignRoleError && (
+                    <div className='text-destructive pt-2 flex items-center gap-2 p-2 bg-destructive/10 rounded-md'>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10"/>
+                        <line x1="12" x2="12" y1="8" y2="12"/>
+                        <line x1="12" x2="12.01" y1="16" y2="16"/>
+                      </svg>
+                      <p className="text-sm">Error: {assignRoleError.message}</p>
+                    </div>
+                  )}
+                 </CardHeader>
+                 {/* Render content only if not loading and roles exist */}
+                 {!isLoadingCommunityInfo && assignableRoles && assignableRoles.length > 0 && (
+                   <CardContent className='grid grid-cols-1 gap-3'> 
+                      {assignableRoles?.map((role, index) => (
+                        <div 
+                          className='flex items-center justify-between p-3 rounded-md border border-border bg-card transition-all hover:bg-secondary/20' 
+                          key={role.id}
+                          style={{ animationDelay: `${450 + (index * 50)}ms` }}
+                        >
+                           {/* ... Role details and button ... */} 
+                           <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded-full bg-accent flex items-center justify-center text-accent-foreground">
+                              {role.title.charAt(0)}
+                            </div>
+                            <div>
+                              <p className="font-medium">{role.title}</p>
+                              <p className="text-xs text-muted-foreground">ID: {role.id.substring(0, 6)}...</p>
+                            </div>
+                          </div>
+                          {userInfo?.roles?.includes(role.id) ? (
+                            <div className='text-xs flex items-center gap-1.5 text-primary px-2.5 py-1.5 border-primary/20 border rounded-md bg-primary/10'>
+                              <BadgeCheck className="h-3.5 w-3.5" />
+                              <span>Assigned</span>
+                            </div>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleAssignRoleClick(role.id)}
+                              disabled={isAssigningRole}
+                              className="transition-all duration-200"
+                            >
+                              Get Role
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                   </CardContent>
+                 )}
+                 {/* Show loading inside if loading */}
+                 {isLoadingCommunityInfo && (
+                    <CardContent className='flex items-center justify-center p-12'>
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                    </CardContent>
+                 )}
+             </Card>
         )}
-        {/* Loading state for roles card */}
-        {isLoadingCommunityInfo && (
-          <Card className="md:col-span-2 animate-in fade-in slide-in-from-bottom-5 duration-500 delay-450">
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full bg-primary/10">
-                  <Award className="h-4 w-4 text-primary" />
-                </div>
-                <CardTitle>Available Roles</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className='flex items-center justify-center p-12'>
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
-            </CardContent>
-          </Card>
-        )}
+
       </div>
     </>
   );
