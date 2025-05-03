@@ -22,7 +22,6 @@ interface ContentConfig {
 
 export const ContentStepDisplay: React.FC<ContentStepDisplayProps> = ({
   step,
-  stepType,
   onComplete,
 }) => {
   // Automatically mark this step as complete when it renders

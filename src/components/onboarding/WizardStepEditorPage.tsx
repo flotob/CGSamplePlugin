@@ -4,8 +4,6 @@ import { StepEditor } from './steps/StepEditor';
 import { useStepsQuery, useCreateStep, Step } from '@/hooks/useStepsQuery';
 import { useStepTypesQuery, StepType } from '@/hooks/useStepTypesQuery';
 import { Button } from '@/components/ui/button';
-import { CommunityInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
-import { UseMutationResult } from '@tanstack/react-query';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import {
   Accordion,
@@ -13,6 +11,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { UseMutationResult } from '@tanstack/react-query';
 
 // Define CommunityRole based on assignableRoles prop structure
 // Ensure this matches the actual structure from CommunityInfoResponsePayload

@@ -82,7 +82,7 @@ export const StepSidebarItem: React.FC<StepSidebarItemProps> = ({
         <div className="flex-1 overflow-hidden pr-2">
           <p className="text-sm font-medium capitalize truncate">{stepTypeDisplay}</p>
           <p className="text-xs text-muted-foreground truncate">
-            {(step.config?.presentation as any)?.headline || `Step ${step.step_order + 1}`}
+            {(step.config?.presentation as { headline?: string | null })?.headline || `Step ${step.step_order + 1}`}
           </p>
         </div>
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150 ease-in-out">

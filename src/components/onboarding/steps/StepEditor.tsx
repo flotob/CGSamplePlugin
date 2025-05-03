@@ -130,7 +130,7 @@ export const StepEditor: React.FC<StepEditorProps> = ({
       setIsRoleAssignmentEnabled(false);
     }
     setShowDeleteConfirm(false);
-  }, [step, isCreating]);
+  }, [step, isCreating, createStepMutation, updateStep]);
 
   const currentMutation = isCreating ? createStepMutation : updateStep;
 
