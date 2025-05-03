@@ -19,6 +19,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
+import { CheckSquare } from 'lucide-react';
 
 interface StepSidebarProps {
   wizardId: string;
@@ -90,8 +91,8 @@ export const StepSidebar: React.FC<StepSidebarProps> = ({
 
   if (isLoading) return <div className="p-4">Loading steps...</div>;
 
-  // Note: We will map over `orderedSteps` state for rendering, not `steps` prop directly
-  // const combinedSteps = steps ? [...steps] : []; // Keep this maybe for length check?
+  // Determine if the special summary item is active
+  const isSummaryActive = activeStepId === 'summary-preview';
 
   const getStepType = (step: Step) => stepTypesData?.step_types.find(t => t.id === step.step_type_id);
 
@@ -107,45 +108,73 @@ export const StepSidebar: React.FC<StepSidebarProps> = ({
   };
 
   return (
-    // Wrap the list rendering with dnd-kit context providers
-    <DndContext 
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragEnd={handleDragEnd}
-    >
-      <SortableContext 
-        // Provide IDs of the sortable items
-        items={orderedSteps.map(s => s.id)} 
-        strategy={verticalListSortingStrategy}
+    // Main container for the sidebar content, including Dnd context and static item
+    <div className="flex flex-col p-2 w-full border-r bg-muted/30 h-full overflow-y-auto">
+      {/* Dnd Context for draggable items */}
+      <DndContext 
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
       >
-        <div className="flex flex-col gap-3 p-2 w-full border-r bg-muted/30 h-full overflow-y-auto">
-          {/* Render the creating item placeholder if applicable (needs styling) */}
-          {isCreating && stepTypeToCreate && (
-             <div className="border rounded-md p-3 bg-blue-50 border-blue-200 opacity-70">
-               <p className="text-sm font-medium capitalize text-blue-700">New {stepTypeToCreate.name.replace(/_/g, ' ')}</p>
-               <p className="text-xs text-blue-600">Editing settings...</p>
-             </div>
-          )}
+        <SortableContext 
+          items={orderedSteps.map(s => s.id)} 
+          strategy={verticalListSortingStrategy}
+        >
+          {/* Container for the actual sortable items */}
+          <div className="flex flex-col gap-3">
+            {/* Render the creating item placeholder */}
+            {isCreating && stepTypeToCreate && (
+              <div className="border rounded-md p-3 bg-blue-50 border-blue-200 opacity-70">
+                 <p className="text-sm font-medium capitalize text-blue-700">New {stepTypeToCreate.label || stepTypeToCreate.name.replace(/_/g, ' ')}</p>
+                 <p className="text-xs text-blue-600">Editing settings...</p>
+              </div>
+            )}
+            {/* Map over the sortable steps */}
+            {orderedSteps.map((step) => {
+              const stepType = getStepType(step);
+              const isActive = step.id === activeStepId && !isCreating;
+              return (
+                <StepSidebarItem
+                  key={step.id}
+                  wizardId={wizardId}
+                  step={step}
+                  stepType={stepType}
+                  isActive={isActive}
+                  setActiveStepId={setActiveStepId}
+                  onDeleted={handleStepDeleted}
+                />
+              );
+            })}
+          </div>
+        </SortableContext>
+      </DndContext>
 
-          {/* Map over the local orderedSteps state */}
-          {orderedSteps.map((step) => {
-            const stepType = getStepType(step);
-            // Active state based on activeStepId, ensure isCreating doesn't override
-            const isActive = step.id === activeStepId && !isCreating;
-            return (
-              <StepSidebarItem
-                key={step.id} // Key must be stable
-                wizardId={wizardId}
-                step={step}
-                stepType={stepType}
-                isActive={isActive}
-                setActiveStepId={setActiveStepId}
-                onDeleted={handleStepDeleted}
-              />
-            );
-          })}
-        </div>
-      </SortableContext>
-    </DndContext>
+      {/* Divider and Static Summary Item (rendered only if there are steps or creating) */}
+      {(orderedSteps.length > 0 || isCreating) && (
+        <>
+          <div className="border-t my-3 mx-[-8px]"></div> {/* Divider */} 
+          <div 
+            className={`group relative border rounded-md p-3 transition-colors duration-150 ease-in-out cursor-pointer ${
+              // Add dark mode variants for active state
+              isSummaryActive ? 'bg-purple-100 border-purple-300 dark:bg-purple-900/50 dark:border-purple-700' : 'bg-card hover:bg-muted/50' 
+            }`}
+            onClick={() => setActiveStepId('summary-preview')}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 flex-1 overflow-hidden pr-2">
+                 <CheckSquare className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                 <p className="text-sm font-medium truncate">Summary Preview</p>
+              </div>
+              {/* No drag handle or delete button */}
+            </div>
+          </div>
+        </>
+      )}
+      
+      {/* Message if no steps exist and not currently creating */}
+      {!isLoading && orderedSteps.length === 0 && !isCreating && (
+        <div className="p-4 text-muted-foreground text-center">No steps yet. Add one to begin.</div>
+      )}
+    </div>
   );
 }; 

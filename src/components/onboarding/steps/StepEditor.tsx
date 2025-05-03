@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { AdminWizardSummaryPreview } from './AdminWizardSummaryPreview';
 
 interface CommunityRole {
   id: string;
@@ -40,6 +41,8 @@ interface StepEditorProps {
   onCreate: (formData: CreateStepPayload) => void;
   onCancelCreate: () => void;
   createStepMutation: UseMutationResult<{ step: Step }, Error, CreateStepPayload, unknown>;
+  isSummaryPreview?: boolean;
+  summaryData?: { includedStepTypes: StepType[]; potentialRoles: CommunityRole[] } | undefined;
 }
 
 const INITIAL_PRESENTATION_CONFIG: PresentationConfig = {
@@ -66,6 +69,8 @@ export const StepEditor: React.FC<StepEditorProps> = ({
   onCreate,
   onCancelCreate,
   createStepMutation,
+  isSummaryPreview = false,
+  summaryData,
 }) => {
   const { data: stepTypesData } = useStepTypesQuery();
   
@@ -129,6 +134,27 @@ export const StepEditor: React.FC<StepEditorProps> = ({
 
   const currentMutation = isCreating ? createStepMutation : updateStep;
 
+  // Conditional rendering for summary preview
+  if (isSummaryPreview) {
+    return (
+      <div className="p-6">
+        <h2 className="text-xl font-semibold mb-4">Wizard Summary Preview</h2>
+        {/* Render actual component if data exists, else show loading/empty state */}
+        {summaryData ? (
+           <AdminWizardSummaryPreview 
+             includedStepTypes={summaryData.includedStepTypes}
+             potentialRoles={summaryData.potentialRoles}
+           />
+        ) : (
+           <div className="p-4 border rounded bg-muted/30">
+             <p className="text-muted-foreground">Loading summary data...</p>
+           </div>
+        )}
+      </div>
+    );
+  }
+
+  // Original return logic if not in summary mode
   if (!isCreating && !step) {
     return <div className="p-8 text-muted-foreground">Select a step to edit or add a new one.</div>;
   }

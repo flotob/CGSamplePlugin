@@ -14,9 +14,17 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
+// Define CommunityRole based on assignableRoles prop structure
+// Ensure this matches the actual structure from CommunityInfoResponsePayload
+interface CommunityRole {
+  id: string;
+  title: string;
+  // Add other relevant fields from CommunityInfoResponsePayload['roles'][number] if needed
+}
+
 interface WizardStepEditorPageProps {
   wizardId: string;
-  assignableRoles: CommunityInfoResponsePayload['roles'] | undefined;
+  assignableRoles: CommunityRole[] | undefined; // Use defined CommunityRole
 }
 
 export interface CreateStepPayload {
@@ -25,6 +33,12 @@ export interface CreateStepPayload {
   target_role_id: string | null;
   is_mandatory: boolean;
   is_active: boolean;
+}
+
+// Define SummaryData structure using the defined CommunityRole type
+interface SummaryData {
+  includedStepTypes: StepType[];
+  potentialRoles: CommunityRole[];
 }
 
 export const WizardStepEditorPage: React.FC<WizardStepEditorPageProps> = ({ wizardId, assignableRoles }) => {
@@ -58,15 +72,41 @@ export const WizardStepEditorPage: React.FC<WizardStepEditorPageProps> = ({ wiza
     });
   };
 
-  const handleCancelCreate = () => {
+  const handleCancelCreate = React.useCallback(() => {
     setStepTypeToCreate(null);
     if (data && data.steps.length > 0) {
       setActiveStepId(data.steps[0].id);
     }
-  };
+  }, [data, setActiveStepId]);
 
   const activeStep: Step | null = !stepTypeToCreate && data?.steps.find(s => s.id === activeStepId) || null;
   const isCreating = !!stepTypeToCreate;
+  const isSummaryPreviewActive = activeStepId === 'summary-preview';
+
+  // --- Calculate Summary Data --- 
+  const summaryData = React.useMemo((): SummaryData | null => {
+    if (!isSummaryPreviewActive || !data?.steps || !stepTypesData?.step_types) {
+      return null; 
+    }
+    // ... includedStepTypes calculation ...
+    const uniqueTypeIds = [...new Set(data.steps.map(step => step.step_type_id))];
+    const includedStepTypes = uniqueTypeIds
+      .map(id => stepTypesData.step_types.find(type => type.id === id))
+      .filter((type): type is StepType => !!type);
+
+    // 2. Potential Roles Granted (using CommunityRole type)
+    const uniqueRoleIds = [...new Set(data.steps.map(step => step.target_role_id).filter((id): id is string => !!id))];
+    const potentialRoles = uniqueRoleIds
+      .map(id => assignableRoles?.find(role => role.id === id))
+      .filter((role): role is CommunityRole => !!role)
+      .sort((a, b) => a.title.localeCompare(b.title));
+
+    return {
+      includedStepTypes,
+      potentialRoles,
+    };
+  }, [isSummaryPreviewActive, data?.steps, stepTypesData?.step_types, assignableRoles]);
+  // --- End Calculate Summary Data --- 
 
   return (
     <div className="flex h-[80vh] border rounded-lg overflow-hidden bg-background">
@@ -157,10 +197,7 @@ export const WizardStepEditorPage: React.FC<WizardStepEditorPageProps> = ({ wiza
         <StepSidebar
           wizardId={wizardId}
           activeStepId={activeStepId}
-          setActiveStepId={(id) => {
-              setActiveStepId(id);
-              setStepTypeToCreate(null);
-          }}
+          setActiveStepId={setActiveStepId}
           steps={data?.steps}
           isLoading={isLoading}
           isCreating={isCreating}
@@ -169,15 +206,17 @@ export const WizardStepEditorPage: React.FC<WizardStepEditorPageProps> = ({ wiza
       </div>
       <div className="flex-1 min-w-0 overflow-y-auto">
         <StepEditor
-          key={isCreating ? 'creating' : activeStep?.id || 'no-selection'}
+          key={isSummaryPreviewActive ? 'summary-preview' : (isCreating ? 'creating' : activeStep?.id || 'no-selection')}
           wizardId={wizardId}
-          step={activeStep}
+          step={isSummaryPreviewActive ? null : activeStep}
           roles={assignableRoles}
-          isCreating={isCreating}
-          stepTypeForCreate={stepTypeToCreate}
+          isCreating={!isSummaryPreviewActive && isCreating}
+          stepTypeForCreate={isSummaryPreviewActive ? null : stepTypeToCreate}
           onCreate={handleSaveNewStep}
           onCancelCreate={handleCancelCreate}
           createStepMutation={createStep}
+          isSummaryPreview={isSummaryPreviewActive}
+          summaryData={summaryData ?? undefined}
           onDelete={() => {
             setActiveStepId(null);
             refetchSteps();
