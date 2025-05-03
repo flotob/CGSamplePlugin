@@ -6,6 +6,7 @@ CREATE TABLE "public"."communities" (
     "title" text NOT NULL,
     "created_at" timestamptz DEFAULT now() NOT NULL,
     "updated_at" timestamptz DEFAULT now() NOT NULL,
+    "logo_url" text,
     CONSTRAINT "communities_pkey" PRIMARY KEY ("id")
 ) WITH (oids = false);
 
@@ -17,7 +18,7 @@ CREATE TABLE "public"."onboarding_steps" (
     "step_type_id" uuid NOT NULL,
     "step_order" integer NOT NULL,
     "config" jsonb DEFAULT '{}' NOT NULL,
-    "target_role_id" text NOT NULL,
+    "target_role_id" text,
     "is_mandatory" boolean DEFAULT true NOT NULL,
     "is_active" boolean DEFAULT true NOT NULL,
     "created_at" timestamptz DEFAULT now() NOT NULL,
@@ -25,9 +26,9 @@ CREATE TABLE "public"."onboarding_steps" (
     CONSTRAINT "onboarding_steps_pkey" PRIMARY KEY ("id")
 ) WITH (oids = false);
 
-CREATE UNIQUE INDEX uniq_step_order_per_wizard ON public.onboarding_steps USING btree (wizard_id, step_order);
-
 CREATE INDEX onboarding_steps_wizard_id_step_order_index ON public.onboarding_steps USING btree (wizard_id, step_order);
+
+CREATE UNIQUE INDEX uniq_step_order_per_wizard ON public.onboarding_steps USING btree (wizard_id, step_order);
 
 
 DROP TABLE IF EXISTS "onboarding_wizards";
@@ -67,6 +68,7 @@ CREATE TABLE "public"."step_types" (
     "description" text,
     "created_at" timestamptz DEFAULT now() NOT NULL,
     "updated_at" timestamptz DEFAULT now() NOT NULL,
+    "label" text,
     CONSTRAINT "step_types_pkey" PRIMARY KEY ("id")
 ) WITH (oids = false);
 
@@ -94,6 +96,30 @@ CREATE INDEX user_linked_credentials_user_id_index ON public.user_linked_credent
 CREATE INDEX user_linked_credentials_platform_external_id_index ON public.user_linked_credentials USING btree (platform, external_id);
 
 
+DROP TABLE IF EXISTS "user_profiles";
+CREATE TABLE "public"."user_profiles" (
+    "user_id" text NOT NULL,
+    "username" text,
+    "profile_picture_url" text,
+    "updated_at" timestamptz DEFAULT now() NOT NULL,
+    CONSTRAINT "user_profiles_pkey" PRIMARY KEY ("user_id")
+) WITH (oids = false);
+
+
+DROP TABLE IF EXISTS "user_wizard_completions";
+CREATE TABLE "public"."user_wizard_completions" (
+    "user_id" text NOT NULL,
+    "wizard_id" uuid NOT NULL,
+    "completed_at" timestamptz DEFAULT now() NOT NULL,
+    "version" integer DEFAULT '1' NOT NULL,
+    CONSTRAINT "user_wizard_completions_pkey" PRIMARY KEY ("user_id", "wizard_id")
+) WITH (oids = false);
+
+CREATE INDEX user_wizard_completions_user_id_index ON public.user_wizard_completions USING btree (user_id);
+
+CREATE INDEX user_wizard_completions_wizard_id_index ON public.user_wizard_completions USING btree (wizard_id);
+
+
 DROP TABLE IF EXISTS "user_wizard_progress";
 CREATE TABLE "public"."user_wizard_progress" (
     "user_id" text NOT NULL,
@@ -107,12 +133,33 @@ CREATE TABLE "public"."user_wizard_progress" (
 CREATE INDEX user_wizard_progress_user_id_wizard_id_index ON public.user_wizard_progress USING btree (user_id, wizard_id);
 
 
+DROP TABLE IF EXISTS "user_wizard_sessions";
+CREATE TABLE "public"."user_wizard_sessions" (
+    "user_id" text NOT NULL,
+    "wizard_id" uuid NOT NULL,
+    "last_viewed_step_id" uuid NOT NULL,
+    "updated_at" timestamptz DEFAULT now() NOT NULL,
+    CONSTRAINT "user_wizard_sessions_pkey" PRIMARY KEY ("user_id", "wizard_id")
+) WITH (oids = false);
+
+CREATE INDEX user_wizard_sessions_user_id_index ON public.user_wizard_sessions USING btree (user_id);
+
+CREATE INDEX user_wizard_sessions_wizard_id_index ON public.user_wizard_sessions USING btree (wizard_id);
+
+CREATE INDEX user_wizard_sessions_last_viewed_step_id_index ON public.user_wizard_sessions USING btree (last_viewed_step_id);
+
+
 ALTER TABLE ONLY "public"."onboarding_steps" ADD CONSTRAINT "onboarding_steps_step_type_id_fkey" FOREIGN KEY (step_type_id) REFERENCES step_types(id) ON DELETE RESTRICT NOT DEFERRABLE;
 ALTER TABLE ONLY "public"."onboarding_steps" ADD CONSTRAINT "onboarding_steps_wizard_id_fkey" FOREIGN KEY (wizard_id) REFERENCES onboarding_wizards(id) ON DELETE CASCADE NOT DEFERRABLE;
 
 ALTER TABLE ONLY "public"."onboarding_wizards" ADD CONSTRAINT "onboarding_wizards_community_id_fkey" FOREIGN KEY (community_id) REFERENCES communities(id) ON DELETE CASCADE NOT DEFERRABLE;
 
+ALTER TABLE ONLY "public"."user_wizard_completions" ADD CONSTRAINT "user_wizard_completions_wizard_id_fkey" FOREIGN KEY (wizard_id) REFERENCES onboarding_wizards(id) ON DELETE CASCADE NOT DEFERRABLE;
+
 ALTER TABLE ONLY "public"."user_wizard_progress" ADD CONSTRAINT "user_wizard_progress_step_id_fkey" FOREIGN KEY (step_id) REFERENCES onboarding_steps(id) ON DELETE CASCADE NOT DEFERRABLE;
 ALTER TABLE ONLY "public"."user_wizard_progress" ADD CONSTRAINT "user_wizard_progress_wizard_id_fkey" FOREIGN KEY (wizard_id) REFERENCES onboarding_wizards(id) ON DELETE CASCADE NOT DEFERRABLE;
 
--- 2025-04-30 19:28:22 UTC
+ALTER TABLE ONLY "public"."user_wizard_sessions" ADD CONSTRAINT "user_wizard_sessions_last_viewed_step_id_fkey" FOREIGN KEY (last_viewed_step_id) REFERENCES onboarding_steps(id) ON DELETE CASCADE NOT DEFERRABLE;
+ALTER TABLE ONLY "public"."user_wizard_sessions" ADD CONSTRAINT "user_wizard_sessions_wizard_id_fkey" FOREIGN KEY (wizard_id) REFERENCES onboarding_wizards(id) ON DELETE CASCADE NOT DEFERRABLE;
+
+-- 2025-05-03 15:27:37 UTC
