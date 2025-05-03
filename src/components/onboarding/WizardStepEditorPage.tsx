@@ -6,6 +6,13 @@ import { useStepTypesQuery, StepType } from '@/hooks/useStepTypesQuery';
 import { Button } from '@/components/ui/button';
 import { CommunityInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
 import { UseMutationResult } from '@tanstack/react-query';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 interface WizardStepEditorPageProps {
   wizardId: string;
@@ -25,7 +32,6 @@ export const WizardStepEditorPage: React.FC<WizardStepEditorPageProps> = ({ wiza
   const [activeStepId, setActiveStepId] = React.useState<string | null>(null);
   const createStep: UseMutationResult<{ step: Step }, Error, CreateStepPayload, unknown> = useCreateStep(wizardId);
   const { data: stepTypesData, isLoading: isLoadingStepTypes } = useStepTypesQuery();
-  const [showTypeMenu, setShowTypeMenu] = React.useState(false);
   const [stepTypeToCreate, setStepTypeToCreate] = React.useState<StepType | null>(null);
 
   React.useEffect(() => {
@@ -38,7 +44,6 @@ export const WizardStepEditorPage: React.FC<WizardStepEditorPageProps> = ({ wiza
   }, [data, activeStepId, stepTypeToCreate]);
 
   const handleAddStepClick = (type: StepType) => {
-    setShowTypeMenu(false);
     setStepTypeToCreate(type);
     setActiveStepId(null);
   };
@@ -68,42 +73,84 @@ export const WizardStepEditorPage: React.FC<WizardStepEditorPageProps> = ({ wiza
       <div className="flex flex-col w-60 border-r bg-muted/30">
         <div className="p-2 border-b flex items-center justify-between relative">
           <span className="font-semibold text-sm">Steps</span>
-          <div className="relative">
-            <Button size="sm" variant="outline" onClick={() => setShowTypeMenu(v => !v)} disabled={isLoadingStepTypes || createStep.isPending}>
-              + Add Step
-            </Button>
-            {showTypeMenu && (
-              <div className="absolute right-0 mt-2 w-56 bg-popover text-popover-foreground border rounded-md shadow-lg z-10">
-                {isLoadingStepTypes ? (
-                  <div className="p-3 text-sm">Loading types...</div>
-                ) : stepTypesData && stepTypesData.step_types.length > 0 ? (
-                  [...stepTypesData.step_types]
-                    .sort((a, b) => {
-                      if (a.name === 'ens') return -1;
-                      if (b.name === 'ens') return 1;
-                      return a.name.localeCompare(b.name);
-                    })
-                    .map(type => {
-                      const isEnabled = type.name === 'ens';
-                      return (
-                        <button
-                          key={type.id}
-                          className={`w-full text-left px-4 py-2 text-sm ${isEnabled ? 'hover:bg-accent' : 'opacity-50 cursor-not-allowed'}`}
-                          onClick={() => isEnabled && handleAddStepClick(type)}
-                          disabled={!isEnabled || createStep.isPending}
-                        >
-                          <span className="font-medium">{type.name.replace(/_/g, ' ')}</span>
-                          <span className="block text-xs text-muted-foreground">{type.description}</span>
-                          {!isEnabled && <span className="text-xs text-blue-500 block mt-1">(Coming Soon)</span>}
-                        </button>
-                      );
-                    })
-                ) : (
-                  <div className="p-3 text-sm text-muted-foreground">No step types available</div>
-                )}
-              </div>
-            )}
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" disabled={isLoadingStepTypes || createStep.isPending}>
+                + Add Step
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-72">
+              <DropdownMenuLabel>Select Step Type</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {isLoadingStepTypes ? (
+                <div className="p-3 text-sm">Loading types...</div>
+              ) : stepTypesData && stepTypesData.step_types.length > 0 ? (
+                (() => {
+                  // --- Categorization Logic ---
+                  const allTypes = [...stepTypesData.step_types].sort((a, b) =>
+                    a.name.localeCompare(b.name),
+                  ); // Basic sort
+
+                  const categories: { name: string; types: StepType[] }[] = [
+                    {
+                      name: 'With Credentials',
+                      types: allTypes.filter(type => type.requires_credentials),
+                    },
+                    {
+                      name: 'Without Credentials',
+                      types: allTypes.filter(type => !type.requires_credentials),
+                    },
+                  ];
+
+                  // Filter out empty categories unless you want to show them
+                  const categoriesToShow = categories.filter(cat => cat.types.length > 0);
+
+                  // --- Rendering Logic ---
+                  return (
+                    <Accordion type="single" collapsible className="w-full">
+                      {categoriesToShow.map(category => (
+                        <AccordionItem value={category.name} key={category.name} className="border-b-0">
+                          <AccordionTrigger className="px-4 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider hover:no-underline justify-start [&[data-state=open]>svg]:ml-auto">
+                            {category.name}
+                          </AccordionTrigger>
+                          <AccordionContent className="pt-0 pb-1">
+                            {category.types.map(type => {
+                              const isEnabled = true; // Enable all types fetched from the API for now
+
+                              return (
+                                <button
+                                  key={type.id}
+                                  className={`w-full text-left pl-8 pr-4 py-2 text-sm ${
+                                    isEnabled ? 'hover:bg-accent' : 'opacity-50 cursor-not-allowed'
+                                  }`}
+                                  onClick={() => isEnabled && handleAddStepClick(type)}
+                                  disabled={!isEnabled || createStep.isPending}
+                                >
+                                  <span className="font-medium capitalize">
+                                    {type.name.replace(/_/g, ' ')}
+                                  </span>
+                                  <span className="block text-xs text-muted-foreground">
+                                    {type.description}
+                                  </span>
+                                  {!isEnabled && (
+                                    <span className="text-xs text-blue-500 block mt-1">
+                                      (Coming Soon)
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
+                  );
+                })() // Immediately invoke the function to return the elements
+              ) : (
+                <div className="p-3 text-sm text-muted-foreground">No step types available</div>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
         <StepSidebar
           wizardId={wizardId}

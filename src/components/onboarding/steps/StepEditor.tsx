@@ -6,6 +6,7 @@ import { UseMutationResult } from '@tanstack/react-query';
 import { CreateStepPayload } from '../WizardStepEditorPage';
 import { CommonStepPresentationSettings, PresentationConfig } from './CommonStepPresentationSettings';
 import { EnsStepConfig, EnsSpecificConfig } from './EnsStepConfig';
+import { ContentStepConfig, ContentSpecificConfig } from './ContentStepConfig';
 import {
   Accordion,
   AccordionContent,
@@ -264,6 +265,21 @@ export const StepEditor: React.FC<StepEditorProps> = ({
             <AccordionContent className="pt-1">
               <EnsStepConfig 
                 initialData={stepConfig.specific as EnsSpecificConfig} // Pass specific part
+                onChange={handleSpecificConfigChange}
+                disabled={currentMutation.isPending}
+              />
+            </AccordionContent>
+          </AccordionItem>
+        )}
+
+        {stepTypeInfo?.name === 'content' && (
+          <AccordionItem value="specific-config">
+            <AccordionTrigger className="text-sm font-medium text-muted-foreground uppercase tracking-wide hover:no-underline py-2">
+               Content Configuration
+            </AccordionTrigger>
+            <AccordionContent className="pt-1">
+              <ContentStepConfig 
+                initialData={stepConfig.specific as ContentSpecificConfig} // Pass specific part
                 onChange={handleSpecificConfigChange}
                 disabled={currentMutation.isPending}
               />
