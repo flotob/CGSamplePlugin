@@ -2,6 +2,12 @@ import { withAuth } from '@/lib/withAuth';
 import { NextResponse, NextRequest } from 'next/server';
 import { query } from '@/lib/db';
 import type { JwtPayload } from '@/app/api/auth/session/route';
+// Import Quota checking utilities
+import {
+  enforceResourceLimit,
+  Feature,
+  QuotaExceededError,
+} from '@/lib/quotas';
 
 // Define an extended request type including the user payload
 interface AuthenticatedRequest extends NextRequest {
@@ -35,7 +41,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
   const isActiveParam = searchParams.get('isActive');
 
   // Default to fetching only active wizards unless isActive=false or isActive=all
-  let filterActive: boolean | null = null; 
+  let filterActive: boolean | null = null;
   if (isActiveParam === 'true') {
     filterActive = true;
   } else if (isActiveParam === 'false') {
@@ -57,8 +63,9 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
 
     queryString += ` ORDER BY updated_at DESC`; // Example ordering
 
-    const wizardsRes = await query(queryString, queryParams);
-    const wizards: WizardSummary[] = wizardsRes.rows;
+    // Use generic query type if db.ts supports it
+    const wizardsRes = await query<WizardSummary>(queryString, queryParams);
+    const wizards = wizardsRes.rows;
 
     return NextResponse.json({ wizards });
 
@@ -68,37 +75,73 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
   }
 }, false); // false = requires authentication, but not admin
 
-export const POST = withAuth(async (req) => {
-  const user = req.user as JwtPayload | undefined;
+export const POST = withAuth(async (req: AuthenticatedRequest) => {
+  const user = req.user; // Type assertion removed as AuthenticatedRequest handles it
   if (!user || !user.cid) {
     return NextResponse.json({ error: 'Missing community ID in token' }, { status: 400 });
   }
+  const communityId = user.cid;
 
-  let body: { name?: string; description?: string; is_active?: boolean; communityTitle?: string };
+  let body: { name?: string; description?: string; is_active?: boolean };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { name, description, is_active } = body;
+  const { name, description, is_active = true } = body; // Default is_active to true if not provided
   if (!name) {
     return NextResponse.json({ error: 'Wizard name is required' }, { status: 400 });
   }
 
-  // // Ensure community exists - This is now handled by /api/community/sync
-  // await query(
-  //   `INSERT INTO communities (id, title)
-  //    VALUES ($1, $2)
-  //    ON CONFLICT (id) DO NOTHING`,
-  //   [user.cid, communityTitle || 'Untitled Community']
-  // );
+  try {
+    // --- Quota Enforcement --- //
+    // Only check quota if we are creating an *active* wizard
+    if (is_active) {
+      await enforceResourceLimit(communityId, Feature.ActiveWizard);
+    }
+    // ------------------------ //
 
-  // Insert new wizard
-  const result = await query(
-    `INSERT INTO onboarding_wizards (community_id, name, description, is_active) VALUES ($1, $2, $3, $4) RETURNING *`,
-    [user.cid, name, description || null, is_active !== undefined ? is_active.toString() : 'true']
-  );
+    // Insert new wizard
+    const result = await query<
+      WizardSummary // Use WizardSummary type for returned row
+    >(
+      `INSERT INTO onboarding_wizards (community_id, name, description, is_active)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`,
+      [communityId, name, description || null, is_active]
+    );
 
-  return NextResponse.json({ wizard: result.rows[0] }, { status: 201 });
+    if (result.rows.length === 0) {
+       throw new Error("Wizard creation failed, no row returned.");
+    }
+
+    return NextResponse.json({ wizard: result.rows[0] }, { status: 201 });
+
+  } catch (error) {
+    if (error instanceof QuotaExceededError) {
+      // Specific structured error for quota limits
+      const structuredErrorBody = {
+        error: 'ResourceLimitExceeded', // Machine-readable code
+        message: 'Maximum number of active wizards reached for the current plan.', // User-friendly message
+        details: {
+          feature: error.feature,
+          limit: error.limit,
+          currentCount: Number(error.currentCount), // Convert BigInt if needed
+          limitType: 'resource',
+        },
+      };
+      return NextResponse.json(structuredErrorBody, { status: 402 }); // 402 Payment Required
+    } else if (error instanceof Error && error.message.includes('uniq_wizard_name_per_community')) {
+      // Handle specific DB constraint errors, like unique name violation
+       return NextResponse.json(
+         { error: 'A wizard with this name already exists in this community.' },
+         { status: 409 } // 409 Conflict
+       );
+    } else {
+      // Handle other generic errors
+      console.error('Error creating wizard:', error);
+      return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    }
+  }
 }, true); // true = adminOnly 
