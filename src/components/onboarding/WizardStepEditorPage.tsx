@@ -115,7 +115,8 @@ export const WizardStepEditorPage: React.FC<WizardStepEditorPageProps> = ({ wiza
                           </AccordionTrigger>
                           <AccordionContent className="pt-0 pb-1">
                             {category.types.map(type => {
-                              const isEnabled = true; // Enable all types fetched from the API for now
+                              // Restore specific enabled logic, updated for renamed 'ens'
+                              const isEnabled = ['ENS & EFP', 'content'].includes(type.name);
 
                               return (
                                 <button
