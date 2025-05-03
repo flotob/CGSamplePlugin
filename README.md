@@ -1,6 +1,242 @@
 <div align='center'>
-    <h1>CG Sample Plugin</h1>
+    <h1>🚀 OnBoard: Common Ground Wizard Plugin 🚀</h1>
+    <p>A configurable onboarding wizard system for the Common Ground platform.</p>
 </div>
+
+This plugin allows community admins to create step-by-step flows (Wizards) to guide users through processes like credential verification, content consumption, and role acquisition.
+
+---
+
+## Table of Contents
+
+- [1. High-Level Goal](#1-high-level-goal)
+- [2. Key Concepts](#2-key-concepts)
+- [3. Core Flows](#3-core-flows)
+- [4. Architecture & Tech Stack](#4-architecture--tech-stack)
+- [5. Data Flow Summary](#5-data-flow-summary)
+- [6. Environment Variables](#6-environment-variables)
+- [7. Database & Migrations](#7-database--migrations)
+- [8. Getting Started (Local Development)](#8-getting-started-local-development)
+  - [Docker Setup](#docker-setup)
+  - [Manual Setup](#manual-setup)
+- [9. Usage & Deployment](#9-usage--deployment)
+- [10. Key Features & Implementation Notes](#10-key-features--implementation-notes)
+  - [Authentication (`withAuth`)](#authentication-withauth)
+  - [ENS Verification](#ens-verification)
+- [11. Notes for Contributors](#11-notes-for-contributors)
+
+---
+
+## 1. High-Level Goal
+
+This plugin provides a configurable onboarding wizard system designed to be embedded within the main Common Ground platform. Its primary purpose is to allow community administrators to create step-by-step flows (Wizards) that guide end-users through processes like verifying credentials (e.g., ENS), consuming informational content, answering questionnaires (future), and potentially earning community roles upon successful completion.
+
+## 2. Key Concepts
+
+*   **Wizards (`onboarding_wizards` table):** The top-level container for an onboarding flow. Each wizard belongs to a specific community and has a name, description, and active status.
+*   **Steps (`onboarding_steps` table):** Ordered units within a wizard. Each step has configuration (`config` JSONB), references a `step_type_id`, defines a `step_order`, can optionally grant a `target_role_id`, and has `is_mandatory` / `is_active` flags. Drag-and-drop reordering is supported in the admin UI.
+*   **Step Types (`step_types` table):** Define the *kind* of step. These are stored in the database and fetched dynamically. Key properties include:
+    *   `name`: A unique identifier (e.g., `ens`, `content`). Used internally for logic.
+    *   `label`: A user-friendly display name (e.g., "ENS Verification", "Content Slide"). Used in UI.
+    *   `description`: A brief explanation shown to admins/users.
+    *   `requires_credentials`: A boolean flag indicating if the step involves credential verification.
+*   **User Progress (`user_wizard_progress` table):** Records *when* a user successfully completes a specific step within a wizard, storing any relevant `verified_data` (like a verified ENS name). This is the historical record of achievement.
+*   **User Sessions (`user_wizard_sessions` table):** Tracks the *last step viewed* by a user within a specific wizard. This acts as a bookmark to allow accurate resumption of the wizard flow.
+*   **User Profiles (`user_profiles` table):** Stores basic, public-facing user information (`username`, `profile_picture_url`) synced automatically from the authentication provider via the JWT. Used for display purposes like the social proof widget.
+*   **Wizard Completion (`user_wizard_completions` table):** Tracks which users have successfully completed an entire wizard.
+
+## 3. Core Flows
+
+*   **Admin Configuration Flow:**
+    1.  Admin accesses the plugin interface (likely through the main Common Ground platform).
+    2.  Admin views/creates/manages Wizards.
+    3.  Within a wizard (`WizardStepEditorPage`), the admin uses the sidebar (`StepSidebar`) to add, delete, and reorder steps via drag-and-drop.
+    4.  When adding a step, the admin selects a `StepType` from a categorized dropdown menu (using `label` for display).
+    5.  The admin configures the selected step (`StepEditor`) including: common presentation settings, optional target role assignment, step-type-specific settings (e.g., Markdown content, ENS parameters), and mandatory/active status.
+    6.  Admin can preview the configured outcomes (step types, roles) via a static "Summary Preview" item.
+*   **User Completion Flow:**
+    1.  User launches a wizard.
+    2.  The `WizardSlideshowModal` displays, resuming the user on their `last_viewed_step_id` (fetched from `user_wizard_sessions`) or starting at step 0.
+    3.  The modal renders the current step via the `StepDisplay` component (router) and specific step components (`ContentStepDisplay`, `EnsVerificationStepDisplay`, etc.).
+    4.  User interacts with the step. `content` steps auto-complete.
+    5.  Successful step completion records progress in `user_wizard_progress`.
+    6.  User navigation ("Next"/"Previous") updates the `last_viewed_step_id` in `user_wizard_sessions`.
+    7.  A `SocialProofWidget` may display avatars of other users who have reached this step or beyond.
+    8.  Upon completion, a `WizardSummaryScreen` is shown, completion is potentially recorded (`user_wizard_completions`), and roles may be granted.
+
+## 4. Architecture & Tech Stack
+
+*   **Framework:** Next.js (App Router), React, TypeScript.
+*   **UI:** Tailwind CSS, `shadcn/ui` components.
+*   **State Management/Data Fetching:** React Query (`useQuery`, `useMutation`), Context API (`AuthContext`, `CgLibContext`).
+*   **Backend:** Next.js API Routes (`src/app/api/`).
+*   **Authentication:** JWT-based via `withAuth` HOC (`src/lib/withAuth.ts`), syncing profile data to `user_profiles`.
+*   **Database:** PostgreSQL (typically run via Docker locally).
+*   **Migrations:** `node-pg-migrate`.
+*   **Key Libraries:** `@common-ground-dao/cg-plugin-lib`, `@tanstack/react-query`, `jsonwebtoken`, `dnd-kit`, `react-markdown`.
+*   **Containerization:** Docker (using `docker-compose.yml` for local development database).
+
+## 5. Data Flow Summary
+
+1.  Frontend uses `cg-plugin-lib` for initial user/community context.
+2.  Frontend calls `POST /api/auth/session` with context data (including profile info) to get a JWT.
+3.  Subsequent frontend API calls use React Query hooks and `authFetch` (adds Bearer token).
+4.  `withAuth` middleware intercepts backend calls, verifies JWT, performs profile UPSERT into `user_profiles`.
+5.  API route handlers use `query` utility to interact with PostgreSQL.
+6.  Data returns through the chain.
+
+## 6. Environment Variables
+
+This project requires certain environment variables to be set. Create a `.env` file in the project root (copy from `.env.example` if one exists - **ensure `.env` is in your `.gitignore!**).
+
+Key variables include:
+
+*   `DATABASE_URL`: The connection string for your PostgreSQL database. Format: `postgresql://USER:PASSWORD@HOST:PORT/DATABASE`
+    *   If using the provided Docker setup, this will likely be `postgresql://postgres:postgres@localhost:5432/cg_sample_plugin`.
+*   `JWT_SECRET`: A strong, secret string used to sign and verify JWTs for session authentication. Generate a secure random string for this.
+*   `NEXT_PUBLIC_...`: Any variables prefixed with `NEXT_PUBLIC_` are exposed to the browser.
+
+Ensure all required variables are set before running the application or deploying.
+
+## 7. Database & Migrations
+
+*   **Database:** PostgreSQL.
+*   **Schema Reference:** A snapshot of the current schema can be found in `docs/current-db-schema.db`. This file is for reference and may not always be perfectly up-to-date; the migrations are the source of truth.
+*   **Migrations Tool:** We use `node-pg-migrate`.
+*   **Location:** Migration files are located in the `migrations/` directory, prefixed with a timestamp.
+*   **Running Migrations:** To apply pending migrations to your database (after setting the `DATABASE_URL` in `.env`), run:
+    ```bash
+    npm run migrate up
+    # or
+    yarn migrate up 
+    ```
+    (Verify the exact script name in `package.json` if this doesn't work).
+*   **Creating Migrations:** Use the `node-pg-migrate` CLI or follow the pattern of existing files to create new migrations.
+
+## 8. Getting Started (Local Development)
+
+Install the dependencies:
+```bash
+npm install 
+# or
+yarn install
+```
+Then run the development server:
+```bash
+npm run dev
+# or
+yarn dev
+```
+
+The project will start running on [http://localhost:5000](http://localhost:5000) by default. As a plugin, running it standalone is limited as it requires data from the Common Ground host environment.
+
+To test effectively, use a reverse proxy:
+
+1.  **Use ngrok (or similar):**
+    *   [Install ngrok](https://ngrok.com/docs/getting-started/).
+    *   Start your local dev server: `npm run dev` / `yarn dev`.
+    *   In a new terminal, start ngrok: `ngrok http 5000`.
+    *   Copy the ngrok **HTTPS** URL (e.g. `https://abc123xyz.ngrok-free.app`).
+    *   Register this HTTPS URL as your plugin on the Common Ground platform.
+    *   Test the plugin functionality within the Common Ground interface.
+
+    *Note: Only use ngrok for development/testing due to potential security risks.*
+
+### Docker Setup (Recommended for Database)
+
+The easiest way to run the required PostgreSQL database locally is using Docker.
+
+1.  Ensure you have [Docker](https://docs.docker.com/get-docker/) and Docker Compose installed.
+2.  From the project root, run:
+    ```bash
+    docker-compose up -d
+    ```
+    This will start a PostgreSQL container in the background, configured according to `docker-compose.yml`. The database will be accessible at the default `DATABASE_URL` mentioned in the Environment Variables section.
+3.  Create your `.env` file and set `DATABASE_URL` accordingly.
+4.  Run database migrations: `npm run migrate up` / `yarn migrate up`.
+5.  Start the development server: `npm run dev` / `yarn dev`.
+
+To stop the database container:
+```bash
+docker-compose down
+```
+
+### Manual Setup
+
+If you prefer not to use Docker:
+
+1.  Install and run PostgreSQL locally or use a hosted instance.
+2.  Create a database for this project.
+3.  Create your `.env` file and set `DATABASE_URL` to your database connection string.
+4.  Run database migrations: `npm run migrate up` / `yarn migrate up`.
+5.  Start the development server: `npm run dev` / `yarn dev`.
+
+### Testing with Common Ground
+
+As a plugin, testing requires running it within the Common Ground host environment.
+
+1.  **Use ngrok (or similar):**
+    *   [Install ngrok](https://ngrok.com/docs/getting-started/).
+    *   Start your local dev server (`npm run dev`).
+    *   Start ngrok: `ngrok http 5000`.
+    *   Register the ngrok **HTTPS** URL on the Common Ground platform.
+    *   Test within the Common Ground interface.
+
+## 9. Usage & Deployment
+
+1.  **Development:** Use the ngrok method described above.
+2.  **Production:**
+    *   Deploy this project to a hosting provider (e.g., Vercel, Netlify, custom server) that provides a stable public HTTPS URL.
+    *   Ensure all necessary environment variables (like `JWT_SECRET`, `DATABASE_URL`) are configured on the hosting provider.
+    *   Register the public HTTPS URL of your deployed plugin on the Common Ground platform.
+    *   Test thoroughly within Common Ground.
+3.  **Reference:** Use this repository as a starting point or reference for building your own Common Ground plugins.
+
+## 10. Key Features & Implementation Notes
+
+### Authentication (`withAuth`)
+
+This plugin uses a custom JWT-based system (`src/lib/withAuth.ts`) to secure API routes.
+
+*   **Usage:** Wrap API route handlers with `withAuth`. Pass `true` as the second argument for admin-only routes.
+    ```typescript
+    // Example (Admin Route)
+    import { withAuth } from '@/lib/withAuth';
+    export const POST = withAuth(async (req) => { /* ... */ }, true); 
+    ```
+*   **JWT Claims:** Access decoded user info via `req.user` in your handler. Available claims include:
+    *   `sub`: User ID
+    *   `cid`: Community ID
+    *   `uid`: Iframe session ID
+    *   `adm`: Boolean (is admin?)
+    *   `name?`: User's display name (optional)
+    *   `picture?`: User's profile picture URL (optional)
+*   **Profile Sync:** `withAuth` automatically performs a best-effort `UPSERT` to the `user_profiles` table using the `sub`, `name`, and `picture` claims on every authenticated request.
+*   **Security:** Ensure `JWT_SECRET` is strong and kept private. Use HTTPS.
+
+### ENS Verification
+
+*   The plugin includes functionality to verify user ownership of ENS domains.
+*   Utilizes RainbowKit for wallet connection, `wagmi`, and `ethereum-identity-kit`.
+*   Checks for primary ENS name via reverse resolution.
+*   Includes an ENS lookup tool (name → address).
+*   **TODO:** Improve handling for users who own an ENS name but haven't set it as their primary reverse record. Provide clearer guidance and potentially link to the ENS app.
+
+## 11. Notes for Contributors
+
+*   **Understand the JWT flow:** How the token is generated (`/api/auth/session`) and verified (`withAuth.ts`) is central.
+*   **Review Data Models:** Check `docs/current-db-schema.db` and `migrations/` for database structure.
+*   **Component Structure:**
+    *   Admin UI: `WizardStepEditorPage.tsx`, `StepEditor.tsx`, `StepSidebar.tsx`.
+    *   User UI: `WizardSlideshowModal.tsx`, `StepDisplay.tsx`, components in `steps/display/`.
+*   **Hooks:** Core logic often resides in React Query hooks (`src/hooks/`).
+*   **Context:** `AuthContext.tsx` and `CgLibContext.tsx` manage global state/instances.
+*   **API Routes:** Backend logic lives in `src/app/api/`.
+*   **Styling:** Uses Tailwind CSS and `shadcn/ui`.
+*   **Run Migrations:** Use your migration tool (`npm run migrate` or similar) after pulling changes or creating new migrations.
+
+
+old description:
 
 This sample plugin demonstrates the core capabilities of the [Common Ground Plugin Library](https://github.com/Common-Ground-DAO/CGPluginLib).
 
