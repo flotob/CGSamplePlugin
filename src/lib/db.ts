@@ -1,4 +1,4 @@
-import { Pool } from 'pg';
+import { Pool, QueryResultRow } from 'pg';
 
 // Ensure environment variables are loaded (e.g., via dotenv in scripts or next.config.js)
 // Alternatively, Next.js automatically loads .env.local
@@ -29,11 +29,22 @@ console.log('Database connection pool created.');
 export default pool;
 
 // Optional: Function to test connection or perform a simple query
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const query = async (text: string, params?: any[]) => {
+/**
+ * Executes a SQL query using the connection pool.
+ *
+ * @template T The expected type of the rows returned, must satisfy QueryResultRow.
+ * @param {string} text The SQL query text.
+ * @param {any[]} [params] Optional parameters for the query.
+ * @returns {Promise<import('pg').QueryResult<T>>} The query result, with rows typed as T[].
+ */
+export const query = async <T extends QueryResultRow = any>(
+  text: string,
+  params?: any[]
+): Promise<import('pg').QueryResult<T>> => {
   const start = Date.now();
   try {
-    const res = await pool.query(text, params);
+    // The underlying pool.query is already generic, pass the type through.
+    const res = await pool.query<T>(text, params);
     const duration = Date.now() - start;
     console.log('executed query', { text, duration, rows: res.rowCount });
     return res;
