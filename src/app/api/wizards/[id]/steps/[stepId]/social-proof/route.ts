@@ -83,9 +83,6 @@ export const GET = withAuth<SocialProofParams>(async (req, { params }) => {
       LIMIT $4; 
     `;
 
-    // Define row type including the count
-    type QueryRow = SocialProofUser & { total_count: string }; // Count comes back as string from DB
-
     const finalUsersRes = await query(combinedQuery, [
       wizardId,          // $1
       currentStepOrder,  // $2
@@ -94,7 +91,11 @@ export const GET = withAuth<SocialProofParams>(async (req, { params }) => {
     ]);
 
     // Extract users and total count (handle case where rows might be empty)
-    const users = finalUsersRes.rows.map(({ total_count, ...user }) => user);
+    const users: SocialProofUser[] = finalUsersRes.rows.map(row => ({ 
+      user_id: row.user_id, 
+      username: row.username,
+      profile_picture_url: row.profile_picture_url
+    }));
     const totalRelevantUsers = finalUsersRes.rows.length > 0 
       ? parseInt(finalUsersRes.rows[0].total_count, 10) 
       : 0;

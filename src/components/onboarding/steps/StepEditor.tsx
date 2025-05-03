@@ -130,7 +130,8 @@ export const StepEditor: React.FC<StepEditorProps> = ({
       setIsRoleAssignmentEnabled(false);
     }
     setShowDeleteConfirm(false);
-  }, [step, isCreating]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, isCreating]); // Intentionally omit mutations to prevent infinite loop
 
   const currentMutation = isCreating ? createStepMutation : updateStep;
 
