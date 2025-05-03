@@ -76,7 +76,7 @@ export const StepSidebarItem: React.FC<StepSidebarItemProps> = ({
       } ${
         deleteStep.isPending ? 'opacity-70 pointer-events-none' : ''
       }`}
-      onClick={() => setActiveStepId(step.id)}
+      onClick={() => !showDeleteConfirm && setActiveStepId(step.id)}
     >
       <div className="flex items-center justify-between">
         <div className="flex-1 overflow-hidden pr-2">
@@ -85,13 +85,25 @@ export const StepSidebarItem: React.FC<StepSidebarItemProps> = ({
             {(step.config?.presentation as any)?.headline || `Step ${step.step_order + 1}`}
           </p>
         </div>
-        <div 
-          {...attributes} 
-          {...listeners} 
-          className="p-1 cursor-grab touch-none text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-150 ease-in-out"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <GripVertical className="h-4 w-4" />
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150 ease-in-out">
+          <Button 
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-destructive"
+            onClick={handleDeleteClick}
+            disabled={deleteStep.isPending}
+            aria-label="Delete step"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+          <div 
+            {...attributes} 
+            {...listeners} 
+            className="p-1 cursor-grab touch-none text-muted-foreground"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <GripVertical className="h-4 w-4" />
+          </div>
         </div>
       </div>
 
@@ -110,18 +122,7 @@ export const StepSidebarItem: React.FC<StepSidebarItemProps> = ({
             <p className="text-xs text-destructive mt-1">Error deleting</p>
           )}
         </div>
-      ) : (
-        <Button 
-          variant="ghost"
-          size="icon"
-          className="absolute top-1 right-1 h-6 w-6 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity duration-150 ease-in-out"
-          onClick={handleDeleteClick}
-          disabled={deleteStep.isPending}
-          aria-label="Delete step"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </Button>
-      )}
+      ) : null}
     </div>
   );
 }; 

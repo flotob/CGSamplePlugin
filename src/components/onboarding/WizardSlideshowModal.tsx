@@ -106,6 +106,25 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
     }
   }, [allStepsCompleted, steps, wizardId, markCompleted, hasTriedCompletion]);
 
+  // --- Add Effect to handle Escape key --- 
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose(); // Call the onClose prop when Escape is pressed
+      }
+    };
+
+    if (open) { // Only add listener if modal is open
+      document.addEventListener('keydown', handleKeyDown);
+    }
+
+    // Cleanup function to remove listener when modal closes or component unmounts
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open, onClose]); // Dependencies: re-run if open status or onClose function changes
+  // --- End Effect --- 
+
   const goToStep = useCallback((index: number) => {
     if (steps && index >= 0 && index < steps.length) {
         setCurrentStepIndex(index);
