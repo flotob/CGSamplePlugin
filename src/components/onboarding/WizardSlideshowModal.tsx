@@ -13,6 +13,8 @@ import { useUserCredentialsQuery } from '@/hooks/useUserCredentialsQuery';
 import { useMarkWizardCompleted } from '@/hooks/useMarkWizardCompleted';
 import { useCommunityInfoQuery } from '@/hooks/useCommunityInfoQuery';
 import { useUserWizardSessionQuery, useUpdateUserWizardSessionMutation } from '@/hooks/useUserWizardStepsQuery';
+import { useWizardStepSocialProofQuery } from '@/hooks/useSocialProofQuery';
+import { SocialProofWidget } from '@/components/SocialProofWidget';
 
 // Define some type interfaces for better TypeScript support
 interface Role {
@@ -63,6 +65,13 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
   const currentStepType = currentStep && stepTypesData
     ? stepTypesData.step_types.find(t => t.id === currentStep.step_type_id)
     : undefined;
+
+  // --- Fetch social proof data --- 
+  const {
+     data: socialProofData, 
+     isLoading: isLoadingSocialProof 
+  } = useWizardStepSocialProofQuery(wizardId, currentStep?.id);
+  // --- End fetch --- 
 
   // Effect to determine the starting step index based on session or defaults
   useEffect(() => {
@@ -350,18 +359,34 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
         {/* Main Step Content Area */}
         {renderContent()}
 
-        {/* Footer Area (Navigation) - Only show if steps are loaded and not in summary mode */}
+        {/* Footer Area (Navigation & Social Proof) */}
         {!isLoadingSteps && !isLoadingTypes && !stepsError && totalSteps > 0 && !showSummary && (
           <div className="flex items-center justify-between p-4 border-t min-h-[60px]">
-             <Button variant="outline" onClick={handlePrevious} disabled={isPrevDisabled}>Previous</Button>
-             <Button 
-                onClick={isLastStep && isCompleted ? handleViewSummary : handleNext}
-                disabled={!canProceed || completeStepMutation.isPending} 
-                className={isCompleted ? "bg-green-600 hover:bg-green-700" : ""}
-             >
-                {isLastStep && isCompleted ? 'View Summary' : 'Next'}
-                {completeStepMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
-             </Button>
+             {/* Left Side: Previous Button */}
+             <div className="flex-1 flex justify-start"> {/* Takes up space, pushes content left */}
+                 <Button variant="outline" onClick={handlePrevious} disabled={isPrevDisabled}>Previous</Button>
+             </div>
+             
+             {/* Center: Social Proof Widget */}
+             <div className="flex-shrink-0 mx-4"> {/* Prevent shrinking, add margin */}
+                  <SocialProofWidget 
+                    data={socialProofData}
+                    isLoading={isLoadingSocialProof}
+                    // className="hidden sm:flex" // Allow it to be visible on mobile too if centered
+                  />
+             </div>
+
+             {/* Right Side: Next/Summary Button */}
+             <div className="flex-1 flex justify-end"> {/* Takes up space, pushes content right */}
+                 <Button 
+                    onClick={isLastStep && isCompleted ? handleViewSummary : handleNext}
+                    disabled={!canProceed || completeStepMutation.isPending} 
+                    className={isCompleted ? "bg-green-600 hover:bg-green-700" : ""}
+                 >
+                    {isLastStep && isCompleted ? 'View Summary' : 'Next'}
+                    {completeStepMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+                 </Button>
+             </div>
           </div>
         )}
       </div>

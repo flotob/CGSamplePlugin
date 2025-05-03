@@ -42,10 +42,11 @@ To provide the necessary display data and efficiently query relevant users, we p
 | `profile_picture_url` | `text`        | NULL                        | URL to the user's avatar image                   |
 | `updated_at`          | `timestamptz` | NOT NULL, DEFAULT `now()`   | When the profile was last updated                |
 
-*   **Note on Population:** This table needs to be populated. This could happen:
+*   **Note on Population:** ~~This table needs to be populated. This could happen:
     *   During user signup/login by fetching data from the auth provider.
     *   Through a dedicated user profile settings page.
-    *   The population mechanism is outside the scope of building *this specific widget* but is a prerequisite.
+    *   The population mechanism is outside the scope of building *this specific widget* but is a prerequisite.~~
+    **Implemented:** The table is now automatically populated via a best-effort `UPSERT` within the `withAuth.ts` middleware. Profile data (`name`, `imageUrl`) is expected to be provided by the frontend (from `cglib`) during the initial session token generation (`POST /api/auth/session`) and included as JWT claims (`name`, `picture`).
 
 ## 6. API Endpoint: `GET /api/wizards/[wizardId]/steps/[stepId]/social-proof`
 
