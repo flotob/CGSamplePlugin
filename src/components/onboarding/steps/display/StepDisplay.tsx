@@ -6,6 +6,8 @@ import type { StepType } from '@/hooks/useStepTypesQuery'; // Assuming StepType 
 
 // Import specific step display components
 import { EnsVerificationStepDisplay } from './EnsVerificationStepDisplay';
+// Import the new content display component
+import { ContentStepDisplay } from './ContentStepDisplay';
 // import { InfoStepDisplay } from './InfoStepDisplay';
 // import { MultipleChoiceStepDisplay } from './MultipleChoiceStepDisplay';
 
@@ -37,6 +39,11 @@ export const StepDisplay: React.FC<StepDisplayProps> = ({
     // case 'multiple_choice':
     //  return <MultipleChoiceStepDisplay step={step} stepType={stepType} onComplete={onComplete} />;
     
+    // --- Add case for content step --- 
+    case 'content':
+      return <ContentStepDisplay step={step} stepType={stepType} onComplete={onComplete} />;
+    // --- End case --- 
+
     // Add cases for other step types here
 
     default:
