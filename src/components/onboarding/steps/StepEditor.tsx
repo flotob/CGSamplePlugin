@@ -6,7 +6,7 @@ import { UseMutationResult } from '@tanstack/react-query';
 import { CreateStepPayload } from '../WizardStepEditorPage';
 import { CommonStepPresentationSettings, PresentationConfig } from './CommonStepPresentationSettings';
 import { EnsStepConfig, EnsSpecificConfig } from './EnsStepConfig';
-import { ContentStepConfig, ContentSpecificConfig } from './ContentStepConfig';
+import { ContentStepConfig, ContentSpecificConfigType } from './ContentStepConfig';
 import {
   Accordion,
   AccordionContent,
@@ -84,8 +84,8 @@ export const StepEditor: React.FC<StepEditorProps> = ({
     setStepConfig(prev => ({ ...prev, presentation: newPresentationConfig }));
   }, []);
 
-  const handleSpecificConfigChange = React.useCallback((newSpecificConfig: Record<string, unknown>) => {
-    setStepConfig(prev => ({ ...prev, specific: newSpecificConfig }));
+  const handleSpecificConfigChange = React.useCallback((newSpecificConfig: Record<string, unknown> | ContentSpecificConfigType) => {
+    setStepConfig(prev => ({ ...prev, specific: newSpecificConfig as Record<string, unknown> }));
   }, []);
 
   const updateStep = useUpdateStep(wizardId, step?.id);
@@ -179,8 +179,9 @@ export const StepEditor: React.FC<StepEditorProps> = ({
       <div>
         <span className="text-xs font-semibold uppercase text-muted-foreground">Step Type</span>
         <div className="flex items-center gap-2 mt-1">
-          <span className="inline-block px-2 py-1 rounded bg-primary/10 text-primary font-medium text-sm">
-            {stepTypeInfo ? stepTypeInfo.name.replace(/_/g, ' ') : 'Unknown'}
+          <span className="inline-block px-2 py-1 rounded bg-primary/10 text-primary font-medium text-sm capitalize">
+            {/* Use label for display, fallback to formatted name */}
+            {stepTypeInfo ? (stepTypeInfo.label || stepTypeInfo.name.replace(/_/g, ' ')) : 'Unknown'}
           </span>
           {stepTypeInfo?.description && (
             <span className="text-xs text-muted-foreground ml-2">{stepTypeInfo.description}</span>
@@ -264,9 +265,8 @@ export const StepEditor: React.FC<StepEditorProps> = ({
             </AccordionTrigger>
             <AccordionContent className="pt-1">
               <EnsStepConfig 
-                initialData={stepConfig.specific as EnsSpecificConfig} // Pass specific part
-                onChange={handleSpecificConfigChange}
-                disabled={currentMutation.isPending}
+                initialData={stepConfig.specific as EnsSpecificConfig} 
+                onChange={handleSpecificConfigChange} 
               />
             </AccordionContent>
           </AccordionItem>
@@ -279,9 +279,8 @@ export const StepEditor: React.FC<StepEditorProps> = ({
             </AccordionTrigger>
             <AccordionContent className="pt-1">
               <ContentStepConfig 
-                initialData={stepConfig.specific as ContentSpecificConfig} // Pass specific part
+                value={stepConfig.specific as ContentSpecificConfigType}
                 onChange={handleSpecificConfigChange}
-                disabled={currentMutation.isPending}
               />
             </AccordionContent>
           </AccordionItem>

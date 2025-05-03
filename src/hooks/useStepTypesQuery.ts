@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 export interface StepType {
   id: string;
   name: string;
+  label: string | null;
   description: string | null;
   requires_credentials: boolean;
 }

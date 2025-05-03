@@ -115,8 +115,8 @@ export const WizardStepEditorPage: React.FC<WizardStepEditorPageProps> = ({ wiza
                           </AccordionTrigger>
                           <AccordionContent className="pt-0 pb-1">
                             {category.types.map(type => {
-                              // Restore specific enabled logic, updated for renamed 'ens'
-                              const isEnabled = ['ENS & EFP', 'content'].includes(type.name);
+                              // Restore specific enabled logic, reverting to 'ens'
+                              const isEnabled = ['ens', 'content'].includes(type.name);
 
                               return (
                                 <button
@@ -128,7 +128,8 @@ export const WizardStepEditorPage: React.FC<WizardStepEditorPageProps> = ({ wiza
                                   disabled={!isEnabled || createStep.isPending}
                                 >
                                   <span className="font-medium capitalize">
-                                    {type.name.replace(/_/g, ' ')}
+                                    {/* Use label for display, fallback to formatted name */}
+                                    {type.label || type.name.replace(/_/g, ' ')}
                                   </span>
                                   <span className="block text-xs text-muted-foreground">
                                     {type.description}

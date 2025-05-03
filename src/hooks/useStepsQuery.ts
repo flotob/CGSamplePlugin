@@ -78,4 +78,37 @@ export function useDeleteStep(wizardId: string | undefined, stepId: string | und
       queryClient.invalidateQueries({ queryKey: ['steps', wizardId] });
     },
   });
-} 
+}
+
+// --- New Hook: Update Step Order ---
+interface UpdateStepOrderPayload {
+  stepIds: string[];
+}
+
+export function useUpdateStepOrder(wizardId: string | undefined) {
+  const { authFetch } = useAuthFetch();
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    { message: string }, // Expected success response type
+    Error, // Error type
+    UpdateStepOrderPayload, // Type of variables passed to mutationFn
+    unknown // Context type (optional)
+  >({
+    mutationFn: async (data: UpdateStepOrderPayload) => {
+      if (!wizardId) throw new Error('Missing wizardId');
+      // Call the new PUT endpoint
+      return await authFetch<{ message: string }>(`/api/wizards/${wizardId}/steps/reorder`, {
+        method: 'PUT',
+        body: JSON.stringify(data), // Send { stepIds: [...] } 
+      });
+    },
+    onSuccess: () => {
+      // Invalidate the steps query to refetch with the new order
+      queryClient.invalidateQueries({ queryKey: ['steps', wizardId] });
+    },
+    // Optional: Add onError handling
+    // onError: (error) => { ... }
+  });
+}
+// --- End New Hook --- 

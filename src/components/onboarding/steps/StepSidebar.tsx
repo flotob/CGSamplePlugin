@@ -1,8 +1,24 @@
 import React from 'react';
-import { Step } from '@/hooks/useStepsQuery';
+import { Step, useUpdateStepOrder } from '@/hooks/useStepsQuery';
 import { useStepTypesQuery, StepType } from '@/hooks/useStepTypesQuery';
 import { StepSidebarItem } from './StepSidebarItem';
 import { useQueryClient } from '@tanstack/react-query';
+// Import dnd-kit components and hooks
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
 
 interface StepSidebarProps {
   wizardId: string;
@@ -25,60 +41,111 @@ export const StepSidebar: React.FC<StepSidebarProps> = ({
 }) => {
   const { data: stepTypesData } = useStepTypesQuery();
   const queryClient = useQueryClient();
+  const updateStepOrderMutation = useUpdateStepOrder(wizardId);
+  
+  // --- dnd-kit state and handlers ---
+  // Local state to manage the visual order during drag operations
+  const [orderedSteps, setOrderedSteps] = React.useState<Step[]>([]);
+
+  // Update local order when the steps prop changes from the query
+  React.useEffect(() => {
+    setOrderedSteps(steps ? [...steps] : []);
+  }, [steps]);
+
+  // Configure sensors for pointer and keyboard interactions
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const {active, over} = event;
+    
+    if (over && active.id !== over.id) {
+      let newOrder: Step[] = []; // Define newOrder in the outer scope
+      setOrderedSteps((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over.id);
+        
+        newOrder = arrayMove(items, oldIndex, newIndex);
+        return newOrder; // Update local state immediately
+      });
+
+      // Call the backend mutation with the new order AFTER updating local state
+      if (newOrder.length > 0) { // Ensure newOrder was populated
+         updateStepOrderMutation.mutate({ stepIds: newOrder.map(s => s.id) }, {
+            // Optional: Add onError to potentially revert local state or show message
+            onError: (error) => {
+               console.error("Failed to update step order:", error);
+               // Optionally revert state: setOrderedSteps(steps ? [...steps] : []);
+               // Optionally show a toast message to the user
+            }
+         }); 
+      }
+    }
+  };
+  // --- end dnd-kit state and handlers ---
 
   if (isLoading) return <div className="p-4">Loading steps...</div>;
 
-  const combinedSteps = steps ? [...steps] : [];
+  // Note: We will map over `orderedSteps` state for rendering, not `steps` prop directly
+  // const combinedSteps = steps ? [...steps] : []; // Keep this maybe for length check?
 
   const getStepType = (step: Step) => stepTypesData?.step_types.find(t => t.id === step.step_type_id);
 
-  if (!isLoading && combinedSteps.length === 0 && !isCreating) {
+  if (!isLoading && orderedSteps.length === 0 && !isCreating) {
     return <div className="p-4 text-muted-foreground">No steps yet.</div>;
   }
 
   const handleStepDeleted = () => {
+    // Invalidate query to refetch potentially reordered steps if backend updated order on delete (unlikely but good practice)
     queryClient.invalidateQueries({ queryKey: ['steps', wizardId] });
-    setActiveStepId(null);
+    // Optionally find the next/previous step to activate, or just set to null
+    setActiveStepId(null); 
   };
 
   return (
-    <div className="flex flex-col gap-3 p-2 w-full border-r bg-muted/30 h-full overflow-y-auto">
-      {combinedSteps.map((step) => {
-        const stepType = getStepType(step);
-        const isActive = step.id === activeStepId && !isCreating;
-        return (
-          <StepSidebarItem
-            key={step.id}
-            wizardId={wizardId}
-            step={step}
-            stepType={stepType}
-            isActive={isActive}
-            setActiveStepId={setActiveStepId}
-            onDeleted={handleStepDeleted}
-          />
-        );
-      })}
+    // Wrap the list rendering with dnd-kit context providers
+    <DndContext 
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={handleDragEnd}
+    >
+      <SortableContext 
+        // Provide IDs of the sortable items
+        items={orderedSteps.map(s => s.id)} 
+        strategy={verticalListSortingStrategy}
+      >
+        <div className="flex flex-col gap-3 p-2 w-full border-r bg-muted/30 h-full overflow-y-auto">
+          {/* Render the creating item placeholder if applicable (needs styling) */}
+          {isCreating && stepTypeToCreate && (
+             <div className="border rounded-md p-3 bg-blue-50 border-blue-200 opacity-70">
+               <p className="text-sm font-medium capitalize text-blue-700">New {stepTypeToCreate.name.replace(/_/g, ' ')}</p>
+               <p className="text-xs text-blue-600">Editing settings...</p>
+             </div>
+          )}
 
-      {isCreating && stepTypeToCreate && (
-        <div
-          key="creating-step"
-          className={`relative group flex flex-col items-center rounded-lg shadow-sm px-2 py-3 cursor-default transition-colors border bg-card border-primary ring-2 ring-primary/30`
-          }
-          style={{ minHeight: 64 }}
-        >
-          <div className="w-40 h-10 flex flex-col items-center justify-center bg-card rounded border border-dashed border-border mb-1">
-            <span className="font-semibold text-sm text-primary">
-              {stepTypeToCreate.name.replace(/_/g, ' ')}
-            </span>
-          </div>
-          <div className="text-xs text-muted-foreground text-center truncate w-full">
-            {stepTypeToCreate.description || 'New Step'}
-          </div>
-          <div className="absolute inset-0 bg-background/30 backdrop-blur-sm flex items-center justify-center">
-             <span className="text-xs font-medium text-primary animate-pulse">Editing...</span>
-          </div>
+          {/* Map over the local orderedSteps state */}
+          {orderedSteps.map((step) => {
+            const stepType = getStepType(step);
+            // Active state based on activeStepId, ensure isCreating doesn't override
+            const isActive = step.id === activeStepId && !isCreating;
+            return (
+              <StepSidebarItem
+                key={step.id} // Key must be stable
+                wizardId={wizardId}
+                step={step}
+                stepType={stepType}
+                isActive={isActive}
+                setActiveStepId={setActiveStepId}
+                onDeleted={handleStepDeleted}
+              />
+            );
+          })}
         </div>
-      )}
-    </div>
+      </SortableContext>
+    </DndContext>
   );
 }; 
