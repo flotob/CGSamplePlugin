@@ -12,6 +12,7 @@ import { WizardSummaryScreen } from './WizardSummaryScreen';
 import { useUserCredentialsQuery } from '@/hooks/useUserCredentialsQuery';
 import { useMarkWizardCompleted } from '@/hooks/useMarkWizardCompleted';
 import { useCommunityInfoQuery } from '@/hooks/useCommunityInfoQuery';
+import { useUserWizardSessionQuery, useUpdateUserWizardSessionMutation } from '@/hooks/useUserWizardStepsQuery';
 
 // Define some type interfaces for better TypeScript support
 interface Role {
@@ -33,6 +34,7 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
   const [showSummary, setShowSummary] = useState<boolean>(false);
   const [hasTriedCompletion, setHasTriedCompletion] = useState<boolean>(false);
+  const [isInitialIndexSet, setIsInitialIndexSet] = useState<boolean>(false);
   const { 
     data: stepsData,
     isLoading: isLoadingSteps,
@@ -43,9 +45,13 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
   const { data: credentialsData } = credentialsQuery;
   const { data: communityInfoResponse } = useCommunityInfoQuery();
 
+  const { data: sessionData, isSuccess: isSessionLoaded } = useUserWizardSessionQuery(wizardId);
+  const updateSessionMutation = useUpdateUserWizardSessionMutation(wizardId);
+
   const steps = stepsData?.steps;
   const currentStep: UserStepProgress | undefined = steps?.[currentStepIndex];
   const totalSteps = steps?.length ?? 0;
+  const allStepsCompleted = steps?.every(step => step.completed_at) || false;
 
   // Mutation hook for completing a step
   const completeStepMutation = useCompleteStepMutation(wizardId, currentStep?.id);
@@ -58,29 +64,38 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
     ? stepTypesData.step_types.find(t => t.id === currentStep.step_type_id)
     : undefined;
 
-  // Check if all steps are completed
-  const allStepsCompleted = steps?.every(step => step.completed_at) || false;
-
-  // Effect to determine the starting step index based on progress
+  // Effect to determine the starting step index based on session or defaults
   useEffect(() => {
-    if (steps) {
-      // If all steps are completed and we're not showing summary, auto-show summary
-      if (allStepsCompleted && steps.length > 0 && !showSummary) {
-        const lastIncompleteIndex = steps.findIndex(step => !step.completed_at);
-        if (lastIncompleteIndex === -1) {
-          // All steps complete, but stay on the last step until user clicks "View Summary"
-          setCurrentStepIndex(steps.length - 1);
+    // Ensure steps are loaded, session state is fetched, and we haven't set the index yet
+    if (steps && steps.length > 0 && isSessionLoaded && !isInitialIndexSet) {
+      let initialIndex = 0; // Default to first step
+
+      // Try to use session state
+      if (sessionData?.last_viewed_step_id) {
+        const lastViewedIndex = steps.findIndex(step => step.id === sessionData.last_viewed_step_id);
+        if (lastViewedIndex !== -1) {
+          initialIndex = lastViewedIndex; // Use the index from session
         } else {
-          // Otherwise, show the first incomplete step
-          setCurrentStepIndex(lastIncompleteIndex);
+          console.warn('Last viewed step ID from session not found in current steps. Defaulting to first step.');
+          // Keep initialIndex = 0
         }
-      } else if (!allStepsCompleted) {
-        // Standard behavior - find first incomplete step
-        const firstIncompleteIndex = steps.findIndex(step => !step.completed_at);
-        setCurrentStepIndex(firstIncompleteIndex >= 0 ? firstIncompleteIndex : 0);
+      } else {
+        // No session state, determine starting point (e.g., first incomplete or just first)
+        // For simplicity now, just default to 0 if no session. Can add first incomplete logic back if needed.
+        initialIndex = 0; 
       }
+
+      // Handle the edge case where all steps are completed - go to last step
+      if (allStepsCompleted) {
+         initialIndex = steps.length - 1;
+         // If we want to auto-show summary when resuming on a fully completed wizard:
+         // setShowSummary(true); 
+      }
+
+      setCurrentStepIndex(initialIndex);
+      setIsInitialIndexSet(true); // Mark initial index as set
     }
-  }, [steps, allStepsCompleted, showSummary]);
+  }, [steps, isSessionLoaded, sessionData, allStepsCompleted, isInitialIndexSet]); // Dependencies
 
   // Effect to mark the wizard as completed when all steps are completed
   useEffect(() => {
@@ -127,9 +142,22 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
 
   const goToStep = useCallback((index: number) => {
     if (steps && index >= 0 && index < steps.length) {
-        setCurrentStepIndex(index);
+      setCurrentStepIndex(index);
+      
+      // --- Trigger session update directly after setting index ---
+      const newStepId = steps[index]?.id;
+      if (newStepId && !updateSessionMutation.isPending) {
+        // console.log('Updating session via goToStep:', newStepId);
+        updateSessionMutation.mutate({ stepId: newStepId }, {
+          onError: (error) => {
+            console.error('Failed to update wizard session state (from goToStep):', error);
+            // Session saving is best-effort, no UI blocking needed.
+          }
+        });
+      }
+      // --- End session update trigger ---
     }
-  }, [steps]);
+  }, [steps, updateSessionMutation]); // Add updateSessionMutation to dependencies
 
   const handlePrevious = useCallback(() => {
     goToStep(currentStepIndex - 1);
