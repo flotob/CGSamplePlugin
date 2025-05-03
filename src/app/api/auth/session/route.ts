@@ -11,6 +11,9 @@ interface SessionRequestBody {
     userId: string; // Typically userInfo.id
     communityId: string; // Typically communityInfo.id
     isAdmin: boolean;
+    // Add optional profile fields
+    username?: string | null;
+    pictureUrl?: string | null;
 }
 
 // Define the structure of our JWT payload
@@ -19,6 +22,9 @@ export interface JwtPayload {
     cid: string; // Community ID
     uid: string; // iframeUid
     adm: boolean; // isAdmin flag
+    // Add optional profile claims
+    name?: string | null; // Using standard 'name' claim
+    picture?: string | null; // Using standard 'picture' claim
     // Standard JWT claims (iat, exp) will be added by the library
 }
 
@@ -35,19 +41,24 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
     }
 
-    const { iframeUid, userId, communityId, isAdmin } = body;
+    // Destructure all expected fields, including optional profile ones
+    const { iframeUid, userId, communityId, isAdmin, username, pictureUrl } = body;
 
-    // Basic validation
+    // Basic validation (excluding optional fields)
     if (!iframeUid || !userId || !communityId || typeof isAdmin !== 'boolean') {
         return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
     try {
+        // Construct payload including optional claims
         const payload: Omit<JwtPayload, 'iat' | 'exp'> = {
             sub: userId,
             cid: communityId,
             uid: iframeUid,
             adm: isAdmin,
+            // Only include profile claims if they have a value
+            ...(username && { name: username }), 
+            ...(pictureUrl && { picture: pictureUrl }),
         };
 
         // Sign the JWT

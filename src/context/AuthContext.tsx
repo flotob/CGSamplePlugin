@@ -60,6 +60,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     userId: userInfo.id,
                     communityId: communityInfo.id,
                     isAdmin,
+                    username: userInfo.name ?? null,
+                    pictureUrl: userInfo.imageUrl ?? null,
                 }),
             });
 

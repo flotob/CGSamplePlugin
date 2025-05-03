@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import type { JwtPayload } from '@/app/api/auth/session/route'; // Corrected import path using alias
+// Import the database query function
+import { query } from '@/lib/db';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -36,6 +38,33 @@ export function withAuth<Params = Record<string, string>>(
         try {
             // Verify the token
             const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload & { iat: number; exp: number };
+
+            // --- BEGIN User Profile UPSERT Logic --- 
+            const userId = decoded.sub;
+            // Use nullish coalescing for optional claims
+            const username = decoded.name ?? null; 
+            const profilePictureUrl = decoded.picture ?? null;
+
+            if (userId) { // Only proceed if we have a user ID
+              try {
+                // Use await as query returns a promise
+                await query(
+                  `INSERT INTO user_profiles (user_id, username, profile_picture_url, updated_at)
+                   VALUES ($1, $2, $3, NOW())
+                   ON CONFLICT (user_id)
+                   DO UPDATE SET
+                     username = EXCLUDED.username,
+                     profile_picture_url = EXCLUDED.profile_picture_url,
+                     updated_at = NOW();`,
+                  [userId, username, profilePictureUrl]
+                );
+                // console.log('User profile possibly updated:', userId); // Optional debug log
+              } catch (profileError) {
+                // Log the error but don't block the main request
+                console.error('Error updating user profile (non-critical):', profileError);
+              }
+            }
+            // --- END User Profile UPSERT Logic --- 
 
             // Attach decoded payload to an extended request object
             const authReq = req as AuthenticatedRequest;
