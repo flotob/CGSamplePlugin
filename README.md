@@ -23,6 +23,7 @@ This plugin allows community admins to create step-by-step flows (Wizards) to gu
 - [10. Key Features & Implementation Notes](#10-key-features--implementation-notes)
   - [Authentication (`withAuth`)](#authentication-withauth)
   - [ENS Verification](#ens-verification)
+  - [Stripe Integration (Subscription Billing)](#stripe-integration-subscription-billing)
 - [11. Notes for Contributors](#11-notes-for-contributors)
 
 ---
@@ -221,6 +222,20 @@ This plugin uses a custom JWT-based system (`src/lib/withAuth.ts`) to secure API
 *   Checks for primary ENS name via reverse resolution.
 *   Includes an ENS lookup tool (name → address).
 *   **TODO:** Improve handling for users who own an ENS name but haven't set it as their primary reverse record. Provide clearer guidance and potentially link to the ENS app.
+
+### Stripe Integration (Subscription Billing)
+
+*   The plugin integrates with Stripe to handle paid subscription plans (e.g., a 'Pro' tier).
+*   Uses Stripe Checkout for users to initiate subscriptions.
+*   Relies on Stripe Webhooks to keep the application's state synchronized with the subscription status.
+*   **Key Webhook Events Handled (`/api/webhooks/stripe`):**
+    *   `checkout.session.completed`: To link a Stripe Customer and Subscription to a community upon successful checkout.
+    *   `customer.subscription.created` / `customer.subscription.updated`: To update the community's `current_plan_id` based on the active subscription status and plan.
+    *   `customer.subscription.deleted`: To downgrade the community back to the 'free' plan when a subscription is canceled or ends.
+    *   `invoice.paid`: To confirm successful recurring payments.
+    *   `invoice.payment_failed`: To log failed payment attempts and potentially notify admins.
+*   Provides a Stripe Billing Portal session (`/api/stripe/create-portal-session`) for users to manage their subscriptions.
+*   Enforces resource limits (e.g., max active wizards) based on the community's plan using functions in `src/lib/quotas.ts`.
 
 ## 11. Notes for Contributors
 
