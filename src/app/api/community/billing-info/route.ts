@@ -3,11 +3,6 @@ import { NextResponse } from 'next/server';
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { query } from '@/lib/db';
 
-// Initialize Stripe SDK
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  typescript: true,
-});
-
 // Define structure for Invoice History items
 interface InvoiceHistoryItem {
     id: string;
@@ -37,6 +32,16 @@ interface BillingInfoResponse {
 
 export const GET = withAuth(
   async (req: AuthenticatedRequest): Promise<NextResponse<BillingInfoResponse | { error: string }>> => {
+    // Initialize Stripe client INSIDE the handler
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+    if (!stripeSecretKey) {
+        console.error('Stripe secret key is not set.');
+        return NextResponse.json({ error: 'Stripe configuration error.' }, { status: 500 });
+    }
+    const stripe = new Stripe(stripeSecretKey, {
+        typescript: true,
+    });
+
     const communityId = req.user?.cid;
 
     if (!communityId) {
@@ -78,7 +83,7 @@ export const GET = withAuth(
         : null;
 
       // Prepare the base response data
-      let responseData: BillingInfoResponse = {
+      const responseData: BillingInfoResponse = {
         currentPlan: currentPlan,
         stripeCustomerId: stripeCustomerId,
         invoiceHistory: [], // Initialize as empty array
@@ -87,7 +92,7 @@ export const GET = withAuth(
       // --- Fetch additional details from Stripe if customer ID exists ---
       if (stripeCustomerId) {
           try {
-            // Fetch subscription details (existing logic)
+            // Fetch subscription details
             const subscriptions = await stripe.subscriptions.list({
               customer: stripeCustomerId,
               status: 'active',
@@ -97,6 +102,7 @@ export const GET = withAuth(
             if (subscriptions.data.length > 0) {
               const sub = subscriptions.data[0];
               responseData.subscriptionStatus = sub.status;
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               responseData.periodEndDate = (sub as any).current_period_end;
               responseData.trialEndDate = sub.trial_end;
               responseData.cancelAtPeriodEnd = sub.cancel_at_period_end;
@@ -107,11 +113,11 @@ export const GET = withAuth(
               }
             }
 
-            // Fetch invoice history (new logic)
+            // Fetch invoice history
             const invoices = await stripe.invoices.list({
                 customer: stripeCustomerId,
                 status: 'paid',
-                limit: 5, // Limit to recent 5 paid invoices
+                limit: 5, 
             });
             
             // Filter out any invoices potentially missing an ID before mapping
@@ -126,7 +132,8 @@ export const GET = withAuth(
                     pdfUrl: inv.invoice_pdf,
                 }));
 
-          } catch (stripeError) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } catch (stripeError: any) {
               console.error(`Error fetching Stripe data for customer ${stripeCustomerId}:`, stripeError);
               // Reset potentially partially populated fields on error?
               responseData.subscriptionStatus = undefined;
@@ -141,7 +148,8 @@ export const GET = withAuth(
       // ------------------------------------------------------------------
 
       return NextResponse.json(responseData);
-    } catch (error) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (error: any) {
       console.error('Error fetching community billing info:', error);
       return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }

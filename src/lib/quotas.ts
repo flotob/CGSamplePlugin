@@ -216,31 +216,19 @@ export async function logUsageEvent(
   feature: Feature,
   idempotencyKey?: string
 ): Promise<void> {
-  const insertQuery = `
+  // Simple INSERT without complex checks for now
+  const sql = `
     INSERT INTO usage_events (community_id, user_id, feature, idempotency_key)
     VALUES ($1, $2, $3, $4)
-    ON CONFLICT (idempotency_key) DO NOTHING; -- Avoid duplicates if key provided and exists
+    ON CONFLICT (idempotency_key) DO NOTHING;
   `;
-
-  // Only include idempotencyKey in params if it's provided
-  const params = [communityId, userId, feature, idempotencyKey ?? null];
-
   try {
-    // We don't typically need the result of an INSERT, but we wait for it to complete.
-    // Using <any> as we don't care about the row type returned by INSERT.
-    await query<any>(insertQuery, params);
-    console.log(
-      `Usage event logged for community ${communityId}, user ${userId}, feature ${feature}`
-    );
-  } catch (error) {
-    // Log the error but don't necessarily block the calling process
-    // unless event logging is absolutely critical to halt on failure.
-    console.error(
-      `Failed to log usage event for community ${communityId}, feature ${feature}:`,
-      error
-    );
-    // Optionally re-throw if logging failure should be treated as a critical error
-    // throw error;
+    await query(sql, [communityId, userId, feature, idempotencyKey]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) { // Type catch error
+    console.error(`Failed to log usage event for ${feature} for community ${communityId}:`, error);
+    // Decide if this error should propagate or just be logged
+    // For now, logging and continuing might be acceptable
   }
 }
 

@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { AlertCircle, ExternalLink, Loader2, CreditCard, CalendarClock, CheckCircle, FileText } from 'lucide-react';
+import { AlertCircle, ExternalLink, Loader2, CreditCard, CalendarClock, CheckCircle } from 'lucide-react';
 
 // Helper function to format Unix timestamp to readable date
 const formatDate = (timestamp: number | null | undefined): string => {
@@ -45,7 +45,7 @@ interface BillingManagementSectionProps {
 export const BillingManagementSection: React.FC<BillingManagementSectionProps> = ({ communityId }) => {
 
   // Fetch billing information using the provided communityId
-  const { data: billingInfo, isLoading: isLoadingBillingInfo, error: billingInfoError, refetch } = useCommunityBillingInfo(communityId);
+  const { data: billingInfo, isLoading: isLoadingBillingInfo, error: billingInfoError } = useCommunityBillingInfo(communityId);
 
   // Get mutation functions and states
   const { mutate: createCheckoutSession, isPending: isCreatingCheckout } = useCreateCheckoutSession();

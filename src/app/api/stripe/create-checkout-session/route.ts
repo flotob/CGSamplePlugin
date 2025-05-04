@@ -2,16 +2,6 @@ import Stripe from 'stripe';
 import { NextResponse } from 'next/server';
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth'; // Import auth HOC and type
 import { query } from '@/lib/db';
-import type { JwtPayload } from '@/app/api/auth/session/route';
-
-// Initialize Stripe
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  // apiVersion: '2024-04-10', // Removed to avoid potential type conflict
-  typescript: true,
-});
-
-// Retrieve Parent App URL from environment variables
-const PARENT_APP_URL = process.env.PARENT_APP_URL;
 
 // Define expected structure for community query result
 interface CommunityRow {
@@ -35,10 +25,17 @@ interface RequestBody {
 }
 
 export const POST = withAuth(async (req: AuthenticatedRequest) => {
-  if (!PARENT_APP_URL) {
-    console.error('PARENT_APP_URL is not set in environment variables.');
-    return NextResponse.json({ error: 'Configuration error: Missing parent app URL.' }, { status: 500 });
+  // Initialize Stripe client INSIDE the handler
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  const parentAppUrl = process.env.PARENT_APP_URL; // Get parent URL here too
+
+  if (!stripeSecretKey || !parentAppUrl) {
+      console.error('Stripe secret key or PARENT_APP_URL is not set.');
+      return NextResponse.json({ error: 'Stripe/App configuration error.' }, { status: 500 });
   }
+  const stripe = new Stripe(stripeSecretKey, {
+      typescript: true,
+  });
 
   const communityId = req.user?.cid; // This is the LONG community ID from JWT
   if (!communityId) {
@@ -67,7 +64,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       [communityId]
     );
     if (communityResult.rowCount === 0) return NextResponse.json({ error: 'Community not found' }, { status: 404 });
-    let community = communityResult.rows[0];
+    const community = communityResult.rows[0];
 
     // 2. Get 'pro' plan Stripe Price ID
     const planResult = await query<PlanRow>(
@@ -95,15 +92,14 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
     // 4. Construct Redirect URLs conditionally
     let successUrl: string;
     let cancelUrl: string;
-    const baseParentUrl = PARENT_APP_URL.endsWith('/') ? PARENT_APP_URL.slice(0, -1) : PARENT_APP_URL;
+    // Use local parentAppUrl variable
+    const baseParentUrl = parentAppUrl.endsWith('/') ? parentAppUrl.slice(0, -1) : parentAppUrl;
 
     if (communityShortId && pluginId) {
-      // Ideal future URL
-      const baseUrl = `${PARENT_APP_URL}/c/${communityShortId}/plugin/${pluginId}/`;
+      const baseUrl = `${parentAppUrl}/c/${communityShortId}/plugin/${pluginId}/`;
       successUrl = `${baseUrl}?stripe_status=success&session_id={CHECKOUT_SESSION_ID}`;
       cancelUrl = `${baseUrl}?stripe_status=cancel`;
     } else {
-      // Current fallback URL (base parent URL + status)
       successUrl = `${baseParentUrl}?stripe_status=success&session_id={CHECKOUT_SESSION_ID}`;
       cancelUrl = `${baseParentUrl}?stripe_status=cancel`;
     }
@@ -122,8 +118,9 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
     if (!session.id) throw new Error("Stripe session creation failed, no ID returned.");
 
     return NextResponse.json({ sessionId: session.id });
-
-  } catch (error) {
+  
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
     console.error('Error creating Stripe checkout session:', error);
     if (error instanceof Stripe.errors.StripeError) return NextResponse.json({ error: `Stripe Error: ${error.message}` }, { status: 400 });
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

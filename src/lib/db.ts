@@ -37,19 +37,21 @@ export default pool;
  * @param {any[]} [params] Optional parameters for the query.
  * @returns {Promise<import('pg').QueryResult<T>>} The query result, with rows typed as T[].
  */
-export const query = async <T extends QueryResultRow = any>(
-  text: string,
-  params?: any[]
-): Promise<import('pg').QueryResult<T>> => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function query<T extends QueryResultRow>(text: string, params?: any[]): Promise<import('pg').QueryResult<T>> {
   const start = Date.now();
+  const client = await pool.connect();
   try {
-    // The underlying pool.query is already generic, pass the type through.
-    const res = await pool.query<T>(text, params);
+    const res = await client.query<T>(text, params);
     const duration = Date.now() - start;
-    console.log('executed query', { text, duration, rows: res.rowCount });
+    // Basic logging for all queries - consider making this conditional based on env
+    console.log('executed query', { text: text.replace(/\s\s+/g, ' '), duration, rows: res.rowCount });
     return res;
-  } catch (error) {
-    console.error('Error executing query', { text, error });
-    throw error;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (e: any) { // Type catch error
+    console.error('Database query error:', { text, params, error: e });
+    throw e; // Re-throw the error after logging
+  } finally {
+    client.release();
   }
-}; 
+} 

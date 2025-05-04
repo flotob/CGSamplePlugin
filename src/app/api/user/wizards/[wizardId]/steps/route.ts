@@ -4,12 +4,12 @@ import { withAuth } from '@/lib/withAuth';
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import type { JwtPayload } from '@/app/api/auth/session/route';
-import type { Step } from '@/hooks/useStepsQuery'; // Assuming Step type is defined here or centrally
+import type { Step } from '@/hooks/useStepsQuery'; // Import Step type for base structure
 
-// Define and Export the expected shape of the response items
-export interface UserStepProgress extends Step {
+// Define the structure for the joined step and progress data
+export interface UserStepProgress extends Step { // Extend the base Step type
+  verified_data: Record<string, unknown> | null; // Already potentially object
   completed_at: string | null;
-  verified_data: Record<string, unknown> | null; // Assuming verified_data is JSON
 }
 
 // Define the params type for this route
@@ -30,7 +30,7 @@ export const GET = withAuth<StepsParams>(async (req, { params }) => {
   // Now params are already resolved, so no need to await them again
   const { wizardId } = params;
   if (!wizardId) {
-    return NextResponse.json({ error: 'Missing wizard id' }, { status: 400 });
+    return NextResponse.json({ error: 'Missing wizard ID' }, { status: 400 });
   }
 
   try {
@@ -43,30 +43,43 @@ export const GET = withAuth<StepsParams>(async (req, { params }) => {
       return NextResponse.json({ error: 'Wizard not found or access denied' }, { status: 404 });
     }
 
-    // Fetch steps for the wizard, joining with user progress
-    const stepsResult = await query(
-      `SELECT
-         s.*, -- Select all columns from onboarding_steps
-         uwp.completed_at,
-         uwp.verified_data
-       FROM onboarding_steps s
-       LEFT JOIN user_wizard_progress uwp ON s.id = uwp.step_id AND uwp.user_id = $2 AND uwp.wizard_id = s.wizard_id
-       WHERE s.wizard_id = $1 AND s.is_active = true -- Only fetch active steps for users
-       ORDER BY s.step_order ASC;`,
-      [wizardId, userId]
-    );
+    const stepsQuery = `
+      SELECT 
+        s.*, 
+        p.verified_data, 
+        p.completed_at
+      FROM onboarding_steps s
+      LEFT JOIN user_wizard_progress p ON s.id = p.step_id AND p.user_id = $1 AND p.wizard_id = s.wizard_id
+      WHERE s.wizard_id = $2
+      ORDER BY s.step_order;
+    `;
 
-    // Type assertion for the rows
+    // Provide the raw row type expected from the DB query
+    // We expect fields from 'onboarding_steps' plus 'verified_data' and 'completed_at'
+    // JSON fields might come back as strings, handle in mapping.
+    type RawStepProgressRow = Omit<Step, 'config'> & {
+        config: string | Record<string, unknown>; // DB might return JSON as string
+        verified_data: string | Record<string, unknown> | null;
+        completed_at: string | null;
+    };
+
+    const stepsResult = await query<RawStepProgressRow>(stepsQuery, [userId, wizardId]);
+
+    // Map the raw rows to the final UserStepProgress type, ensuring correct parsing
     const stepsWithProgress: UserStepProgress[] = stepsResult.rows.map(row => ({
-        ...row,
-        config: typeof row.config === 'string' ? JSON.parse(row.config) : row.config, // Ensure config is object
-        verified_data: typeof row.verified_data === 'string' ? JSON.parse(row.verified_data) : row.verified_data, // Ensure verified_data is object
+      ...row, // Include all properties from the row
+      // Parse config if it's a string, otherwise keep it (should be object or null)
+      config: typeof row.config === 'string' ? JSON.parse(row.config) : row.config,
+      // Parse verified_data if it's a string, otherwise keep it (could be object or null)
+      verified_data: typeof row.verified_data === 'string' ? JSON.parse(row.verified_data) : row.verified_data,
+      // completed_at and other fields are already correct type or null
     }));
 
     return NextResponse.json({ steps: stepsWithProgress });
 
-  } catch (error) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
     console.error('Error fetching user wizard steps:', error);
-    return NextResponse.json({ error: 'Internal server error fetching wizard steps' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }, false); // false = requires authentication, but not admin 

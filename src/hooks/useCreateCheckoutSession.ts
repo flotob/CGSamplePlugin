@@ -1,10 +1,10 @@
 'use client';
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { useAuthFetch } from '@/lib/authFetch';
 import { useToast } from '@/hooks/use-toast';
 import { loadStripe, Stripe } from '@stripe/stripe-js';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 
 // Define the expected response from the backend API
 interface CreateCheckoutSessionResponse {
@@ -24,7 +24,6 @@ const getStripe = () => {
 export function useCreateCheckoutSession() {
   const { authFetch } = useAuthFetch();
   const { toast } = useToast();
-  const queryClient = useQueryClient(); // To potentially invalidate queries on success
   const [stripe, setStripe] = useState<Stripe | null>(null);
 
   // Load Stripe instance on mount
