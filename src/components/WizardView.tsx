@@ -163,8 +163,8 @@ export const WizardView: React.FC<WizardViewProps> = () => {
                   onClick={() => setActiveSlideshowWizardId(wizard.id)}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`h-8 w-8 rounded-full flex items-center justify-center text-accent-foreground ${wizard.progressStatus === 'started' ? 'bg-blue-500/10 text-blue-600' : 'bg-accent'}`}>
-                      {wizard.progressStatus === 'started' ? <CirclePlay className="h-4 w-4" /> : <Wand2 className="h-4 w-4" />}
+                    <div className={`h-8 w-8 rounded-full flex items-center justify-center text-accent-foreground ${wizard.progressStatus === 'in-progress' ? 'bg-blue-500/10 text-blue-600' : 'bg-accent'}`}>
+                      {wizard.progressStatus === 'in-progress' ? <CirclePlay className="h-4 w-4" /> : <Wand2 className="h-4 w-4" />}
                     </div>
                     <div>
                       <p className="font-medium">{wizard.name}</p>
@@ -172,7 +172,7 @@ export const WizardView: React.FC<WizardViewProps> = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-2"> 
-                    {wizard.progressStatus === 'started' ? (
+                    {wizard.progressStatus === 'in-progress' ? (
                        <span className="text-xs font-medium text-blue-600">Continue</span>
                     ) : (
                        <span className="text-xs font-medium text-primary">Start</span>
