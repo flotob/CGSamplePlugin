@@ -18,6 +18,7 @@ import { SocialProofWidget } from '@/components/SocialProofWidget';
 import { useCgQuery } from '@/hooks/useCgQuery';
 import { useCgLib } from '@/context/CgLibContext';
 import type { UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
+import { useAssignRoleAndRefresh } from '@/hooks/useAssignRoleAndRefresh';
 
 // Define some type interfaces for better TypeScript support
 interface Role {
@@ -50,7 +51,7 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
   const { data: credentialsData } = credentialsQuery;
   const { data: communityInfoResponse } = useCommunityInfoQuery();
 
-  // Fetch UserInfo needed for the summary screen
+  // Fetch UserInfo needed for the summary screen & role assignment
   const { iframeUid } = useCgLib();
   const { data: userInfo, isLoading: isLoadingUserInfo } = useCgQuery<UserInfoResponsePayload, Error>(
     ['userInfo', iframeUid],
@@ -71,6 +72,9 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
 
   // Add the completion mutation hook
   const markCompleted = useMarkWizardCompleted();
+
+  // Instantiate role assignment hook here
+  const assignRoleAndRefresh = useAssignRoleAndRefresh();
 
   // Find the StepType object for the current step
   const currentStepType = currentStep && stepTypesData
@@ -126,28 +130,40 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
         !hasTriedCompletion &&
         stepsData?.assignRolesPerStep !== undefined) {
       
-      // Fetch the flag from the steps query data
-      const assignPerStep = stepsData?.assignRolesPerStep ?? false; // Default if data is missing
-
-      // Set the flag to prevent infinite loop BEFORE making the API call
-      setHasTriedCompletion(true);
-      
-      // Mark the wizard as completed in the database
+      const assignPerStep = stepsData.assignRolesPerStep; // Use definite value
+      setHasTriedCompletion(true); 
       console.log('All steps completed, marking wizard as completed:', wizardId);
       
-      // Explicitly cast mutate function signature
-      const mutateFn = markCompleted.mutate as (variables: { wizardId: string; assignRolesPerStep: boolean }, options?: { onError?: (error: Error) => void }) => void;
-      
-      // Pass the object { wizardId, assignRolesPerStep } as the first argument to mutate
-      mutateFn({ wizardId, assignRolesPerStep: assignPerStep }, {
+      // Call mutate with only wizardId. Handle roles in onSuccess callback below.
+      markCompleted.mutate(wizardId, {
+        onSuccess: (data) => { // data = { success, roles } from API
+           console.log('markCompleted mutation succeeded.');
+           // Now handle role assignment based on the flag
+           if (!assignPerStep && data.roles && data.roles.length > 0) {
+              const userId = userInfo?.id;
+              if (userId) {
+                 console.log(`Assigning ${data.roles.length} roles at end of wizard.`);
+                 // De-duplicate roles before assigning
+                 const uniqueRoles = Array.from(new Set(data.roles));
+                 // Use the hook instantiated outside the effect
+                 uniqueRoles.forEach(roleId => {
+                    assignRoleAndRefresh.mutate({ roleId, userId });
+                 });
+              } else {
+                 console.error('Cannot assign roles at end of wizard: User ID not found.');
+                 // Consider showing a toast error here
+              }
+           } else if (assignPerStep) {
+              console.log('Roles were assigned per step. Skipping final assignment.');
+           }
+        },
         onError: (error: Error) => {
-          // Keep the hasTriedCompletion flag true even on error to prevent infinite retries
           console.error('Failed to mark wizard as completed:', error);
-          // Error toast is handled in the mutation hook
         }
       });
     }
-  }, [allStepsCompleted, steps, wizardId, markCompleted, hasTriedCompletion, stepsData?.assignRolesPerStep]); // Add flag to dependencies
+    // Update dependencies: Add userInfo?.id and assignRoleAndRefresh
+  }, [allStepsCompleted, steps, wizardId, markCompleted, hasTriedCompletion, stepsData?.assignRolesPerStep, userInfo?.id, assignRoleAndRefresh]); 
 
   // --- Add Effect to handle Escape key --- 
   useEffect(() => {
@@ -266,7 +282,6 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
       
       return (
         <WizardSummaryScreen
-          wizardId={wizardId}
           completedSteps={stepsWithTypes}
           credentials={wizardCredentials}
           allCredentials={credentialsData?.credentials || []}

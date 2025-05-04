@@ -1,11 +1,11 @@
 'use client';
 
 import React from 'react';
-import { CheckCircle, Award, User, Shield } from 'lucide-react';
+import { CheckCircle, Award, User /*, Shield*/ } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import type { UserStepProgress } from '@/app/api/user/wizards/[wizardId]/steps/route';
 import type { StepType } from '@/hooks/useStepTypesQuery';
-import { UserAvatar } from '@/components/UserAvatar';
+// import { UserAvatar } from '@/components/UserAvatar';
 import type { UserCredential } from '@/hooks/useUserCredentialsQuery';
 import type { UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
 import { useAssignRoleAndRefresh } from '@/hooks/useAssignRoleAndRefresh';
@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface WizardSummaryScreenProps {
-  wizardId: string;
+  // wizardId: string; // Comment out unused prop
   completedSteps: (UserStepProgress & { stepType?: StepType })[];
   credentials: UserCredential[];
   allCredentials: UserCredential[];
@@ -25,7 +25,7 @@ interface WizardSummaryScreenProps {
 }
 
 export const WizardSummaryScreen: React.FC<WizardSummaryScreenProps> = ({
-  wizardId,
+  // wizardId, // Comment out unused prop
   completedSteps,
   credentials,
   allCredentials,

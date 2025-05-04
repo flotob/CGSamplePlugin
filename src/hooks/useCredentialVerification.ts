@@ -4,6 +4,9 @@ import { useState, useCallback } from 'react';
 import { useCompleteStepMutation } from '@/hooks/useCompleteStepMutation';
 import type { UseMutationOptions } from '@tanstack/react-query';
 
+// Import the response type from useCompleteStepMutation
+import type { StepCompletionResponse } from '@/hooks/useCompleteStepMutation';
+
 // Define the type for the variables the mutation function will receive
 interface CompleteStepVariables {
   verified_data?: Record<string, unknown>;
@@ -21,7 +24,7 @@ interface CompleteStepVariables {
 export function useCredentialVerification(
   wizardId: string,
   stepId: string,
-  options?: UseMutationOptions<void, Error, CompleteStepVariables | undefined, unknown>
+  options?: UseMutationOptions<StepCompletionResponse, Error, CompleteStepVariables | undefined, unknown>
 ) {
   const [isVerifying, setIsVerifying] = useState(false);
   const [verificationError, setVerificationError] = useState<string | null>(null);

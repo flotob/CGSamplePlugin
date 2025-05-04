@@ -12,7 +12,7 @@ interface CompleteStepVariables {
 }
 
 // Define the NEW expected response structure from the API
-interface StepCompletionResponse {
+export interface StepCompletionResponse {
   success: boolean;
   shouldAssignRole: boolean;
   roleIdToAssign: string | null;
