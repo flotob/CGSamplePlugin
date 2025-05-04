@@ -22,28 +22,30 @@ export const GET = withAuth(async (req) => {
   const communityId = user.cid;
 
   try {
-    // Query to get wizards and determine user progress status
+    // Query using MAX aggregate for completion check
     const wizardQuery = `
       SELECT 
         w.id, 
         w.name, 
         w.description,
         CASE
-          WHEN uwc.user_id IS NOT NULL THEN 'completed'
-          WHEN uws.user_id IS NOT NULL THEN 'in-progress'
+          -- Use MAX aggregate on uwc.user_id
+          WHEN MAX(uwc.user_id) IS NOT NULL THEN 'completed'
+          WHEN COUNT(uwp.step_id) > 0 THEN 'in-progress' 
           ELSE 'not-started'
         END AS "progressStatus"
       FROM onboarding_wizards w
-      LEFT JOIN user_wizard_sessions uws ON w.id = uws.wizard_id AND uws.user_id = $1
       LEFT JOIN user_wizard_completions uwc ON w.id = uwc.wizard_id AND uwc.user_id = $1
+      LEFT JOIN user_wizard_progress uwp ON w.id = uwp.wizard_id AND uwp.user_id = $1
       WHERE w.community_id = $2 AND w.is_active = true
-      ORDER BY w.created_at DESC; -- Or some other meaningful order
+      -- Group by primary wizard columns
+      GROUP BY w.id, w.name, w.description 
+      ORDER BY w.created_at DESC;
     `;
 
     // Specify the expected row type <UserWizard> in the query call
     const result = await query<UserWizard>(wizardQuery, [userId, communityId]);
 
-    // No need for explicit typing here anymore
     const wizards = result.rows;
 
     return NextResponse.json({ wizards });

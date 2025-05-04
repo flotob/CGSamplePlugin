@@ -58,7 +58,7 @@ export const WizardView: React.FC<WizardViewProps> = () => {
 
   // Memoize filtered lists
   const availableWizards = React.useMemo(() => {
-    return userWizardsData?.wizards.filter(w => w.progressStatus === 'not_started' || w.progressStatus === 'started') ?? [];
+    return userWizardsData?.wizards.filter(w => w.progressStatus === 'not-started' || w.progressStatus === 'in-progress') ?? [];
   }, [userWizardsData]);
 
   const completedWizards = React.useMemo(() => {

@@ -6,7 +6,7 @@ export interface UserWizard {
   id: string;
   name: string;
   description: string | null;
-  progressStatus: 'not_started' | 'started' | 'completed'; 
+  progressStatus: 'not-started' | 'in-progress' | 'completed'; 
 }
 
 // Define the expected API response structure
