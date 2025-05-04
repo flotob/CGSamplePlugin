@@ -9,7 +9,7 @@ exports.up = async (pgm) => {
 
   // IMPORTANT: Replace 'price_placeholder_replace_me' with your actual Stripe Price ID 
   //            for the Pro plan (use the TEST Price ID for development/staging).
-  const proPlanStripePriceId = 'price_placeholder_replace_me'; 
+  const proPlanStripePriceId = 'price_1RL3KdLyBwPLzTInBmRdiIS8'; 
   
   if (proPlanStripePriceId === 'price_placeholder_replace_me') {
       console.warn('Placeholder Stripe Price ID found. Skipping update for \'pro\' plan.');
