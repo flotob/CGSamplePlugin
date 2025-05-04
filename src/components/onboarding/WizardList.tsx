@@ -12,9 +12,23 @@ import { FileTextIcon, Loader2, PlusIcon } from 'lucide-react';
 import { useCommunityInfoQuery } from '@/hooks/useCommunityInfoQuery';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthFetch } from '@/lib/authFetch';
+import type { CommunityInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib'; // Add missing import
+
+// Define Role type (can be shared or imported if defined elsewhere)
+// Assuming structure from CommunityInfoResponsePayload
+type Role = NonNullable<CommunityInfoResponsePayload['roles']>[number];
+
+// Update props for WizardList
+interface WizardListProps {
+  setEditingWizardId: (id: string) => void;
+  assignableRoles: Role[] | undefined; // Accept roles
+}
 
 // WizardList component for listing wizards
-export const WizardList: React.FC<{ setEditingWizardId: (id: string) => void }> = ({ setEditingWizardId }) => {
+export const WizardList: React.FC<WizardListProps> = ({ 
+  setEditingWizardId, 
+  assignableRoles // Destructure roles
+}) => {
   const { data, isLoading, error } = useWizardsQuery();
   const { data: communityInfo } = useCommunityInfoQuery();
   
@@ -113,6 +127,7 @@ export const WizardList: React.FC<{ setEditingWizardId: (id: string) => void }> 
                 key={wizard.id} 
                 wizard={wizard} 
                 setEditingWizardId={setEditingWizardId} 
+                assignableRoles={assignableRoles} // Pass roles down
               />
             ))}
           </div>
@@ -142,6 +157,7 @@ export const WizardList: React.FC<{ setEditingWizardId: (id: string) => void }> 
                 key={wizard.id} 
                 wizard={wizard} 
                 setEditingWizardId={setEditingWizardId} // Pass prop even if unused by published item
+                assignableRoles={assignableRoles} // Pass roles down
               />
             ))}
           </div>

@@ -9,6 +9,7 @@ export interface Wizard {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  required_role_id: string | null;
 }
 
 export function useWizardsQuery() {

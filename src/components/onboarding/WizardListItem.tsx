@@ -27,14 +27,27 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from 'date-fns';
-import { Edit2, Copy, Trash2, Play, Square, Check, Loader2, Settings } from 'lucide-react';
+import { Edit2, Copy, Trash2, Play, Square, Check, Loader2, Settings, ShieldCheck } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { useUpdateWizardRoleRequirementMutation } from '@/hooks/useUpdateWizardRoleRequirementMutation';
+import type { CommunityInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
+
+// Define Role type (can be shared or imported if defined elsewhere)
+// Assuming structure from CommunityInfoResponsePayload
+type Role = NonNullable<CommunityInfoResponsePayload['roles']>[number];
 
 interface WizardListItemProps {
   wizard: Wizard;
   setEditingWizardId: (id: string) => void; // For full edit
+  assignableRoles: Role[] | undefined; // Accept roles
 }
 
-export const WizardListItem: React.FC<WizardListItemProps> = ({ wizard, setEditingWizardId }) => {
+export const WizardListItem: React.FC<WizardListItemProps> = ({ 
+  wizard, 
+  setEditingWizardId,
+  assignableRoles // Destructure roles
+}) => {
   const { toast } = useToast();
   const [isInlineEditing, setIsInlineEditing] = useState(false);
   const [editedName, setEditedName] = useState(wizard.name);
@@ -51,6 +64,7 @@ export const WizardListItem: React.FC<WizardListItemProps> = ({ wizard, setEditi
   const duplicateMutation = useDuplicateWizard();
   const deleteMutation = useDeleteWizard();
   const updateDetailsMutation = useUpdateWizardDetails();
+  const updateRoleMutation = useUpdateWizardRoleRequirementMutation();
 
   const handleTogglePublish = useCallback(() => {
     publishMutation.mutate(
@@ -123,7 +137,8 @@ export const WizardListItem: React.FC<WizardListItemProps> = ({ wizard, setEditi
     publishMutation.isPending || 
     duplicateMutation.isPending || 
     deleteMutation.isPending || 
-    updateDetailsMutation.isPending;
+    updateDetailsMutation.isPending ||
+    updateRoleMutation.isPending;
 
   // Format date
   const updatedAt = formatDistanceToNow(new Date(wizard.updated_at), { addSuffix: true });
@@ -170,6 +185,35 @@ export const WizardListItem: React.FC<WizardListItemProps> = ({ wizard, setEditi
           </div>
         </div>
       </CardHeader>
+      
+      {/* Optional Role Requirement Display/Edit (below header, before footer) */}
+      <div className="px-6 pb-4 pt-2 space-y-1.5">
+         <Label htmlFor={`role-req-${wizard.id}`} className="text-xs text-muted-foreground flex items-center gap-1">
+            <ShieldCheck className="h-3 w-3" />
+            Required Role
+         </Label>
+         <Select 
+            value={wizard.required_role_id ?? 'none'} 
+            onValueChange={(value) => {
+                const newRoleId = value === 'none' ? null : value;
+                updateRoleMutation.mutate({ wizardId: wizard.id, requiredRoleId: newRoleId });
+            }}
+            disabled={isMutatingAny} 
+          >
+            <SelectTrigger id={`role-req-${wizard.id}`} className="h-8 text-xs w-full sm:w-auto">
+              <SelectValue placeholder="Select a role..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">No Requirement</SelectItem>
+              {assignableRoles?.map((role) => (
+                <SelectItem key={role.id} value={role.id}>
+                  {role.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+      </div>
+      
       <CardFooter className="flex justify-between items-center pt-4 border-t border-border/30">
          {isInlineEditing ? (
             <div className="flex gap-2">

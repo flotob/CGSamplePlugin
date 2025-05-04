@@ -433,8 +433,8 @@ export const AdminView: React.FC<AdminViewProps> = ({
                    <NewWizardButton communityInfo={communityInfo} assignableRoles={assignableRoles} />
                </CardHeader>
                <CardContent>
-                 {/* Wizard List UI */}
-                 <WizardList setEditingWizardId={setEditingWizardId} />
+                 {/* Pass assignableRoles to WizardList */}
+                 <WizardList setEditingWizardId={setEditingWizardId} assignableRoles={assignableRoles} />
                </CardContent>
            </Card>
          </div>
