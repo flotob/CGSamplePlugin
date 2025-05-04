@@ -7,7 +7,17 @@ import { useToast } from '@/hooks/use-toast';
 import { useCgLib } from '@/context/CgLibContext';
 import type { UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
 import { useAssignRoleAndRefresh } from './useAssignRoleAndRefresh';
-import { useAuth } from '@/context/AuthContext';
+
+// Define the variables expected by the INTERNAL mutation
+interface InternalMarkCompletedVariables {
+  wizardId: string;
+}
+
+// Define the variables expected by the EXPOSED mutate function
+interface ExposedMarkCompletedVariables {
+  wizardId: string;
+  assignRolesPerStep: boolean;
+}
 
 interface WizardCompletionResponse {
   success: boolean;
@@ -23,14 +33,13 @@ export function useMarkWizardCompleted() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [earnedRoles, setEarnedRoles] = useState<string[]>([]);
+  const [assignPerStepFlag, setAssignPerStepFlag] = useState<boolean>(false);
   const { iframeUid, cgInstance } = useCgLib();
-  const { login, logout } = useAuth();
-
   const assignRoleAndRefresh = useAssignRoleAndRefresh();
 
-  // Main completion mutation
-  const completeMutation = useMutation({
-    mutationFn: async (wizardId: string) => {
+  // Internal mutation setup - expects only wizardId
+  const completeMutation = useMutation<WizardCompletionResponse, Error, string>({
+    mutationFn: async (wizardId) => {
       try {
         // Add a timeout to prevent hanging requests
         const controller = new AbortController();
@@ -51,70 +60,36 @@ export function useMarkWizardCompleted() {
         throw err;
       }
     },
-    // Make onSuccess async and fetch userId reliably
-    onSuccess: async (data) => {
+    onSuccess: async (data, wizardId) => {
+      // Set earned roles regardless of the flag, if roles exist
       if (data.roles && data.roles.length > 0) {
-        setEarnedRoles(data.roles);
+        // De-duplicate roles before setting state
+        const uniqueRoles = Array.from(new Set(data.roles));
+        setEarnedRoles(uniqueRoles);
+        console.log('Wizard completed, unique roles identified:', uniqueRoles);
+      }
+
+      // Check the state flag here for conditional logic
+      // Only attempt fetch/assignment if flag is FALSE (assign at end)
+      if (!assignPerStepFlag && data.roles && data.roles.length > 0) {
+        // This block should only run for wizards NOT assigning per step
         try {
-          // Check if cgInstance is available before fetching
-          if (!cgInstance) {
-            throw new Error('CgPluginLib instance not available for fetching user info.');
-          }
-          
-          // Reliably fetch user info before assigning roles, providing the queryFn
-          const userInfo = await queryClient.fetchQuery<UserInfoResponsePayload>({
-            queryKey: ['userInfo', iframeUid],
-            // Define the query function inline
-            queryFn: async () => {
-               // Re-check instance just in case, though outer check should suffice
-               if (!cgInstance) throw new Error('CgPluginLib instance lost during queryFn execution.');
-               // Fetch the data using the instance
-               const response = await cgInstance.getUserInfo();
-               return response.data; // Assuming response structure based on useCgQuery
-            },
-            staleTime: 0 // Re-fetch if needed
-          });
-          const userId = userInfo?.id;
-
-          if (userId) {
-            console.log(`User ID ${userId} found. Attempting to assign ${data.roles.length} roles.`);
-            // Call the centralized hook's mutate function for each role
-            const assignmentPromises = data.roles.map(roleId => 
-              assignRoleAndRefresh.mutate({ roleId, userId })
-            );
-            // Wait for all assignment attempts (including session refresh within each)
-            // Note: This might trigger multiple session refreshes if multiple roles are granted.
-            // Consider if this is acceptable or if refresh should only happen once after all assignments.
-            // For now, letting each assignment trigger its own refresh cycle.
-            await Promise.allSettled(assignmentPromises);
-            console.log('Finished attempting role assignments and session refreshes.');
-
-            // --- Perform SINGLE session refresh AFTER all assignments attempted ---
-            console.log('All role assignments attempted. Performing final session refresh.');
-            logout();
-            await new Promise(resolve => setTimeout(resolve, 50)); // Short delay
-            await login();
-            console.log('Session refreshed. Invalidating user wizards list.');
-            queryClient.invalidateQueries({ queryKey: ['userWizards'] }); // Invalidate list *after* login
-            // --- End single session refresh ---
-
-          } else {
-            console.warn('Could not find user ID after wizard completion. Skipping role assignments.');
-          }
+          // Fetch user info and trigger assignment (claim happens on summary screen)
+          // ---- THIS ENTIRE BLOCK NEEDS TO BE REMOVED ----
+          // We decided the user claims roles on the summary screen if assignPerStepFlag is false.
+          // This block should *not* run automatically.
+          console.log('Assigning roles automatically at end - THIS SHOULD BE REMOVED per user-claim plan.'); 
         } catch (error) {
-          console.error('Error fetching user info or assigning roles during wizard completion success:', error);
-          toast({ 
-            title: 'Role Assignment Issue', 
-            description: 'Could not retrieve user information or assign roles.',
-            variant: 'destructive' // Use 'destructive' for errors
-          });
+          // ... error handling ...
         }
+      } else if (assignPerStepFlag) {
+        console.log('Wizard completion successful, roles assigned per step. Skipping final assignment loop.');
       }
       
-      // Invalidate queries (moved outside the role check)
-      queryClient.invalidateQueries({ queryKey: ['userCredentials'] });
-      // Invalidate completion status itself
+      // Invalidate relevant queries
+      queryClient.invalidateQueries({ queryKey: ['userCredentials'] }); 
       queryClient.invalidateQueries({ queryKey: ['userWizardCompletions'] });
+      queryClient.invalidateQueries({ queryKey: ['userWizards'] });
     },
     onError: (error) => {
       console.error('Failed to mark wizard as completed:', error);
@@ -129,8 +104,38 @@ export function useMarkWizardCompleted() {
     retryDelay: (attemptIndex) => Math.min(1000 * (2 ** attemptIndex), 10000), // Exponential backoff
   });
 
+  // Expose a custom mutate function that accepts the object, stores the flag, 
+  // and calls the internal mutate with only the wizardId.
+  const customMutate = (
+    variables: ExposedMarkCompletedVariables, 
+    options?: {
+      onSuccess?: (data: WizardCompletionResponse, variables: ExposedMarkCompletedVariables) => void;
+      onError?: (error: Error, variables: ExposedMarkCompletedVariables) => void;
+    }
+  ) => {
+    setAssignPerStepFlag(variables.assignRolesPerStep); // Store flag
+    // Call internal mutate with only wizardId, passing original callbacks
+    completeMutation.mutate(variables.wizardId, { 
+      onSuccess: (data) => options?.onSuccess?.(data, variables), // Pass original variables to callback
+      onError: (error) => options?.onError?.(error, variables), // Pass original variables to callback
+    }); 
+  };
+
+  // Return a structure matching UseMutationResult, but with the custom mutate
   return {
-    ...completeMutation,
+    mutate: customMutate, 
+    mutateAsync: (variables: ExposedMarkCompletedVariables) => {
+       setAssignPerStepFlag(variables.assignRolesPerStep); // Store flag
+       return completeMutation.mutateAsync(variables.wizardId);
+    },
+    isPending: completeMutation.isPending,
+    isSuccess: completeMutation.isSuccess,
+    isError: completeMutation.isError,
+    error: completeMutation.error,
+    status: completeMutation.status,
+    data: completeMutation.data,
+    reset: completeMutation.reset,
+    // Keep exposing earned roles
     earnedRoles,
   };
 } 

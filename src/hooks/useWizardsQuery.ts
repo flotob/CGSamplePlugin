@@ -10,6 +10,7 @@ export interface Wizard {
   created_at: string;
   updated_at: string;
   required_role_id: string | null;
+  assign_roles_per_step: boolean;
 }
 
 export function useWizardsQuery() {

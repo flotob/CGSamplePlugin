@@ -23,6 +23,7 @@ interface WizardSummary {
   is_active: boolean;
   created_at: string;
   updated_at: string;
+  assign_roles_per_step: boolean;
 }
 
 // Define the structure of the route parameters
@@ -65,19 +66,31 @@ export const PATCH = withAuth<WizardParams>(async (req: AuthenticatedRequest, co
     return NextResponse.json({ error: 'Missing wizard id' }, { status: 400 });
   }
 
-  // Add required_role_id to the body type
-  let body: { name?: string; description?: string; is_active?: boolean; required_role_id?: string | null };
+  // Add assign_roles_per_step to the body type
+  let body: { 
+    name?: string; 
+    description?: string; 
+    is_active?: boolean; 
+    required_role_id?: string | null; 
+    assign_roles_per_step?: boolean;
+  };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  // Destructure required_role_id
-  const { name, description, is_active, required_role_id } = body;
+  // Destructure assign_roles_per_step
+  const { name, description, is_active, required_role_id, assign_roles_per_step } = body;
 
   // Update the check for fields being updated
-  if (name === undefined && description === undefined && is_active === undefined && required_role_id === undefined) {
+  if (
+    name === undefined && 
+    description === undefined && 
+    is_active === undefined && 
+    required_role_id === undefined &&
+    assign_roles_per_step === undefined
+   ) {
     return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
   }
 
@@ -112,6 +125,11 @@ export const PATCH = withAuth<WizardParams>(async (req: AuthenticatedRequest, co
     if (required_role_id !== undefined) {
       fieldsToUpdate.push(`required_role_id = $${valueIndex}`);
       values.push(required_role_id);
+      valueIndex++;
+    }
+    if (assign_roles_per_step !== undefined) {
+      fieldsToUpdate.push(`assign_roles_per_step = $${valueIndex}`);
+      values.push(assign_roles_per_step);
       valueIndex++;
     }
 

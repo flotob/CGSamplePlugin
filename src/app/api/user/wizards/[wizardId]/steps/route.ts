@@ -12,6 +12,13 @@ export interface UserStepProgress extends Step { // Extend the base Step type
   completed_at: string | null;
 }
 
+// Define the expected API response structure for steps query
+// ADD wizard flag here
+interface UserWizardStepsResponse {
+  steps: UserStepProgress[];
+  assignRolesPerStep: boolean;
+}
+
 // Define the params type for this route
 interface StepsParams {
   wizardId: string;
@@ -34,14 +41,15 @@ export const GET = withAuth<StepsParams>(async (req, { params }) => {
   }
 
   try {
-    // First, verify the wizard belongs to the user's community
+    // First, verify the wizard belongs to the user's community AND fetch its flag
     const wizardRes = await query(
-      `SELECT id FROM onboarding_wizards WHERE id = $1 AND community_id = $2`,
+      `SELECT id, assign_roles_per_step FROM onboarding_wizards WHERE id = $1 AND community_id = $2`,
       [wizardId, communityId]
     );
     if (wizardRes.rows.length === 0) {
       return NextResponse.json({ error: 'Wizard not found or access denied' }, { status: 404 });
     }
+    const assignRolesPerStep = wizardRes.rows[0].assign_roles_per_step;
 
     const stepsQuery = `
       SELECT 
@@ -75,7 +83,12 @@ export const GET = withAuth<StepsParams>(async (req, { params }) => {
       // completed_at and other fields are already correct type or null
     }));
 
-    return NextResponse.json({ steps: stepsWithProgress });
+    // Include the flag in the response
+    const responsePayload: UserWizardStepsResponse = {
+      steps: stepsWithProgress,
+      assignRolesPerStep: assignRolesPerStep,
+    };
+    return NextResponse.json(responsePayload);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {

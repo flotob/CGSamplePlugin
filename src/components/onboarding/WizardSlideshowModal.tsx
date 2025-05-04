@@ -15,6 +15,9 @@ import { useCommunityInfoQuery } from '@/hooks/useCommunityInfoQuery';
 import { useUserWizardSessionQuery, useUpdateUserWizardSessionMutation } from '@/hooks/useUserWizardStepsQuery';
 import { useWizardStepSocialProofQuery } from '@/hooks/useSocialProofQuery';
 import { SocialProofWidget } from '@/components/SocialProofWidget';
+import { useCgQuery } from '@/hooks/useCgQuery';
+import { useCgLib } from '@/context/CgLibContext';
+import type { UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
 
 // Define some type interfaces for better TypeScript support
 interface Role {
@@ -46,6 +49,14 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
   const credentialsQuery = useUserCredentialsQuery();
   const { data: credentialsData } = credentialsQuery;
   const { data: communityInfoResponse } = useCommunityInfoQuery();
+
+  // Fetch UserInfo needed for the summary screen
+  const { iframeUid } = useCgLib();
+  const { data: userInfo, isLoading: isLoadingUserInfo } = useCgQuery<UserInfoResponsePayload, Error>(
+    ['userInfo', iframeUid],
+    async (instance) => (await instance.getUserInfo()).data,
+    { enabled: !!iframeUid }
+  );
 
   const { data: sessionData, isSuccess: isSessionLoaded } = useUserWizardSessionQuery(wizardId);
   const updateSessionMutation = useUpdateUserWizardSessionMutation(wizardId);
@@ -112,15 +123,23 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
         steps && 
         steps.length > 0 && 
         !markCompleted.isPending && 
-        !hasTriedCompletion) {
+        !hasTriedCompletion &&
+        stepsData?.assignRolesPerStep !== undefined) {
       
+      // Fetch the flag from the steps query data
+      const assignPerStep = stepsData?.assignRolesPerStep ?? false; // Default if data is missing
+
       // Set the flag to prevent infinite loop BEFORE making the API call
       setHasTriedCompletion(true);
       
       // Mark the wizard as completed in the database
       console.log('All steps completed, marking wizard as completed:', wizardId);
       
-      markCompleted.mutate(wizardId, {
+      // Explicitly cast mutate function signature
+      const mutateFn = markCompleted.mutate as (variables: { wizardId: string; assignRolesPerStep: boolean }, options?: { onError?: (error: Error) => void }) => void;
+      
+      // Pass the object { wizardId, assignRolesPerStep } as the first argument to mutate
+      mutateFn({ wizardId, assignRolesPerStep: assignPerStep }, {
         onError: (error: Error) => {
           // Keep the hasTriedCompletion flag true even on error to prevent infinite retries
           console.error('Failed to mark wizard as completed:', error);
@@ -128,7 +147,7 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
         }
       });
     }
-  }, [allStepsCompleted, steps, wizardId, markCompleted, hasTriedCompletion]);
+  }, [allStepsCompleted, steps, wizardId, markCompleted, hasTriedCompletion, stepsData?.assignRolesPerStep]); // Add flag to dependencies
 
   // --- Add Effect to handle Escape key --- 
   useEffect(() => {
@@ -259,12 +278,14 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
               name: role?.title || 'Community Role'
             };
           })}
+          userInfo={userInfo}
+          isLoadingRoles={markCompleted.isPending}
           onClose={onClose}
         />
       );
     }
     
-    if (isLoadingSteps || isLoadingTypes) {
+    if (isLoadingSteps || isLoadingTypes || isLoadingUserInfo) {
       return (
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />

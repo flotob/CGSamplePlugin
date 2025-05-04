@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import type { CommunityInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthFetch } from '@/lib/authFetch';
@@ -22,6 +23,7 @@ export const NewWizardButton: React.FC<NewWizardButtonProps> = ({ /* communityIn
   const [name, setName] = React.useState('');
   const [description, setDescription] = React.useState('');
   const [selectedRoleId, setSelectedRoleId] = React.useState<string | null>(null); // State for selected role
+  const [assignPerStep, setAssignPerStep] = React.useState<boolean>(false); // State for the checkbox
   const [error, setError] = React.useState<string | null>(null);
   const queryClient = useQueryClient();
   const { authFetch } = useAuthFetch();
@@ -35,6 +37,7 @@ export const NewWizardButton: React.FC<NewWizardButtonProps> = ({ /* communityIn
           description,
           is_active: false, // Always create as draft
           required_role_id: selectedRoleId, // Add selected role ID
+          assign_roles_per_step: assignPerStep, // Include the flag value
         }),
       });
       return res;
@@ -44,6 +47,7 @@ export const NewWizardButton: React.FC<NewWizardButtonProps> = ({ /* communityIn
       setName('');
       setDescription('');
       setSelectedRoleId(null); // Reset role selection
+      setAssignPerStep(false); // Reset checkbox state
       setError(null);
       queryClient.invalidateQueries({ queryKey: ['wizards'] });
     },
@@ -114,6 +118,16 @@ export const NewWizardButton: React.FC<NewWizardButtonProps> = ({ /* communityIn
               <p className="text-xs text-muted-foreground mt-1">
                 If selected, only users with this role can see and start this wizard.
               </p>
+            </div>
+            <div className="flex items-center space-x-2 pt-2">
+              <Checkbox 
+                id="assign-per-step" 
+                checked={assignPerStep}
+                onCheckedChange={(checked) => setAssignPerStep(Boolean(checked))}
+              />
+              <Label htmlFor="assign-per-step" className="text-sm font-normal cursor-pointer">
+                Grant roles immediately after each step? (Default: Grant after full wizard completion)
+              </Label>
             </div>
             {error && <div className="text-destructive text-sm bg-destructive/10 rounded p-2">{error}</div>}
             <div className="flex justify-end gap-2 pt-2">

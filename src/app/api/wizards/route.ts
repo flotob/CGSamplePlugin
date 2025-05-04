@@ -25,7 +25,8 @@ export interface WizardSummary {
   is_active: boolean;
   created_at: string;
   updated_at: string;
-  // Add step_count or progressStatus if needed later
+  required_role_id: string | null;
+  assign_roles_per_step: boolean;
 }
 
 // GET: List wizards for the user's community, optionally filtering by active status
@@ -51,7 +52,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
   }
 
   try {
-    let queryString = `SELECT id, community_id, name, description, is_active, created_at, updated_at, required_role_id 
+    let queryString = `SELECT id, community_id, name, description, is_active, created_at, updated_at, required_role_id, assign_roles_per_step 
                        FROM onboarding_wizards 
                        WHERE community_id = $1`;
     const queryParams: (string | boolean)[] = [communityId];
@@ -82,14 +83,20 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
   }
   const communityId = user.cid;
 
-  let body: { name?: string; description?: string; is_active?: boolean; required_role_id?: string | null };
+  let body: { 
+    name?: string; 
+    description?: string; 
+    is_active?: boolean; 
+    required_role_id?: string | null; 
+    assign_roles_per_step?: boolean;
+  };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { name, description, is_active = true, required_role_id } = body; // Default is_active to true if not provided
+  const { name, description, is_active = true, required_role_id, assign_roles_per_step = false } = body;
   if (!name) {
     return NextResponse.json({ error: 'Wizard name is required' }, { status: 400 });
   }
@@ -106,10 +113,10 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
     const result = await query<
       WizardSummary // Use WizardSummary type for returned row
     >(
-      `INSERT INTO onboarding_wizards (community_id, name, description, is_active, required_role_id)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO onboarding_wizards (community_id, name, description, is_active, required_role_id, assign_roles_per_step)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [communityId, name, description || null, is_active, required_role_id || null]
+      [communityId, name, description || null, is_active, required_role_id || null, assign_roles_per_step]
     );
 
     if (result.rows.length === 0) {

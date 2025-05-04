@@ -32,6 +32,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { useUpdateWizardRoleRequirementMutation } from '@/hooks/useUpdateWizardRoleRequirementMutation';
 import type { CommunityInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
+import { Switch } from "@/components/ui/switch";
 
 // Define Role type (can be shared or imported if defined elsewhere)
 // Assuming structure from CommunityInfoResponsePayload
@@ -187,32 +188,53 @@ export const WizardListItem: React.FC<WizardListItemProps> = ({
         </div>
       </CardHeader>
       
-      {/* Optional Role Requirement Display/Edit (below header, before footer) */}
-      <div className="px-6 pb-4 pt-2 space-y-1.5">
-         <Label htmlFor={`role-req-${wizard.id}`} className="text-xs text-muted-foreground flex items-center gap-1">
-            <ShieldCheck className="h-3 w-3" />
-            Required Role
-         </Label>
-         <Select 
-            value={wizard.required_role_id ?? 'none'} 
-            onValueChange={(value) => {
-                const newRoleId = value === 'none' ? null : value;
-                updateRoleMutation.mutate({ wizardId: wizard.id, requiredRoleId: newRoleId });
-            }}
-            disabled={isMutatingAny} 
-          >
-            <SelectTrigger id={`role-req-${wizard.id}`} className="h-8 text-xs w-full sm:w-auto">
-              <SelectValue placeholder="Select a role..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">No Requirement</SelectItem>
-              {assignableRoles?.map((role) => (
-                <SelectItem key={role.id} value={role.id}>
-                  {role.title}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      {/* Settings Section (Role Req + Per Step Flag) */}
+      <div className="px-6 pb-4 pt-2 space-y-4">
+          {/* Required Role Dropdown */}
+          <div className="space-y-1.5">
+             <Label htmlFor={`role-req-${wizard.id}`} className="text-xs text-muted-foreground flex items-center gap-1">
+                <ShieldCheck className="h-3 w-3" />
+                Required Role
+             </Label>
+             <Select 
+                value={wizard.required_role_id ?? 'none'} 
+                onValueChange={(value) => {
+                    const newRoleId = value === 'none' ? null : value;
+                    updateRoleMutation.mutate({ wizardId: wizard.id, requiredRoleId: newRoleId });
+                }}
+                disabled={isMutatingAny} 
+              >
+                <SelectTrigger id={`role-req-${wizard.id}`} className="h-8 text-xs w-full sm:w-auto">
+                  <SelectValue placeholder="Select a role..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No Requirement</SelectItem>
+                  {assignableRoles?.map((role) => (
+                    <SelectItem key={role.id} value={role.id}>
+                      {role.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+          </div>
+
+          {/* Assign Roles Per Step Switch */}
+          <div className="flex items-center space-x-2 pt-2">
+            <Switch
+              id={`assign-per-step-${wizard.id}`}
+              checked={wizard.assign_roles_per_step}
+              onCheckedChange={(checked) => {
+                updateDetailsMutation.mutate({ 
+                  wizardId: wizard.id, 
+                  assign_roles_per_step: checked 
+                });
+              }}
+              disabled={isMutatingAny}
+            />
+            <Label htmlFor={`assign-per-step-${wizard.id}`} className="text-xs font-normal cursor-pointer">
+              Grant roles per step (instead of after wizard completion)
+            </Label>
+          </div>
       </div>
       
       <CardFooter className="flex justify-between items-center pt-4 border-t border-border/30">

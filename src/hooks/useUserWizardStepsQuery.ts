@@ -7,6 +7,7 @@ import type { UserStepProgress } from '@/app/api/user/wizards/[wizardId]/steps/r
 // Define the expected API response structure for steps query
 interface UserWizardStepsResponse {
   steps: UserStepProgress[];
+  assignRolesPerStep: boolean;
 }
 
 // Define the expected API response structure for session query

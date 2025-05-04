@@ -3,10 +3,19 @@
 import { useMutation, UseMutationResult, useQueryClient, UseMutationOptions } from '@tanstack/react-query';
 import { useAuthFetch } from '@/lib/authFetch';
 import { useToast } from '@/hooks/use-toast';
+import { useAssignRoleAndRefresh } from './useAssignRoleAndRefresh';
+import { useAuth } from '@/context/AuthContext';
 
 // Define the type for the variables the mutation function will receive
 interface CompleteStepVariables {
   verified_data?: Record<string, unknown>;
+}
+
+// Define the NEW expected response structure from the API
+interface StepCompletionResponse {
+  success: boolean;
+  shouldAssignRole: boolean;
+  roleIdToAssign: string | null;
 }
 
 /**
@@ -20,16 +29,18 @@ interface CompleteStepVariables {
 export function useCompleteStepMutation(
   wizardId: string | null | undefined,
   stepId: string | null | undefined,
-  options?: UseMutationOptions<void, Error, CompleteStepVariables | undefined, unknown>
-): UseMutationResult<void, Error, CompleteStepVariables | undefined, unknown> { // Returns void on success (204)
+  options?: UseMutationOptions<StepCompletionResponse, Error, CompleteStepVariables | undefined, unknown>
+): UseMutationResult<StepCompletionResponse, Error, CompleteStepVariables | undefined, unknown> {
   const { authFetch } = useAuthFetch();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { jwt } = useAuth();
+  const assignRoleAndRefresh = useAssignRoleAndRefresh();
 
   // Extract callbacks to call them later
   const { onSuccess: originalOnSuccess, onError: originalOnError, ...restOptions } = options || {};
 
-  return useMutation<void, Error, CompleteStepVariables | undefined> ({
+  return useMutation<StepCompletionResponse, Error, CompleteStepVariables | undefined> ({
     // Spread the remaining options
     ...restOptions,
 
@@ -38,15 +49,14 @@ export function useCompleteStepMutation(
         throw new Error('Wizard ID and Step ID are required to complete step.');
       }
       
-      // Use authFetch to make the authenticated POST request
-      // The API expects status 204 No Content on success, so response body is typically null/void
-      await authFetch<void>(`/api/user/wizards/${wizardId}/steps/${stepId}/complete`, {
+      // Use authFetch, expecting the new response structure
+      const response = await authFetch<StepCompletionResponse>(`/api/user/wizards/${wizardId}/steps/${stepId}/complete`, {
         method: 'POST',
-        body: variables ? JSON.stringify(variables) : undefined, // Only send body if variables exist
-        headers: variables ? { 'Content-Type': 'application/json' } : undefined, // Set content type only if body exists
+        body: variables ? JSON.stringify(variables) : undefined, 
+        headers: variables ? { 'Content-Type': 'application/json' } : undefined, 
       });
-      // Return void explicitly if needed, though await on a void fetch usually resolves to undefined
-      return;
+      // Return the response object from the API
+      return response;
     },
     // Combine provided onSuccess with our own
     onSuccess: (data, variables, context) => {
@@ -59,9 +69,31 @@ export function useCompleteStepMutation(
       if (variables?.verified_data) {
         queryClient.invalidateQueries({ queryKey: ['userCredentials'] });
       }
-      
-      // Optional: Show success toast
-      // toast({ title: "Step Completed!" });
+
+      // --- Conditionally assign role --- 
+      if (data.shouldAssignRole && data.roleIdToAssign) {
+        // Need user ID - extract from JWT (simple approach, consider a dedicated context/hook if complex)
+        let userId: string | undefined;
+        if (jwt) {
+           try {
+             // Basic decoding - assumes JWT structure without verification (verification happened in withAuth)
+             const payload = JSON.parse(atob(jwt.split('.')[1]));
+             userId = payload.sub;
+           } catch (e) {
+             console.error("Failed to decode JWT for userId in step completion hook", e);
+           }
+        }
+
+        if (userId) {
+          console.log(`Step completion triggered role assignment for role: ${data.roleIdToAssign}`);
+          assignRoleAndRefresh.mutate({ roleId: data.roleIdToAssign, userId });
+          // Note: Session refresh happens inside useAssignRoleAndRefresh
+        } else {
+           console.error('Could not determine userId to assign role after step completion.');
+           toast({ title: "Role Assignment Skipped", description: "Could not verify user ID.", variant: "destructive" });
+        }
+      }
+      // --- End Conditional Role Assignment --- 
 
       // Call the original onSuccess if it was provided
       originalOnSuccess?.(data, variables, context);

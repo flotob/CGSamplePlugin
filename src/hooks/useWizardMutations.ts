@@ -105,16 +105,21 @@ export function useUpdateWizardDetails() {
   return useMutation<
     { wizard: Wizard }, // Expected success response type
     Error, // Error type
-    { wizardId: string; name?: string; description?: string | null } // Variables type
+    { wizardId: string; name?: string; description?: string | null; assign_roles_per_step?: boolean } // Variables type
   >({
     mutationFn: async ({ wizardId, ...updateData }) => {
       if (!wizardId) {
         throw new Error('Wizard ID is required to update details.');
       }
       // Ensure we don't send undefined values if only one field is updated
-      const payload: { name?: string; description?: string | null } = {};
+      const payload: { 
+        name?: string; 
+        description?: string | null; 
+        assign_roles_per_step?: boolean;
+      } = {};
       if (updateData.name !== undefined) payload.name = updateData.name;
       if (updateData.description !== undefined) payload.description = updateData.description;
+      if (updateData.assign_roles_per_step !== undefined) payload.assign_roles_per_step = updateData.assign_roles_per_step;
 
       if (Object.keys(payload).length === 0) {
          throw new Error('No details provided for update.');

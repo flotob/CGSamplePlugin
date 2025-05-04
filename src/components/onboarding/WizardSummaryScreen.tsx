@@ -5,25 +5,33 @@ import { CheckCircle, Award, User, Shield } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import type { UserStepProgress } from '@/app/api/user/wizards/[wizardId]/steps/route';
 import type { StepType } from '@/hooks/useStepTypesQuery';
+import { UserAvatar } from '@/components/UserAvatar';
+import type { UserCredential } from '@/hooks/useUserCredentialsQuery';
+import type { UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
+import { useAssignRoleAndRefresh } from '@/hooks/useAssignRoleAndRefresh';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface WizardSummaryScreenProps {
-  wizardId?: string;
+  wizardId: string;
   completedSteps: (UserStepProgress & { stepType?: StepType })[];
-  credentials: { platform: string; username: string | null }[];
-  allCredentials: { 
-    platform: string; 
-    username: string | null;
-    external_id?: string; 
-  }[];
+  credentials: UserCredential[];
+  allCredentials: UserCredential[];
   rolesGranted: { id: string; name: string }[];
+  userInfo: UserInfoResponsePayload | undefined;
+  isLoadingRoles: boolean;
   onClose: () => void;
 }
 
 export const WizardSummaryScreen: React.FC<WizardSummaryScreenProps> = ({
+  wizardId,
   completedSteps,
   credentials,
   allCredentials,
   rolesGranted,
+  userInfo,
+  isLoadingRoles,
   onClose
 }) => {
   // Filter additional credentials that aren't already shown in the credentials section
@@ -37,6 +45,15 @@ export const WizardSummaryScreen: React.FC<WizardSummaryScreenProps> = ({
       )
     );
   }, [credentials, allCredentials]);
+
+  // Find user ID for the assignment hook
+  const userId = userInfo?.id;
+  const userRoles = userInfo?.roles ?? [];
+
+  // Instantiate the role assignment hook
+  const assignRoleMutation = useAssignRoleAndRefresh();
+
+  // TODO: Add claim button logic
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">
@@ -104,24 +121,59 @@ export const WizardSummaryScreen: React.FC<WizardSummaryScreenProps> = ({
           </section>
         )}
 
-        {/* Roles Granted */}
-        {rolesGranted.length > 0 && (
+        {/* Roles Granted / Earned Section */}
+        {(rolesGranted.length > 0 || isLoadingRoles) && (
           <section>
             <h2 className="text-xl font-medium flex items-center mb-4">
-              <Shield className="mr-2 h-5 w-5 text-purple-500" />
-              Roles Granted
+              <Award className="mr-2 h-5 w-5 text-blue-500" />
+              Roles Earned
             </h2>
             <div className="space-y-3">
-              {rolesGranted.map((role) => (
-                <div key={role.id} className="bg-card/80 dark:bg-card/50 backdrop-blur-sm rounded-lg p-4 border border-purple-500/20 dark:border-purple-500/30">
-                  <div className="flex items-center">
-                    <Award className="h-5 w-5 text-purple-500 mr-3 flex-shrink-0" />
-                    <div>
-                      <h3 className="font-medium">{role.name}</h3>
-                    </div>
-                  </div>
-                </div>
-              ))}
+              {isLoadingRoles ? (
+                <>
+                  <Skeleton className="h-12 w-full rounded-lg" />
+                  <Skeleton className="h-12 w-full rounded-lg" />
+                </>
+              ) : rolesGranted.length > 0 ? (
+                  rolesGranted.map((role) => {
+                    const alreadyHasRole = userRoles.includes(role.id);
+                    return (
+                      <div 
+                        key={role.id} 
+                        className={cn(
+                          "bg-card/80 dark:bg-card/50 backdrop-blur-sm rounded-lg p-4 border border-border flex justify-between items-center",
+                          alreadyHasRole ? "opacity-70" : ""
+                        )}
+                      >
+                        <div className="flex items-center gap-3">
+                            <Award className="h-5 w-5 text-blue-400"/>
+                            <span className="font-medium">{role.name}</span>
+                        </div>
+                        {alreadyHasRole ? (
+                            <Badge variant="outline" className="text-xs border-green-500/30 bg-green-500/10 text-green-700 dark:text-green-400">
+                                Claimed
+                            </Badge>
+                        ) : (
+                            <Button 
+                                size="sm" 
+                                onClick={() => {
+                                    if (userId) {
+                                        assignRoleMutation.mutate({ roleId: role.id, userId: userId });
+                                    } else {
+                                        console.error('Cannot claim role: User ID not found.');
+                                    }
+                                }}
+                                disabled={assignRoleMutation.isPending}
+                            >
+                               {assignRoleMutation.isPending ? 'Claiming...' : 'Claim Role'}
+                            </Button>
+                        )}
+                      </div>
+                    );
+                  })
+              ) : (
+                 null 
+              )}
             </div>
           </section>
         )}
