@@ -62,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                     isAdmin,
                     username: userInfo.name ?? null,
                     pictureUrl: userInfo.imageUrl ?? null,
+                    roles: userInfo.roles ?? [],
                 }),
             });
 

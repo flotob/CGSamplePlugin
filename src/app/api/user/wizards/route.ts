@@ -20,6 +20,7 @@ export const GET = withAuth(async (req) => {
   }
   const userId = user.sub;
   const communityId = user.cid;
+  const userRoles = user.roles ?? [];
 
   try {
     // Query using MAX aggregate for completion check
@@ -37,14 +38,15 @@ export const GET = withAuth(async (req) => {
       FROM onboarding_wizards w
       LEFT JOIN user_wizard_completions uwc ON w.id = uwc.wizard_id AND uwc.user_id = $1
       LEFT JOIN user_wizard_progress uwp ON w.id = uwp.wizard_id AND uwp.user_id = $1
-      WHERE w.community_id = $2 AND w.is_active = true
-      -- Group by primary wizard columns
+      WHERE w.community_id = $2 
+        AND w.is_active = true
+        AND (w.required_role_id IS NULL OR w.required_role_id = ANY($3::text[]))
       GROUP BY w.id, w.name, w.description 
       ORDER BY w.created_at DESC;
     `;
 
     // Specify the expected row type <UserWizard> in the query call
-    const result = await query<UserWizard>(wizardQuery, [userId, communityId]);
+    const result = await query<UserWizard>(wizardQuery, [userId, communityId, userRoles]);
 
     const wizards = result.rows;
 

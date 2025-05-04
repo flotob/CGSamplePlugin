@@ -14,6 +14,7 @@ interface SessionRequestBody {
     // Add optional profile fields
     username?: string | null;
     pictureUrl?: string | null;
+    roles: string[]; // Add roles field
 }
 
 // Define the structure of our JWT payload
@@ -25,6 +26,7 @@ export interface JwtPayload {
     // Add optional profile claims
     name?: string | null; // Using standard 'name' claim
     picture?: string | null; // Using standard 'picture' claim
+    roles: string[]; // Add roles claim
     // Standard JWT claims (iat, exp) will be added by the library
 }
 
@@ -41,21 +43,23 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
     }
 
-    // Destructure all expected fields, including optional profile ones
-    const { iframeUid, userId, communityId, isAdmin, username, pictureUrl } = body;
+    // Destructure all expected fields, including optional profile ones and roles
+    const { iframeUid, userId, communityId, isAdmin, username, pictureUrl, roles } = body;
 
     // Basic validation (excluding optional fields)
-    if (!iframeUid || !userId || !communityId || typeof isAdmin !== 'boolean') {
-        return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    // Add roles validation (ensure it's an array, though might be empty)
+    if (!iframeUid || !userId || !communityId || typeof isAdmin !== 'boolean' || !Array.isArray(roles)) {
+        return NextResponse.json({ error: 'Missing required fields or invalid roles format' }, { status: 400 });
     }
 
     try {
-        // Construct payload including optional claims
+        // Construct payload including optional claims and roles
         const payload: Omit<JwtPayload, 'iat' | 'exp'> = {
             sub: userId,
             cid: communityId,
             uid: iframeUid,
             adm: isAdmin,
+            roles: roles, // Add roles to payload
             // Only include profile claims if they have a value
             ...(username && { name: username }), 
             ...(pictureUrl && { picture: pictureUrl }),
