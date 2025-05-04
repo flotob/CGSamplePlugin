@@ -4,6 +4,16 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuthFetch } from '@/lib/authFetch';
 import { useAuth } from '@/context/AuthContext'; // Import useAuth to get the JWT status
 
+// Define structure for Invoice History items from the API
+interface InvoiceHistoryItem {
+    id: string;
+    created: number; // Unix timestamp
+    amountPaid: number; // Smallest currency unit (e.g., cents)
+    currency: string;
+    status: string | null;
+    pdfUrl?: string | null;
+}
+
 // Define the expected response structure from the API endpoint
 export interface BillingInfoResponse {
   currentPlan: {
@@ -12,6 +22,14 @@ export interface BillingInfoResponse {
     name: string;
   } | null;
   stripeCustomerId: string | null;
+  // Add optional Stripe subscription/payment details from the enhanced API
+  subscriptionStatus?: string | null;
+  trialEndDate?: number | null; // Unix timestamp
+  periodEndDate?: number | null; // Unix timestamp
+  cancelAtPeriodEnd?: boolean | null; // Add cancellation flag
+  cardBrand?: string | null;
+  cardLast4?: string | null;
+  invoiceHistory?: InvoiceHistoryItem[] | null; // Add invoice history array
 }
 
 // Define the hook

@@ -1,7 +1,24 @@
+import Stripe from 'stripe';
 import { NextResponse } from 'next/server';
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { query } from '@/lib/db';
 
+// Initialize Stripe SDK
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  typescript: true,
+});
+
+// Define structure for Invoice History items
+interface InvoiceHistoryItem {
+    id: string;
+    created: number; // Unix timestamp
+    amountPaid: number; // Smallest currency unit (e.g., cents)
+    currency: string;
+    status: string | null;
+    pdfUrl?: string | null;
+}
+
+// Update the response interface
 interface BillingInfoResponse {
   currentPlan: {
     id: number;
@@ -9,6 +26,13 @@ interface BillingInfoResponse {
     name: string;
   } | null;
   stripeCustomerId: string | null;
+  subscriptionStatus?: string | null;
+  trialEndDate?: number | null;
+  periodEndDate?: number | null;
+  cancelAtPeriodEnd?: boolean | null;
+  cardBrand?: string | null;
+  cardLast4?: string | null;
+  invoiceHistory?: InvoiceHistoryItem[] | null; // Add invoice history array
 }
 
 export const GET = withAuth(
@@ -20,6 +44,7 @@ export const GET = withAuth(
     }
 
     try {
+      // Fetch base community and plan info from DB
       const result = await query<{
         current_plan_id: number;
         stripe_customer_id: string | null;
@@ -42,6 +67,7 @@ export const GET = withAuth(
       }
 
       const communityData = result.rows[0];
+      const stripeCustomerId = communityData.stripe_customer_id;
 
       const currentPlan = communityData.current_plan_id
         ? {
@@ -51,10 +77,68 @@ export const GET = withAuth(
           }
         : null;
 
-      const responseData: BillingInfoResponse = {
+      // Prepare the base response data
+      let responseData: BillingInfoResponse = {
         currentPlan: currentPlan,
-        stripeCustomerId: communityData.stripe_customer_id,
+        stripeCustomerId: stripeCustomerId,
+        invoiceHistory: [], // Initialize as empty array
       };
+
+      // --- Fetch additional details from Stripe if customer ID exists ---
+      if (stripeCustomerId) {
+          try {
+            // Fetch subscription details (existing logic)
+            const subscriptions = await stripe.subscriptions.list({
+              customer: stripeCustomerId,
+              status: 'active',
+              limit: 1,
+              expand: ['data.default_payment_method'],
+            });
+            if (subscriptions.data.length > 0) {
+              const sub = subscriptions.data[0];
+              responseData.subscriptionStatus = sub.status;
+              responseData.periodEndDate = (sub as any).current_period_end;
+              responseData.trialEndDate = sub.trial_end;
+              responseData.cancelAtPeriodEnd = sub.cancel_at_period_end;
+              const paymentMethod = sub.default_payment_method;
+              if (paymentMethod && typeof paymentMethod !== 'string' && paymentMethod.type === 'card' && paymentMethod.card) {
+                  responseData.cardBrand = paymentMethod.card.brand;
+                  responseData.cardLast4 = paymentMethod.card.last4;
+              }
+            }
+
+            // Fetch invoice history (new logic)
+            const invoices = await stripe.invoices.list({
+                customer: stripeCustomerId,
+                status: 'paid',
+                limit: 5, // Limit to recent 5 paid invoices
+            });
+            
+            // Filter out any invoices potentially missing an ID before mapping
+            responseData.invoiceHistory = invoices.data
+                .filter(inv => !!inv.id) // Ensure ID exists
+                .map(inv => ({
+                    id: inv.id!, // Use non-null assertion as we filtered
+                    created: inv.created,
+                    amountPaid: inv.amount_paid,
+                    currency: inv.currency,
+                    status: inv.status,
+                    pdfUrl: inv.invoice_pdf,
+                }));
+
+          } catch (stripeError) {
+              console.error(`Error fetching Stripe data for customer ${stripeCustomerId}:`, stripeError);
+              // Reset potentially partially populated fields on error?
+              responseData.subscriptionStatus = undefined;
+              responseData.periodEndDate = undefined;
+              responseData.trialEndDate = undefined;
+              responseData.cancelAtPeriodEnd = undefined;
+              responseData.cardBrand = undefined;
+              responseData.cardLast4 = undefined;
+              responseData.invoiceHistory = []; // Ensure history is empty on error
+          }
+      }
+      // ------------------------------------------------------------------
 
       return NextResponse.json(responseData);
     } catch (error) {
