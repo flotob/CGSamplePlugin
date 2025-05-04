@@ -22,6 +22,7 @@ import { NewWizardButton } from './onboarding/NewWizardButton';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthFetch } from '@/lib/authFetch';
 import Image from 'next/image';
+import { BillingManagementSection } from './billing/BillingManagementSection';
 
 // Define props expected from PluginContainer
 interface AdminViewProps {
@@ -460,9 +461,9 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
       {/* Render Account Settings Section */}
       {activeSection === 'account' && (
-        <div className="w-full max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-5 duration-500 delay-150">
-          {/* Community Settings Pane */}
-          <Card interactive>
+        <div className="w-full max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-5 duration-500">
+          {/* Community Info Card */}
+          <Card className="md:col-span-1">
             <CardHeader>
               <CardTitle>Community Settings</CardTitle>
               <CardDescription>Manage basic community details and preferences.</CardDescription>
@@ -519,29 +520,8 @@ export const AdminView: React.FC<AdminViewProps> = ({
             </CardContent>
           </Card>
 
-          {/* Plan & Billing Pane */}
-          <Card interactive>
-            <CardHeader>
-              <CardTitle>Plan & Billing</CardTitle>
-              <CardDescription>View your current plan and manage billing details.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground text-sm">Plan & Billing UI coming soon...</p>
-              {/* Placeholder for billing info and plan management */}
-            </CardContent>
-          </Card>
-
-          {/* Delete Account Pane */}
-          <Card interactive className="border-destructive">
-            <CardHeader>
-              <CardTitle className="text-destructive">Delete Account</CardTitle>
-              <CardDescription>Permanently delete your account and all associated data.</CardDescription>
-            </CardHeader>
-            <CardContent className="flex justify-end">
-              <Button variant="destructive">Delete Account</Button>
-              {/* Placeholder for delete confirmation */}
-            </CardContent>
-          </Card>
+          {/* Plan & Billing Card */}
+          <BillingManagementSection communityId={communityInfo?.id} />
         </div>
       )}
 
