@@ -66,12 +66,15 @@ export const SocialProofWidget: React.FC<SocialProofWidgetProps> = ({
   return (
     <TooltipProvider delayDuration={100}>
       <div className={cn("flex items-center gap-2", className)}>
-        <span className="text-xs text-muted-foreground mr-1">People who also did this step:</span>
+        <span className="text-xs text-muted-foreground mr-1 hidden sm:inline-block">People who also did this step:</span>
         <div className="flex -space-x-3 overflow-hidden pr-1">
-          {displayedUsers.map((user: SocialProofUser) => (
+          {displayedUsers.map((user: SocialProofUser, index: number) => (
             <Tooltip key={user.user_id}>
               <TooltipTrigger asChild>
-                <div className="ring-2 ring-background rounded-full hover:z-10 transition-transform hover:scale-110">
+                <div className={cn(
+                  "ring-2 ring-background rounded-full hover:z-10 transition-transform hover:scale-110",
+                  index >= 3 ? "hidden sm:block" : "block"
+                )}>
                   <UserAvatar 
                     userId={user.user_id}
                     name={user.username}
@@ -90,7 +93,7 @@ export const SocialProofWidget: React.FC<SocialProofWidgetProps> = ({
           <Tooltip>
             <TooltipTrigger asChild>
               <div 
-                className="flex items-center justify-center h-6 min-w-[24px] px-1.5 rounded-full bg-gradient-to-br from-primary/70 to-primary/40 text-[10px] font-medium text-primary-foreground ring-2 ring-background shadow-sm cursor-default"
+                className="hidden sm:flex items-center justify-center h-6 min-w-[24px] px-1.5 rounded-full bg-gradient-to-br from-primary/70 to-primary/40 text-[10px] font-medium text-primary-foreground ring-2 ring-background shadow-sm cursor-default"
               >
                 +{formatNumber(remainder)}
               </div>
