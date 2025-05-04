@@ -51,7 +51,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
   }
 
   try {
-    let queryString = `SELECT id, community_id, name, description, is_active, created_at, updated_at 
+    let queryString = `SELECT id, community_id, name, description, is_active, created_at, updated_at, required_role_id 
                        FROM onboarding_wizards 
                        WHERE community_id = $1`;
     const queryParams: (string | boolean)[] = [communityId];
@@ -82,14 +82,14 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
   }
   const communityId = user.cid;
 
-  let body: { name?: string; description?: string; is_active?: boolean };
+  let body: { name?: string; description?: string; is_active?: boolean; required_role_id?: string | null };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { name, description, is_active = true } = body; // Default is_active to true if not provided
+  const { name, description, is_active = true, required_role_id } = body; // Default is_active to true if not provided
   if (!name) {
     return NextResponse.json({ error: 'Wizard name is required' }, { status: 400 });
   }
@@ -106,10 +106,10 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
     const result = await query<
       WizardSummary // Use WizardSummary type for returned row
     >(
-      `INSERT INTO onboarding_wizards (community_id, name, description, is_active)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO onboarding_wizards (community_id, name, description, is_active, required_role_id)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [communityId, name, description || null, is_active]
+      [communityId, name, description || null, is_active, required_role_id || null]
     );
 
     if (result.rows.length === 0) {

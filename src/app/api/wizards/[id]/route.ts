@@ -53,8 +53,8 @@ export const GET = withAuth<WizardParams>(async (req: AuthenticatedRequest, cont
   return NextResponse.json({ wizard: result.rows[0] });
 }, true);
 
-// Correctly typed PUT handler
-export const PUT = withAuth<WizardParams>(async (req: AuthenticatedRequest, context: { params: WizardParams }) => {
+// Correctly typed PATCH handler (renamed from PUT)
+export const PATCH = withAuth<WizardParams>(async (req: AuthenticatedRequest, context: { params: WizardParams }) => {
   const user = req.user;
   if (!user || !user.cid) {
     return NextResponse.json({ error: 'Missing community ID in token' }, { status: 400 });
@@ -65,17 +65,19 @@ export const PUT = withAuth<WizardParams>(async (req: AuthenticatedRequest, cont
     return NextResponse.json({ error: 'Missing wizard id' }, { status: 400 });
   }
 
-  let body: { name?: string; description?: string; is_active?: boolean };
+  // Add required_role_id to the body type
+  let body: { name?: string; description?: string; is_active?: boolean; required_role_id?: string | null };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { name, description, is_active } = body;
+  // Destructure required_role_id
+  const { name, description, is_active, required_role_id } = body;
 
-  // Check if any fields are actually being updated
-  if (name === undefined && description === undefined && is_active === undefined) {
+  // Update the check for fields being updated
+  if (name === undefined && description === undefined && is_active === undefined && required_role_id === undefined) {
     return NextResponse.json({ error: 'No fields to update' }, { status: 400 });
   }
 
@@ -105,6 +107,11 @@ export const PUT = withAuth<WizardParams>(async (req: AuthenticatedRequest, cont
     if (is_active !== undefined) {
       fieldsToUpdate.push(`is_active = $${valueIndex}`);
       values.push(is_active);
+      valueIndex++;
+    }
+    if (required_role_id !== undefined) {
+      fieldsToUpdate.push(`required_role_id = $${valueIndex}`);
+      values.push(required_role_id);
       valueIndex++;
     }
 

@@ -430,7 +430,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                      <CardTitle>Wizard Configuration</CardTitle>
                      <CardDescription>Setup roles and steps for the onboarding wizard here.</CardDescription>
                    </div>
-                   <NewWizardButton communityInfo={communityInfo} />
+                   <NewWizardButton communityInfo={communityInfo} assignableRoles={assignableRoles} />
                </CardHeader>
                <CardContent>
                  {/* Wizard List UI */}
