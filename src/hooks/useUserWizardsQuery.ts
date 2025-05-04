@@ -6,6 +6,7 @@ export interface UserWizard {
   id: string;
   name: string;
   description: string | null;
+  required_role_id: string | null;
   progressStatus: 'not-started' | 'in-progress' | 'completed'; 
 }
 

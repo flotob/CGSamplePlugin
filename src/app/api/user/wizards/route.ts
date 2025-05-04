@@ -8,6 +8,7 @@ export interface UserWizard {
   id: string;
   name: string;
   description: string | null;
+  required_role_id: string | null;
   progressStatus: 'not-started' | 'in-progress' | 'completed';
   // Potentially add total step count, completed step count later if needed
 }
@@ -29,6 +30,7 @@ export const GET = withAuth(async (req) => {
         w.id, 
         w.name, 
         w.description,
+        w.required_role_id,
         CASE
           -- Use MAX aggregate on uwc.user_id
           WHEN MAX(uwc.user_id) IS NOT NULL THEN 'completed'
@@ -41,7 +43,7 @@ export const GET = withAuth(async (req) => {
       WHERE w.community_id = $2 
         AND w.is_active = true
         AND (w.required_role_id IS NULL OR w.required_role_id = ANY($3::text[]))
-      GROUP BY w.id, w.name, w.description 
+      GROUP BY w.id, w.name, w.description, w.required_role_id 
       ORDER BY w.created_at DESC;
     `;
 

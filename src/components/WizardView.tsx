@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Wand2, CheckCircle, Loader2, AlertCircle, CirclePlay, CircleCheck, Ticket, ExternalLink } from 'lucide-react';
+import { Wand2, CheckCircle, Loader2, AlertCircle, CirclePlay, CircleCheck, Ticket, ExternalLink, ShieldCheck } from 'lucide-react';
 import { useUserWizardsQuery } from '@/hooks/useUserWizardsQuery';
 import { useWizardSlideshow } from '@/context/WizardSlideshowContext';
 
@@ -111,6 +111,12 @@ export const WizardView: React.FC<WizardViewProps> = () => {
   const isLoading = isInitializing || isLoadingUserWizards || isLoadingUserInfo || isLoadingCommunityInfo || isLoadingActiveWizards || isLoadingRelevantSteps || isLoadingCompletions;
   const error = userWizardsError || userInfoError || communityInfoError;
 
+  // Helper function to get role name from ID
+  const getRoleName = (roleId: string | null | undefined): string => {
+      if (!roleId) return "None";
+      return communityInfo?.roles?.find(r => r.id === roleId)?.title ?? "Unknown Role";
+  };
+
   // Handle Loading State
   if (isLoading) {
     return (
@@ -169,6 +175,13 @@ export const WizardView: React.FC<WizardViewProps> = () => {
                     <div>
                       <p className="font-medium">{wizard.name}</p>
                       <p className="text-xs text-muted-foreground">{wizard.description || 'No description available.'}</p>
+                      {/* Add Required Role display */} 
+                      {wizard.required_role_id && (
+                          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                             <ShieldCheck className="h-3 w-3 flex-shrink-0" />
+                             <span>Requires: {getRoleName(wizard.required_role_id)}</span>
+                          </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2"> 

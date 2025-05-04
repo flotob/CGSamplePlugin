@@ -105,7 +105,7 @@ export function useUpdateWizardDetails() {
   return useMutation<
     { wizard: Wizard }, // Expected success response type
     Error, // Error type
-    { wizardId: string; name?: string; description?: string | null; assign_roles_per_step?: boolean } // Variables type
+    { wizardId: string; name?: string; description?: string | null; assign_roles_per_step?: boolean; required_role_id?: string | null; } // Variables type
   >({
     mutationFn: async ({ wizardId, ...updateData }) => {
       if (!wizardId) {
@@ -116,10 +116,12 @@ export function useUpdateWizardDetails() {
         name?: string; 
         description?: string | null; 
         assign_roles_per_step?: boolean;
+        required_role_id?: string | null;
       } = {};
       if (updateData.name !== undefined) payload.name = updateData.name;
       if (updateData.description !== undefined) payload.description = updateData.description;
       if (updateData.assign_roles_per_step !== undefined) payload.assign_roles_per_step = updateData.assign_roles_per_step;
+      if (updateData.required_role_id !== undefined) payload.required_role_id = updateData.required_role_id;
 
       if (Object.keys(payload).length === 0) {
          throw new Error('No details provided for update.');
