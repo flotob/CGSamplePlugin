@@ -53,7 +53,7 @@ export const SocialProofWidget: React.FC<SocialProofWidgetProps> = ({
   if (!isLoading && totalRelevantUsers === 0) {
     return (
       <div className={`flex items-center ${className}`}>
-         <span className="text-xs text-muted-foreground">
+         <span className="text-xs text-muted-foreground hidden sm:inline-block">
            You are the first person to attempt this step of the wizard!
          </span>
       </div>
