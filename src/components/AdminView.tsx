@@ -24,6 +24,7 @@ import { useAuthFetch } from '@/lib/authFetch';
 import Image from 'next/image';
 import { BillingManagementSection } from './billing/BillingManagementSection';
 import { QuotaUsageDisplay } from './admin/QuotaUsageDisplay';
+import { useAssignRoleAndRefresh } from '@/hooks/useAssignRoleAndRefresh';
 
 // Define props expected from PluginContainer
 interface AdminViewProps {
@@ -31,9 +32,6 @@ interface AdminViewProps {
   communityInfo: CommunityInfoResponsePayload | undefined;
   friends: UserFriendsResponsePayload | undefined;
   assignableRoles: CommunityInfoResponsePayload['roles'] | undefined;
-  handleAssignRoleClick: (roleId: string | undefined) => void;
-  isAssigningRole: boolean;
-  assignRoleError: Error | null;
   activeSection: string; // Receive activeSection prop
   // Add loading/error props for specific data if needed
   isLoadingUserInfo: boolean;
@@ -58,9 +56,6 @@ export const AdminView: React.FC<AdminViewProps> = ({
   communityInfo,
   friends,
   assignableRoles,
-  handleAssignRoleClick,
-  isAssigningRole,
-  assignRoleError,
   activeSection,
   // Destructure loading/error states
   isLoadingUserInfo,
@@ -79,6 +74,9 @@ export const AdminView: React.FC<AdminViewProps> = ({
   const { authFetch } = useAuthFetch();
   const queryClient = useQueryClient();
   const communityId = communityInfo?.id;
+
+  // Instantiate the new role assignment hook
+  const assignRoleMutation = useAssignRoleAndRefresh();
 
   // --- State for Community Settings --- 
   const [logoUrlInput, setLogoUrlInput] = useState<string>('');
@@ -153,6 +151,22 @@ export const AdminView: React.FC<AdminViewProps> = ({
     if (validateUrl(logoUrlInput)) {
       updateSettings({ logo_url: logoUrlInput.trim() === '' ? null : logoUrlInput });
     }
+  };
+
+  // Define the click handler locally using the new mutation hook
+  const handleAssignRoleClickLocal = (roleId: string | undefined) => {
+    if (!roleId) {
+        console.error("Cannot assign undefined role ID");
+        toast({ title: "Error", description: "Invalid role selected.", variant: "destructive" });
+        return;
+    }
+    if (!userInfo?.id) {
+        console.error("Cannot assign role, user ID not found");
+        toast({ title: "Error", description: "User information not available.", variant: "destructive" });
+        return;
+    }
+    // Call the mutate function from the centralized hook
+    assignRoleMutation.mutate({ roleId, userId: userInfo.id }); 
   };
 
   // Render loading/error specifically for the data needed by the active section if desired
@@ -345,20 +359,23 @@ export const AdminView: React.FC<AdminViewProps> = ({
                       <CardDescription className="mt-1">Assign roles to members</CardDescription>
                     </div>
                   </div>
-                  {isAssigningRole && (
+                  {/* Use the mutation state from the new hook */}
+                  {assignRoleMutation.isPending && (
                     <div className='text-blue-500 pt-2 flex items-center gap-2'>
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
                       <p className="text-sm">Assigning role...</p>
                     </div>
                   )}
-                  {assignRoleError && (
+                  {/* Use the mutation state from the new hook */}
+                  {assignRoleMutation.isError && (
                     <div className='text-destructive pt-2 flex items-center gap-2 p-2 bg-destructive/10 rounded-md'>
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="12" cy="12" r="10"/>
                         <line x1="12" x2="12" y1="8" y2="12"/>
                         <line x1="12" x2="12.01" y1="16" y2="16"/>
                       </svg>
-                      <p className="text-sm">Error: {assignRoleError.message}</p>
+                      {/* Use the mutation state from the new hook */}
+                      <p className="text-sm">Error: {assignRoleMutation.error?.message ?? 'Failed to assign role'}</p>
                     </div>
                   )}
                 </CardHeader>
@@ -387,8 +404,8 @@ export const AdminView: React.FC<AdminViewProps> = ({
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleAssignRoleClick(role.id)}
-                          disabled={isAssigningRole}
+                          onClick={() => handleAssignRoleClickLocal(role.id)}
+                          disabled={assignRoleMutation.isPending}
                           className="transition-all duration-200"
                         >
                           Assign Role

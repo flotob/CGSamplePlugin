@@ -5,8 +5,9 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthFetch } from '@/lib/authFetch';
 import { useToast } from '@/hooks/use-toast';
 import { useCgLib } from '@/context/CgLibContext';
-import { useCgMutation } from '@/hooks/useCgMutation';
 import type { UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
+import { useAssignRoleAndRefresh } from './useAssignRoleAndRefresh';
+import { useAuth } from '@/context/AuthContext';
 
 interface WizardCompletionResponse {
   success: boolean;
@@ -23,21 +24,9 @@ export function useMarkWizardCompleted() {
   const { toast } = useToast();
   const [earnedRoles, setEarnedRoles] = useState<string[]>([]);
   const { iframeUid, cgInstance } = useCgLib();
+  const { login, logout } = useAuth();
 
-  // Role assignment mutation
-  const { mutate: assignRole } = useCgMutation<
-    unknown, 
-    Error,
-    { roleId: string; userId: string }
-  >(
-    async (instance, { roleId, userId }) => {
-      if (!roleId) throw new Error("Role ID is missing or invalid.");
-      await instance.giveRole(roleId, userId);
-    },
-    {
-      invalidateQueryKeys: [['userInfo', iframeUid], ['communityInfo', iframeUid]]
-    }
-  );
+  const assignRoleAndRefresh = useAssignRoleAndRefresh();
 
   // Main completion mutation
   const completeMutation = useMutation({
@@ -88,12 +77,27 @@ export function useMarkWizardCompleted() {
           const userId = userInfo?.id;
 
           if (userId) {
-            console.log(`User ID ${userId} found. Assigning ${data.roles.length} roles.`);
+            console.log(`User ID ${userId} found. Attempting to assign ${data.roles.length} roles.`);
+            // Call the centralized hook's mutate function for each role
             const assignmentPromises = data.roles.map(roleId => 
-              assignRole({ roleId, userId })
+              assignRoleAndRefresh.mutate({ roleId, userId })
             );
+            // Wait for all assignment attempts (including session refresh within each)
+            // Note: This might trigger multiple session refreshes if multiple roles are granted.
+            // Consider if this is acceptable or if refresh should only happen once after all assignments.
+            // For now, letting each assignment trigger its own refresh cycle.
             await Promise.allSettled(assignmentPromises);
-            console.log('Finished attempting role assignments.');
+            console.log('Finished attempting role assignments and session refreshes.');
+
+            // --- Perform SINGLE session refresh AFTER all assignments attempted ---
+            console.log('All role assignments attempted. Performing final session refresh.');
+            logout();
+            await new Promise(resolve => setTimeout(resolve, 50)); // Short delay
+            await login();
+            console.log('Session refreshed. Invalidating user wizards list.');
+            queryClient.invalidateQueries({ queryKey: ['userWizards'] }); // Invalidate list *after* login
+            // --- End single session refresh ---
+
           } else {
             console.warn('Could not find user ID after wizard completion. Skipping role assignments.');
           }
@@ -108,8 +112,9 @@ export function useMarkWizardCompleted() {
       }
       
       // Invalidate queries (moved outside the role check)
-      queryClient.invalidateQueries({ queryKey: ['userWizards'] });
       queryClient.invalidateQueries({ queryKey: ['userCredentials'] });
+      // Invalidate completion status itself
+      queryClient.invalidateQueries({ queryKey: ['userWizardCompletions'] });
     },
     onError: (error) => {
       console.error('Failed to mark wizard as completed:', error);
