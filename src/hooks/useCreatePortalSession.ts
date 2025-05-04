@@ -25,8 +25,20 @@ export function useCreatePortalSession() {
     onSuccess: (data) => {
       const { portalUrl } = data;
       if (portalUrl) {
-        // Redirect the user to the Stripe Billing Portal
-        window.location.href = portalUrl;
+        // Redirect the top-level window to the Stripe Billing Portal
+        // Check if window.top is accessible before redirecting
+        if (window.top) {
+            window.top.location.href = portalUrl;
+        } else {
+            // Fallback or error handling if top window is somehow not accessible
+            console.warn('Cannot access top window. Redirecting current window.');
+            window.location.href = portalUrl; // This might still be blocked by Stripe
+            toast({
+              title: "Redirect Issue",
+              description: "Could not automatically redirect. Please check your browser settings or copy the portal URL manually.",
+              variant: "default",
+            });
+        }
       } else {
         console.error('Portal URL not found in response:', data);
         toast({

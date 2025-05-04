@@ -10,65 +10,73 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   typescript: true,
 });
 
-// Define expected structure for community query result
-interface CommunityRow {
-  id: string;
-  stripe_customer_id: string | null;
+// Retrieve Parent App URL from environment variables
+const PARENT_APP_URL = process.env.PARENT_APP_URL;
+
+// Define structure for optional request body
+interface RequestBody {
+  pluginId?: string;
 }
 
 export const POST = withAuth(async (req: AuthenticatedRequest) => {
-  const user = req.user;
-  if (!user || !user.cid) {
-    return NextResponse.json({ error: 'Missing community ID in token' }, { status: 400 });
+  if (!PARENT_APP_URL) {
+    console.error('PARENT_APP_URL is not set in environment variables.');
+    return NextResponse.json({ error: 'Configuration error: Missing parent app URL.' }, { status: 500 });
   }
-  const communityId = user.cid;
+
+  const communityId = req.user?.cid;
+  if (!communityId) {
+    return NextResponse.json({ error: 'Community ID not found in token' }, { status: 400 });
+  }
+
+  let pluginId: string | undefined;
+  try {
+    // Try to parse the body for optional pluginId
+    const body: RequestBody | null = await req.json().catch(() => null);
+    if (body?.pluginId) {
+        pluginId = body.pluginId;
+    }
+  } catch (error) {
+    console.warn('Could not parse request body for optional pluginId:', error);
+  }
 
   try {
     // 1. Get the community's Stripe Customer ID
-    const communityRes = await query<CommunityRow>(
+    const communityResult = await query<{ stripe_customer_id: string | null } >(
       `SELECT stripe_customer_id FROM communities WHERE id = $1`,
       [communityId]
     );
-    const community = communityRes.rows[0];
 
-    if (!community) {
-      // Should not happen if user is authenticated for a community, but good practice
-      return NextResponse.json({ error: 'Community not found' }, { status: 404 });
-    }
-
-    const stripeCustomerId = community.stripe_customer_id;
+    const stripeCustomerId = communityResult.rows[0]?.stripe_customer_id;
 
     if (!stripeCustomerId) {
-      // This community hasn't subscribed/interacted with Stripe billing yet
-      console.warn(`Attempted to create portal session for community ${communityId} without Stripe customer ID.`);
+      console.error(`Stripe customer ID not found for community ${communityId}. Cannot create portal session.`);
       return NextResponse.json(
-        { error: 'Billing is not yet enabled for this community.' },
-        { status: 400 } // Bad Request, as they shouldn't be able to click 'Manage' yet
+        { error: 'Billing is not set up for this community.' },
+        { status: 400 }
       );
     }
 
-    // 2. Define the return URL (where user returns after portal)
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
-    // TODO: Adjust this URL to point to your actual billing page/route
-    const returnUrl = `${baseUrl}/admin/settings/billing`;
+    // 2. Construct the return URL conditionally
+    const baseUrl = pluginId
+      ? `${PARENT_APP_URL}/c/${communityId}/plugin/${pluginId}/`
+      : `${PARENT_APP_URL}/c/${communityId}/`;
+      
+    const returnUrl = `${baseUrl}?stripe_status=portal_return`;
 
-    // 3. Create the Stripe Billing Portal Session
-    console.log(`Creating Billing Portal session for Customer ${stripeCustomerId}`);
+    // 3. Create a Billing Portal session
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: stripeCustomerId,
       return_url: returnUrl,
     });
 
-    // 4. Return the portal session URL
     return NextResponse.json({ portalUrl: portalSession.url });
 
-  } catch (error: any) {
-    console.error('Error creating Stripe Portal session:', error);
-    // Check for specific Stripe errors if needed
-    // if (error instanceof Stripe.errors.StripeError) { ... }
-    return NextResponse.json(
-      { error: `Failed to create portal session: ${error.message || 'Unknown error'}` },
-      { status: 500 }
-    );
+  } catch (error) {
+    console.error('Error creating Stripe billing portal session:', error);
+    if (error instanceof Stripe.errors.StripeError) {
+        return NextResponse.json({ error: `Stripe Error: ${error.message}` }, { status: 400 });
+    }
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
-}, true); // true = adminOnly (assuming only admins manage billing) 
+}, true); // Admin required 

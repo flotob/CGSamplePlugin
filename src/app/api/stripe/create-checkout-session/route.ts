@@ -10,6 +10,9 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   typescript: true,
 });
 
+// Retrieve Parent App URL from environment variables
+const PARENT_APP_URL = process.env.PARENT_APP_URL;
+
 // Define expected structure for community query result
 interface CommunityRow {
   id: string;
@@ -25,100 +28,116 @@ interface PlanRow {
   stripe_price_id: string | null;
 }
 
+// Define structure for optional request body
+interface RequestBody {
+  pluginId?: string;
+}
+
 export const POST = withAuth(async (req: AuthenticatedRequest) => {
-  const user = req.user;
-  if (!user || !user.cid) {
-    return NextResponse.json({ error: 'Missing community ID in token' }, { status: 400 });
+  if (!PARENT_APP_URL) {
+    console.error('PARENT_APP_URL is not set in environment variables.');
+    return NextResponse.json({ error: 'Configuration error: Missing parent app URL.' }, { status: 500 });
   }
-  const communityId = user.cid;
+
+  const communityId = req.user?.cid;
+  if (!communityId) {
+    return NextResponse.json({ error: 'Community ID not found in token' }, { status: 400 });
+  }
+
+  let pluginId: string | undefined;
+  try {
+    // Try to parse the body, but don't error if it's empty or invalid for now
+    // as pluginId is optional
+    const body: RequestBody | null = await req.json().catch(() => null);
+    if (body?.pluginId) {
+        pluginId = body.pluginId;
+    }
+  } catch (error) {
+    // Ignore body parsing errors for now, treat as no pluginId provided
+    console.warn('Could not parse request body for optional pluginId:', error);
+  }
 
   try {
-    // 1. Get community details and target plan details
-    const communityRes = await query<CommunityRow>(
+    // 1. Get community info (including stripe_customer_id)
+    const communityResult = await query<CommunityRow>(
       `SELECT id, title, stripe_customer_id, current_plan_id FROM communities WHERE id = $1`,
       [communityId]
     );
-    const community = communityRes.rows[0];
 
-    const proPlanRes = await query<PlanRow>(
-        `SELECT id, code, stripe_price_id FROM plans WHERE code = 'pro' LIMIT 1`
-    );
-    const proPlan = proPlanRes.rows[0];
-
-    if (!community) {
+    if (communityResult.rowCount === 0) {
       return NextResponse.json({ error: 'Community not found' }, { status: 404 });
     }
-    if (!proPlan || !proPlan.stripe_price_id) {
-      console.error('Pro plan or its Stripe Price ID is not configured in the database.');
-      return NextResponse.json({ error: 'Pro plan configuration error.' }, { status: 500 });
-    }
+    let community = communityResult.rows[0];
 
-    // Prevent creating checkout if already on pro plan (or handle upgrade/downgrade logic if needed)
-    if (community.current_plan_id === proPlan.id) {
-        return NextResponse.json({ error: 'Community is already on the Pro plan.'}, { status: 400 });
+    // 2. Get 'pro' plan Stripe Price ID
+    const planResult = await query<PlanRow>(
+      `SELECT id, code, stripe_price_id FROM plans WHERE code = 'pro' AND is_active = true`
+    );
+    if (planResult.rowCount === 0 || !planResult.rows[0].stripe_price_id) {
+      return NextResponse.json({ error: 'Pro plan configuration not found or missing Stripe Price ID.' }, { status: 500 });
     }
+    const proPlanPriceId = planResult.rows[0].stripe_price_id;
 
+    // 3. Ensure Stripe Customer exists
     let stripeCustomerId = community.stripe_customer_id;
-
-    // 2. Create Stripe Customer if one doesn't exist for this community
     if (!stripeCustomerId) {
-      console.log(`Creating new Stripe Customer for community: ${communityId}`);
-      const customer = await stripe.customers.create({
-        // Use metadata to link Stripe Customer to our community ID
-        metadata: {
-          community_id: communityId,
-        },
-        // Optionally pre-fill name/email if available and desired
-        // name: community.title,
-        // email: user.email // Assuming email is in JWT payload
-      });
-      stripeCustomerId = customer.id;
-      // Update our database with the new Stripe Customer ID
-      await query(
-        `UPDATE communities SET stripe_customer_id = $1 WHERE id = $2`,
-        [stripeCustomerId, communityId]
-      );
-      console.log(`Created and linked Stripe Customer ${stripeCustomerId} for community ${communityId}`);
+      try {
+        const customer = await stripe.customers.create({
+          name: community.title, // Use community title as customer name
+          metadata: {
+            community_id: community.id,
+          },
+        });
+        stripeCustomerId = customer.id;
+        // Update database
+        await query(
+          `UPDATE communities SET stripe_customer_id = $1 WHERE id = $2`,
+          [stripeCustomerId, community.id]
+        );
+      } catch (customerError) {
+        console.error('Error creating Stripe customer:', customerError);
+        return NextResponse.json({ error: 'Failed to create billing customer.' }, { status: 500 });
+      }
     }
 
-    // 3. Define URLs (use environment variable for base URL in production)
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || req.nextUrl.origin;
-    // TODO: Adjust these URLs to point to your actual billing page/route
-    const successUrl = `${baseUrl}/admin/settings/billing?checkout=success&session_id={CHECKOUT_SESSION_ID}`;
-    const cancelUrl = `${baseUrl}/admin/settings/billing?checkout=cancel`;
+    // 4. Construct Redirect URLs conditionally based on pluginId
+    const baseUrl = pluginId
+      ? `${PARENT_APP_URL}/c/${communityId}/plugin/${pluginId}/`
+      : `${PARENT_APP_URL}/c/${communityId}/`;
+      
+    const successUrl = `${baseUrl}?stripe_status=success&session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl = `${baseUrl}?stripe_status=cancel`;
 
-    // 4. Create the Stripe Checkout Session
-    console.log(`Creating Checkout session for Customer ${stripeCustomerId}, Price ${proPlan.stripe_price_id}`);
+    // 5. Create Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
-      payment_method_types: ['card'], // Or allow other types
+      payment_method_types: ['card'],
       customer: stripeCustomerId,
       line_items: [
         {
-          price: proPlan.stripe_price_id,
+          price: proPlanPriceId,
           quantity: 1,
         },
       ],
-      // Include communityId for webhook reference
-      client_reference_id: communityId,
-      // Optionally add trial period
-      // subscription_data: {
-      //   trial_period_days: 7,
-      // },
       success_url: successUrl,
       cancel_url: cancelUrl,
+      client_reference_id: communityId, // Link session back to community
+      // Add metadata if needed
+      // metadata: { community_id: communityId },
     });
 
-    // 5. Return the session ID
+    if (!session.id) {
+         throw new Error("Stripe session creation failed, no ID returned.");
+    }
+
     return NextResponse.json({ sessionId: session.id });
 
-  } catch (error: any) {
-    console.error('Error creating Stripe Checkout session:', error);
-    // Check for specific Stripe errors if needed
-    // if (error instanceof Stripe.errors.StripeError) { ... }
-    return NextResponse.json(
-      { error: `Failed to create checkout session: ${error.message || 'Unknown error'}` },
-      { status: 500 }
-    );
+  } catch (error) {
+    console.error('Error creating Stripe checkout session:', error);
+    // Check if it's a Stripe error
+    if (error instanceof Stripe.errors.StripeError) {
+        return NextResponse.json({ error: `Stripe Error: ${error.message}` }, { status: 400 });
+    }
+    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
-}, true); // true = adminOnly 
+}, true); // Admin required 

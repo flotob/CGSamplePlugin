@@ -3,7 +3,7 @@ import React, { useState, useTransition, useEffect } from 'react';
 import Image from 'next/image';
 import type { CommunityInfoResponsePayload, UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
 import type { UserFriendsResponsePayload } from '@common-ground-dao/cg-plugin-lib-host';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCgLib } from '../context/CgLibContext';
 import { useAuth } from '../context/AuthContext';
 import { useCgQuery } from '../hooks/useCgQuery';
@@ -20,6 +20,7 @@ import { LayoutDashboard, Settings, Plug, User, Wand2, Building, Loader2 } from 
 import { Toaster } from "@/components/ui/toaster";
 import { useWizardSlideshow } from '../context/WizardSlideshowContext';
 import { WizardSlideshowModal } from '../components/onboarding/WizardSlideshowModal';
+import { useToast } from "@/hooks/use-toast";
 
 // Removed targetRoleIdFromEnv constant
 // const targetRoleIdFromEnv = process.env.NEXT_PUBLIC_TARGET_ROLE_ID;
@@ -48,6 +49,8 @@ const PluginContainer = () => {
   const { authFetch } = useAuthFetch();
   const { activeSlideshowWizardId, setActiveSlideshowWizardId } = useWizardSlideshow();
   const [isPending, startTransition] = useTransition();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   // State for current active section
   const [activeSection, setActiveSection] = useState<string | null>(null);
@@ -181,6 +184,103 @@ const PluginContainer = () => {
   // The JWT is needed for backend calls, so the app isn't fully ready until it's attempted.
   const isCoreLoading = isInitializing || isLoadingAdminStatus || !activeSection || (isAuthenticating && !jwt);
   const coreError = initError || adminStatusError || authError || userInfoError || communityInfoError;
+
+  // --- Effect for Stripe Callback Listener ---
+  useEffect(() => {
+    // ========================== STRIPE CALLBACK LISTENER ===========================
+    // PURPOSE:
+    // This listener is designed to receive messages from the parent application
+    // (`app.cg`) after the user is redirected back from Stripe Checkout or the
+    // Stripe Billing Portal. The parent application is expected to detect the
+    // `?stripe_status=` query parameter in its URL, identify this plugin iframe,
+    // and use `postMessage` to send the status back to this listener.
+    //
+    // INTENDED EFFECT:
+    // Upon receiving a `stripeCallback` message, this listener should:
+    // 1. Invalidate the `communityBillingInfo` query. This triggers a refetch of
+    //    the user's current plan status from the backend (which should have
+    //    already been updated by Stripe webhooks).
+    // 2. Show a relevant toast notification (Success, Cancelled, Portal Closed).
+    // 3. This provides *immediate UI feedback* to the user reflecting the outcome
+    //    of their Stripe interaction, without requiring a manual page refresh.
+    //
+    // *** CURRENT STATUS (IMPORTANT!) ***
+    // As of the current implementation date, the corresponding logic in the parent
+    // application (`app.cg`) to *send* this `postMessage` callback after a Stripe
+    // redirect is NOT YET IMPLEMENTED.
+    //
+    // REASON:
+    // The parent page (`app.cg/c/{communityId}/`) needs to be updated to:
+    //   a) Reliably detect the `?stripe_status=` parameter upon load.
+    //   b) Reliably identify *this specific* plugin iframe instance among potentially others.
+    //   c) Dispatch the `postMessage` call to this iframe's origin.
+    //
+    // CONSEQUENCE:
+    // This listener code is **currently INACTIVE** in practice. It will not receive
+    // any messages, and UI updates after returning from Stripe will only occur
+    // when the user manually navigates back to this plugin view, causing the
+    // `useCommunityBillingInfo` hook to refetch data naturally.
+    //
+    // FUTURE ACTIVATION:
+    // This listener will start working as intended once the necessary callback logic
+    // is implemented in the `app.cg` parent application.
+    // ============================================================================
+
+    const parentAppOrigin = process.env.NEXT_PUBLIC_PARENT_APP_URL;
+    if (!parentAppOrigin) {
+        console.warn("NEXT_PUBLIC_PARENT_APP_URL is not set. Cannot verify messages from parent.");
+        // Decide if you want to proceed without origin check or stop here
+        // return;
+    }
+
+    const handleMessage = (event: MessageEvent) => {
+      // 1. Verify origin (important for security)
+      if (parentAppOrigin && event.origin !== parentAppOrigin) {
+        // console.log('Message ignored from origin:', event.origin); // Optional: debug logging
+        return;
+      }
+
+      // 2. Check message structure
+      if (event.data && event.data.type === 'stripeCallback') {
+        console.log('Received Stripe callback message:', event.data);
+        const { status } = event.data; // sessionId might also be present
+
+        // 3. Invalidate query to refresh billing status
+        // We invalidate regardless of status to fetch the latest state
+        queryClient.invalidateQueries({ queryKey: ['communityBillingInfo', communityId] });
+
+        // 4. Show appropriate toast message
+        if (status === 'success') {
+          toast({
+            title: "Payment Successful!",
+            description: "Your plan has been upgraded.",
+          });
+        } else if (status === 'portal_return') {
+           toast({
+             title: "Billing Portal Closed",
+             description: "Your billing information may have been updated.",
+           });
+        } else if (status === 'cancel') {
+          toast({
+            title: "Checkout Cancelled",
+            description: "Your checkout process was cancelled.",
+            variant: "default", // Use default variant for cancellation
+          });
+        }
+        // TODO: Potentially navigate the user within the iframe if needed?
+        // For example, if they were viewing a specific billing error modal.
+      }
+    };
+
+    console.log('Setting up Stripe callback listener for origin:', parentAppOrigin);
+    window.addEventListener('message', handleMessage);
+
+    // Cleanup function to remove listener when component unmounts
+    return () => {
+      console.log('Removing Stripe callback listener');
+      window.removeEventListener('message', handleMessage);
+    };
+  }, [queryClient, communityId, toast]); // Dependencies: re-run if these change
 
   // Display loading indicator
   if (isCoreLoading) {

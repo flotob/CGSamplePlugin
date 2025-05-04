@@ -228,6 +228,14 @@ This plugin uses a custom JWT-based system (`src/lib/withAuth.ts`) to secure API
 *   The plugin integrates with Stripe to handle paid subscription plans (e.g., a 'Pro' tier).
 *   Uses Stripe Checkout for users to initiate subscriptions.
 *   Relies on Stripe Webhooks to keep the application's state synchronized with the subscription status.
+*   **Redirect Flow & UI Updates:**
+    *   After completing a Stripe Checkout or Portal action, the user is redirected back to the main community page in the parent application (`app.cg/c/{communityId}/`).
+    *   The core subscription status update in the plugin's database happens via **Stripe Webhooks** (backend).
+    *   A `postMessage` communication mechanism is implemented in the plugin frontend to listen for callbacks from the parent `app.cg` page. This allows for immediate UI updates (e.g., showing the new plan status) *if* the parent page implements the corresponding logic to detect the Stripe redirect parameters and send the message to the plugin iframe.
+    *   **Currently**, without the parent app implementation or a way to reliably target the plugin iframe on redirect, the user needs to **manually navigate** back to the plugin/billing section after returning from Stripe to see the updated status reflected in the UI (fetched from the webhook-updated database).
+*   **Future-Proofing:**
+    *   The backend API routes (`/api/stripe/create-checkout-session`, `/api/stripe/create-portal-session`) are built to accept an *optional* `pluginId`.
+    *   When the `pluginId` becomes reliably available to the plugin frontend in the future, the redirect URLs can be updated to point directly to the plugin's specific URL within the community (`app.cg/c/{communityId}/plugin/{pluginId}/`). This will enable the parent application to target the `postMessage` callback accurately, providing a more seamless UI update experience for the user without requiring manual navigation.
 *   **Key Webhook Events Handled (`/api/webhooks/stripe`):**
     *   `checkout.session.completed`: To link a Stripe Customer and Subscription to a community upon successful checkout.
     *   `customer.subscription.created` / `customer.subscription.updated`: To update the community's `current_plan_id` based on the active subscription status and plan.
