@@ -4,13 +4,22 @@
 
 Integrate Stripe billing to allow communities to upgrade from the default 'free' plan to paid plans (initially a 'pro' plan). This involves handling subscription creation, management via Stripe Billing Portal, and updating the application's state based on subscription status received via webhooks. This system will enable monetization and provide the mechanism for users to bypass resource limits encountered (e.g., 402 errors).
 
+This plugin runs within an iframe hosted by a parent application (e.g., `app.cg`). This plan accounts for the iframe context and the need for cross-window communication after Stripe redirects.
+
 This plan also outlines the necessary steps to support future metered (usage-based) billing for features like AI chat messages.
 
 ## 2. Prerequisites
 
-*   A configured Stripe account.
-*   Stripe API Keys (Secret and Publishable) for Test and Live modes.
+*   A configured Stripe account (Test Mode initially).
+*   Stripe API Keys (Secret and Publishable) for Test and Live modes set in environment variables.
 *   A defined "Pro Plan" Product with an associated recurring Price object created within the Stripe dashboard (user task). The Price ID will be needed.
+*   Defined environment variables:
+    *   `STRIPE_SECRET_KEY` (Backend)
+    *   `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (Frontend)
+    *   `STRIPE_WEBHOOK_SECRET` (Backend)
+    *   `PARENT_APP_URL`: The base URL of the parent application hosting the iframe (e.g., `https://app.cg`). (Backend)
+    *   `NEXT_PUBLIC_PARENT_APP_URL`: Same as `PARENT_APP_URL`, but accessible by the frontend for origin verification. (Frontend)
+*   Coordination with the parent application (`app.cg`) team to implement the required callback handling on the community page (See Section 6).
 *   (Optional but Recommended) Stripe CLI installed for local webhook testing.
 
 ## 3. Database Schema Changes
@@ -27,82 +36,93 @@ This plan also outlines the necessary steps to support future metered (usage-bas
 All Stripe API calls must happen server-side.
 
 1.  **`POST /api/stripe/create-checkout-session`**
-    *   **Purpose:** Creates a Stripe Checkout session for a community to subscribe to the 'pro' plan.
-    *   **Auth:** Required (likely admin of the community).
-    *   **Input:** Implicit `communityId` from `req.user.cid`.
+    *   **Purpose:** Creates a Stripe Checkout session.
+    *   **Auth:** Required (admin).
+    *   **Input:**
+        *   Implicit `communityId` from `req.user.cid` (JWT).
+        *   *Optional* `{ pluginId?: string }` in the request body (for future use).
     *   **Logic:**
-        *   Retrieve the community record.
-        *   Check if the community *already* has a `stripe_customer_id`. If not, create a new Stripe Customer (`stripe.customers.create`) and store the ID in the `communities` table.
-        *   Retrieve the `stripe_price_id` for the 'pro' plan from the `plans` table.
-        *   Create a Stripe Checkout session (`stripe.checkout.sessions.create`) with:
-            *   `mode: 'subscription'`
-            *   `customer: stripe_customer_id`
-            *   `line_items: [{ price: pro_plan_stripe_price_id, quantity: 1 }]`
-            *   `success_url`: URL to redirect to on success (e.g., back to billing page with success flag).
-            *   `cancel_url`: URL to redirect to on cancellation.
-            *   Crucially, include `client_reference_id: communityId` in the session creation. This helps link the session back to the community in webhooks if the customer ID isn't immediately available.
+        *   Retrieve `communityId` from JWT.
+        *   Retrieve optional `pluginId` from request body.
+        *   Get/Create Stripe Customer ID.
+        *   Get Pro Plan `stripe_price_id`.
+        *   Get `PARENT_APP_URL` from env.
+        *   **Conditionally construct `success_url` and `cancel_url`:**
+            *   `baseUrl = pluginId ? `${PARENT_APP_URL}/c/${communityId}/plugin/${pluginId}/` : `${PARENT_APP_URL}/c/${communityId}/` `
+            *   `success_url`: ``${baseUrl}?stripe_status=success&session_id={CHECKOUT_SESSION_ID}``
+            *   `cancel_url`: ``${baseUrl}?stripe_status=cancel``
+        *   Create Stripe Checkout session with these URLs and `client_reference_id: communityId`.
     *   **Response:** `{ sessionId: string }`
 
 2.  **`POST /api/stripe/create-portal-session`**
-    *   **Purpose:** Creates a Stripe Billing Portal session link for a community to manage their existing subscription.
-    *   **Auth:** Required (likely admin of the community).
-    *   **Input:** Implicit `communityId` from `req.user.cid`.
+    *   **Purpose:** Creates a Stripe Billing Portal session.
+    *   **Auth:** Required (admin).
+    *   **Input:**
+        *   Implicit `communityId` from `req.user.cid` (JWT).
+        *   *Optional* `{ pluginId?: string }` in the request body (for future use).
     *   **Logic:**
-        *   Retrieve the `stripe_customer_id` for the given `communityId` from the `communities` table.
-        *   If no `stripe_customer_id` exists, return an error (user isn't a Stripe customer yet).
-        *   Create a Stripe Billing Portal session (`stripe.billingPortal.sessions.create`) with:
-            *   `customer: stripe_customer_id`
-            *   `return_url`: URL to redirect back to after portal usage (e.g., billing page).
+        *   Retrieve `communityId` from JWT.
+        *   Retrieve optional `pluginId` from request body.
+        *   Retrieve `stripe_customer_id` for `communityId`.
+        *   Get `PARENT_APP_URL` from env.
+        *   **Conditionally construct `return_url`:**
+            *   `baseUrl = pluginId ? `${PARENT_APP_URL}/c/${communityId}/plugin/${pluginId}/` : `${PARENT_APP_URL}/c/${communityId}/` `
+            *   `return_url`: ``${baseUrl}?stripe_status=portal_return``
+        *   Create Stripe Billing Portal session with this `return_url`.
     *   **Response:** `{ portalUrl: string }`
 
 3.  **`POST /api/webhooks/stripe`**
     *   **Purpose:** Handles incoming events from Stripe to keep application state consistent.
     *   **Auth:** None (public endpoint, relies on Stripe signature verification).
     *   **Logic:**
-        *   **Verify Signature:** Use `stripe.webhooks.constructEvent` with the raw request body, `stripe-signature` header, and your webhook signing secret (`STRIPE_WEBHOOK_SECRET` environment variable).
-        *   **Handle Events (Switch statement based on `event.type`):**
-            *   `checkout.session.completed`:
-                *   If `mode` is `subscription`.
-                *   Retrieve `client_reference_id` (our `communityId`) and `customer` (Stripe Customer ID) from the session data (`event.data.object`).
-                *   Retrieve `subscription` ID.
-                *   Update the corresponding `communities` record: set `stripe_customer_id` and potentially `current_plan_id` (though this might be better handled by `customer.subscription.created/updated`). Store the `subscription_id` if needed for management.
-            *   `customer.subscription.created` / `customer.subscription.updated`:
-                *   Get `customer` ID and plan details (`items.data[0].price.id`) from the subscription object (`event.data.object`).
-                *   Find the corresponding `community` via `stripe_customer_id`.
-                *   Lookup the internal `plan.id` based on the `stripe_price_id`.
-                *   Update `communities.current_plan_id` based on the active subscription plan.
-                *   Handle status changes (e.g., `trialing`, `active`, `past_due`).
-            *   `customer.subscription.deleted`:
-                *   Get `customer` ID.
-                *   Find the corresponding `community`.
-                *   Update `communities.current_plan_id` back to the 'free' plan ID.
-            *   `invoice.paid`: Confirm successful payment (good for logging/analytics, potentially resetting metered usage counters if implemented).
-            *   `invoice.payment_failed`: Log failure, potentially notify community admin.
-        *   **Response:** Return `200 OK` to Stripe quickly to acknowledge receipt. Handle business logic asynchronously if it might take time.
+        *   Verify Signature using `STRIPE_WEBHOOK_SECRET`.
+        *   Handle Events (`checkout.session.completed`, `customer.subscription.*`, `invoice.*` etc.)
+        *   Update `communities` table (`stripe_customer_id`, `current_plan_id`).
+        *   Respond `200 OK` to Stripe.
 
 ## 5. Frontend Integration (@stripe/stripe-js)
 
-Implement a modular approach using custom hooks and a dedicated component for reusability.
+Implement a modular approach using custom hooks and a dedicated component. Account for iframe context and parent communication.
 
 1.  **Custom Hooks (@tanstack/react-query):**
-    *   `useCommunityBillingInfo`: Create a hook to fetch data from `/api/community/billing-info`. Encapsulates data fetching, caching, loading, and error states for community plan details and `stripe_customer_id`.
-    *   `useCreateCheckoutSession`: Create a `useMutation` hook to call `POST /api/stripe/create-checkout-session`. Manages the API call state (loading, error) and handles the redirect to Stripe Checkout using `@stripe/stripe-js` on success.
-    *   `useCreatePortalSession`: Create a `useMutation` hook to call `POST /api/stripe/create-portal-session`. Manages the API call state and handles the redirect to the Stripe Billing Portal on success.
+    *   `useCommunityBillingInfo`: Fetches data from `/api/community/billing-info`.
+    *   `useCreateCheckoutSession`:
+        *   `mutate` function accepts no arguments for now.
+        *   `mutationFn` calls backend API without a request body.
+        *   Handles API call state, errors, and Stripe.js redirect.
+    *   `useCreatePortalSession`:
+        *   `mutate` function accepts no arguments for now.
+        *   `mutationFn` calls backend API without a request body.
+        *   Handles API call state, errors, and *direct window redirect* (`window.location.href = portalUrl`).
 2.  **Dedicated UI Component (`BillingManagementSection.tsx`):**
-    *   Create a new component responsible for displaying billing status and actions.
-    *   Uses `useCommunityBillingInfo` to fetch data.
-    *   Conditionally renders current plan info ("Free Plan" / "Pro Plan").
-    *   Conditionally renders either an "Upgrade to Pro" button or a "Manage Subscription" button (only if `stripe_customer_id` exists).
-    *   Uses the mutation hooks (`useCreateCheckoutSession`, `useCreatePortalSession`) to get mutate functions and loading states for the buttons.
-    *   Handles displaying loading states on buttons and showing errors via `useToast`.
+    *   Accepts `communityId` as prop (no `pluginId` needed for now).
+    *   Uses `useCommunityBillingInfo(communityId)`.
+    *   Conditionally render info and buttons.
+    *   Calls mutation hooks: `createCheckoutSession()` or `createPortalSession()`.
+    *   Handles loading/error states.
 3.  **Integration in Admin Settings (`AdminView.tsx`):**
-    *   Import and render the `<BillingManagementSection />` component within the `activeSection === 'account'` block, replacing the placeholder.
+    *   Render `<BillingManagementSection communityId={...} />`.
 4.  **Handling 402 Errors Elsewhere:**
-    *   When other parts of the application receive a structured 402 error:
-        *   Display a relevant message (e.g., "Upgrade required to add more wizards").
-        *   Provide an "Upgrade" button/link that directly triggers the mutation function from the `useCreateCheckoutSession` hook, initiating the checkout flow without necessarily rendering the full `<BillingManagementSection />`.
+    *   Show simple message + button triggering `useCreateCheckoutSession().mutate()`.
+5.  **Parent Communication Listener:**
+    *   Implement a `message` event listener (e.g., in `PluginContainer` or `AuthContext`).
+    *   Verify message `event.origin` against `NEXT_PUBLIC_PARENT_APP_URL`.
+    *   Check for `event.data.type === 'stripeCallback'`.
+    *   Based on `event.data.status` ('success', 'cancel', 'portal_return'):
+        *   Show appropriate toasts.
+        *   Invalidate `communityBillingInfo` query using `queryClient` to refresh the UI state (will take effect when user navigates back to plugin).
 
-## 6. Metered Billing (Aspirational / Phase 2)
+## 6. Parent Application (`app.cg`) Responsibilities
+
+*   **Implement Community Page Callback Logic:** The parent application page loaded at `/c/{communityId}/` needs specific logic.
+*   **Detect Stripe Parameters:** On load, this page must check for the presence of `?stripe_status=...` (and `session_id=...` on success) in the URL.
+*   **Identify Target Iframe:** Determine which iframe on the page corresponds to this plugin instance. This might involve:
+    *   The plugin iframe sending an initial `postMessage` to the parent identifying itself (e.g., `{ type: 'pluginReady', pluginType: 'onboardingWizard' }`).
+    *   The parent storing this iframe reference.
+*   **Send Message:** Once the correct iframe is identified and the `stripe_status` is detected, use `iframeElement.contentWindow.postMessage({ type: 'stripeCallback', status: '...', sessionId?: '...' }, pluginOrigin)` to send the status back to the plugin iframe. `pluginOrigin` is the plugin's origin (e.g., ngrok URL).
+*   **Clear/Handle Parameters:** The parent page should ideally handle or clear the `stripe_status` URL parameters after processing to avoid reprocessing on subsequent loads.
+
+## 7. Metered Billing (Aspirational / Phase 2)
 
 1.  **Stripe Setup:** Create a metered Price for the relevant feature (e.g., AI Chat Messages per unit).
 2.  **Plan Limits:** Add a corresponding `plan_limits` entry for the `pro` plan and `ai_chat_message` feature (e.g., limit=10000, window='30 days').
@@ -115,28 +135,31 @@ Implement a modular approach using custom hooks and a dedicated component for re
     *   **Considerations:** Reporting usage on every event might be excessive. Batching usage (e.g., hourly/daily counts) might be more efficient, but requires more state management.
 4.  **Enforcement:** The existing `enforceEventRateLimit` function will handle checking usage against the `plan_limits` for metered features.
 
-## 7. Implementation Roadmap
+## 8. Implementation Roadmap
 
-1.  **Stripe Product/Price Setup (User Task):** Create the "Pro" Product and its recurring Price in Stripe Test mode. Note the Price ID (`price_...`).
-2.  **Database Migration:**
-    *   Create migration file (`...002`) to add `stripe_customer_id` to `communities`.
-    *   Create migration file (`...003`) to update `plans` table with `stripe_price_id`. (Requires manual update of placeholder ID).
-3.  **Environment Setup:** Add Stripe keys and webhook secret to `.env.local`.
-4.  **Implement Webhook Handler (`/api/webhooks/stripe`):** Handle key events (`checkout.session.completed`, `customer.subscription.*`, etc.) to update DB state.
-5.  **Implement Backend API for Billing Info (`GET /api/community/billing-info`):** (New Step) Create endpoint to fetch community plan code, name, and stripe_customer_id.
-6.  **Implement Checkout Session API (`/api/stripe/create-checkout-session`):** Handle customer creation/retrieval and session creation.
-7.  **Implement Portal Session API (`/api/stripe/create-portal-session`):** Handle retrieval of customer ID and portal session creation.
-8.  **Implement Frontend Hooks & Component:** Create `useCommunityBillingInfo`, `useCreateCheckoutSession`, `useCreatePortalSession` hooks and the `<BillingManagementSection />` component.
-9.  **Integrate Billing Component:** Add `<BillingManagementSection />` to `AdminView.tsx`.
-10. **Test Thoroughly:** End-to-end testing with Stripe test mode, webhooks, UI interactions.
-11. **Integrate 402 Error Handling:** Enhance components triggering quotas to use the billing hooks/UI for upgrade prompts.
-12. **(Phase 2) Metered Billing:** Implement steps outlined in Section 6 if/when needed.
+1.  **Stripe Product/Price Setup (User Task)**
+2.  **Database Migration**
+3.  **Environment Setup:** Add Stripe keys, webhook secret, `PARENT_APP_URL`, `NEXT_PUBLIC_PARENT_APP_URL`.
+4.  **Implement Webhook Handler (`/api/webhooks/stripe`)**
+5.  **Implement Billing Info API (`GET /api/community/billing-info`)**
+6.  **Update Checkout Session API (`/api/stripe/create-checkout-session`):** Implement *conditional* URL logic (accept optional `pluginId`, default to `/c/{communityId}/` URL for now).
+7.  **Update Portal Session API (`/api/stripe/create-portal-session`):** Implement *conditional* URL logic (accept optional `pluginId`, default to `/c/{communityId}/` URL for now).
+8.  **Frontend Hooks (`useCreate...`)**: (No changes needed *now*)
+9.  **Implement Frontend Listener:** Add `message` listener.
+10. **Frontend Component (`BillingManagementSection`):** (No changes needed *now*)
+11. **Billing Component Integration (`AdminView.tsx`):** (No changes needed *now*)
+12. **Parent App Implementation (`app.cg` Task):** Implement `/c/{communityId}/` callback logic (Section 6).
+13. **Test Thoroughly:** End-to-end testing including parent app interaction and manual navigation.
+14. **Integrate 402 Error Handling**
+15. **(Phase 2) Metered Billing**
+16. **(Future) Frontend Updates:** When `pluginId` is available, update frontend hooks/components to pass it.
+17. **(Future) Parent App Updates:** Update `app.cg` callback logic to handle the specific plugin URL.
 
-## 8. Open Questions & Considerations
+## 9. Open Questions & Considerations
 
-*   **Webhook Idempotency:** How will duplicate webhook events be handled? (e.g., check if state update already occurred).
-*   **Error Handling:** Robust handling for Stripe API errors, network issues, invalid user states.
-*   **Free Plan Handling:** Confirm all logic correctly bypasses Stripe for 'free' plan users.
-*   **Trial Periods:** Will the 'pro' plan offer a trial period? This requires adjustments in Checkout session creation and webhook handling.
-*   **UI Details:** Exact design and flow for the billing section and upgrade prompts.
-*   **Security:** Ensure webhook secret is secure, restrict API key permissions if possible. 
+*   **Parent App Coordination:** Confirm timeline and implementation details for the parent app changes (Section 6), especially the strategy for identifying the correct iframe and handling message timing.
+*   **Frontend `pluginId` Source (Future):** How will the `pluginId` eventually be accessed by the frontend?
+*   **Error Handling:** Robust handling for Stripe API errors, network issues, `postMessage` failures, invalid user states.
+*   **Trial Periods:** Will the 'pro' plan offer a trial period?
+*   **UI/UX:** Clarify user instructions regarding manual navigation back/refresh needed after Stripe interaction to see updated status.
+*   **Security:** Ensure webhook secret secure, restrict API key permissions, verify `postMessage` origin. 
