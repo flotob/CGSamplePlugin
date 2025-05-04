@@ -14,10 +14,10 @@ type Role = NonNullable<CommunityInfoResponsePayload['roles']>[number];
 
 // NewWizardButton component
 interface NewWizardButtonProps {
-  communityInfo: CommunityInfoResponsePayload | undefined;
-  assignableRoles: Role[] | undefined; // Accept assignableRoles prop
+  // communityInfo: CommunityInfoResponsePayload | undefined; // Removed as unused
+  assignableRoles: Role[] | undefined;
 }
-export const NewWizardButton: React.FC<NewWizardButtonProps> = ({ communityInfo, assignableRoles }) => {
+export const NewWizardButton: React.FC<NewWizardButtonProps> = ({ /* communityInfo, */ assignableRoles }) => { // Commented out prop
   const [open, setOpen] = React.useState(false);
   const [name, setName] = React.useState('');
   const [description, setDescription] = React.useState('');

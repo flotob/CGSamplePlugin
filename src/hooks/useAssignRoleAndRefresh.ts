@@ -2,7 +2,7 @@
 
 import { useMutation, useQueryClient, UseMutationResult } from '@tanstack/react-query';
 import { useCgLib } from '@/context/CgLibContext';
-import { useAuth } from '@/context/AuthContext';
+// import { useAuth } from '@/context/AuthContext'; // Removed unused import
 import { useToast } from '@/hooks/use-toast';
 
 // Define the input variables for the mutation
@@ -25,7 +25,7 @@ type UseAssignRoleAndRefreshResult = UseMutationResult<
  */
 export function useAssignRoleAndRefresh(): UseAssignRoleAndRefreshResult {
   const { cgInstance, iframeUid } = useCgLib();
-  const { login, logout } = useAuth();
+  // const { login, logout } = useAuth(); // Removed as unused here
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -40,7 +40,7 @@ export function useAssignRoleAndRefresh(): UseAssignRoleAndRefreshResult {
       // Perform the role assignment using the library
       await cgInstance.giveRole(roleId, userId);
     },
-    onSuccess: async (data, variables) => {
+    onSuccess: async (_data, variables) => {
       // Only handle success toast and userInfo invalidation here
       console.log(`Successfully called giveRole for role ${variables.roleId}, user ${variables.userId}.`);
       toast({

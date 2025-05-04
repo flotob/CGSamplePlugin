@@ -46,7 +46,7 @@ export const useUpdateWizardRoleRequirementMutation = () => {
         );
         return response;
       },
-      onSuccess: (data, variables) => {
+      onSuccess: () => {
         // Invalidate the wizards query to refetch the list with updated data
         queryClient.invalidateQueries({ queryKey: ['wizards'] });
         toast({ title: "Role requirement updated successfully!" });
