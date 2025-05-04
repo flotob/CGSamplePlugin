@@ -176,9 +176,10 @@ export const WizardListItem: React.FC<WizardListItemProps> = ({
           <div className="flex flex-col items-end gap-1 flex-shrink-0">
              <Badge 
                variant={wizard.is_active ? 'default' : 'secondary'} 
-               className={wizard.is_active 
-                 ? 'bg-emerald-950/50 text-emerald-300 border border-emerald-700/30 hover:bg-emerald-950/60' 
-                 : 'bg-secondary/50 hover:bg-secondary/70'}>
+               className={wizard.is_active
+                 ? 'bg-emerald-100 text-emerald-800 border border-emerald-200 hover:bg-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-700/30 dark:hover:bg-emerald-950/60'
+                 : 'bg-secondary/50 hover:bg-secondary/70'
+               }>
                {wizard.is_active ? 'Published' : 'Draft'}
              </Badge>
              <span className="text-xs text-muted-foreground mt-1">Updated {updatedAt}</span>
