@@ -23,6 +23,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuthFetch } from '@/lib/authFetch';
 import Image from 'next/image';
 import { BillingManagementSection } from './billing/BillingManagementSection';
+import { QuotaUsageDisplay } from './admin/QuotaUsageDisplay';
 
 // Define props expected from PluginContainer
 interface AdminViewProps {
@@ -520,8 +521,11 @@ export const AdminView: React.FC<AdminViewProps> = ({
             </CardContent>
           </Card>
 
-          {/* Plan & Billing Card */}
+          {/* Plan & Billing Card (potentially spanning full width if only two cols, or keep alongside usage) */}
           <BillingManagementSection communityId={communityInfo?.id} />
+
+          {/* Plan Usage Card (Spanning full width below settings/billing) */}
+          <QuotaUsageDisplay className="md:col-span-2" /> 
         </div>
       )}
 
