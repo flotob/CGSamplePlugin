@@ -18,7 +18,7 @@ export function usePublishWizard() {
       }
       
       return await authFetch<{ wizard: Wizard }>(`/api/wizards/${wizardId}`, {
-        method: 'PUT',
+        method: 'PATCH',
         body: JSON.stringify({ is_active }), // Send only is_active for patching
         headers: { 'Content-Type': 'application/json' },
       });
@@ -121,7 +121,7 @@ export function useUpdateWizardDetails() {
       }
 
       return await authFetch<{ wizard: Wizard }>(`/api/wizards/${wizardId}`, {
-        method: 'PUT',
+        method: 'PATCH',
         body: JSON.stringify(payload),
         headers: { 'Content-Type': 'application/json' },
       });
