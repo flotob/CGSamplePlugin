@@ -82,24 +82,25 @@ All Stripe API calls must happen server-side.
 
 ## 5. Frontend Integration (@stripe/stripe-js)
 
-1.  **Billing Section UI:**
-    *   Locate the placeholder for "Plan & Billing" in the admin account section.
-    *   Display the community's current plan (based on `communities.current_plan_id`).
-    *   If on 'free' plan: Show an "Upgrade to Pro" button.
-    *   If on 'pro' plan (or other paid plan): Show plan details and a "Manage Subscription" button.
-2.  **Upgrade Flow:**
-    *   "Upgrade" button calls `/api/stripe/create-checkout-session`.
-    *   On success, retrieve `sessionId`.
-    *   Use `stripe.redirectToCheckout({ sessionId })` from `@stripe/stripe-js` to redirect the user to Stripe.
-    *   Handle potential errors from the API call or `redirectToCheckout`.
-3.  **Manage Subscription Flow:**
-    *   "Manage Subscription" button calls `/api/stripe/create-portal-session`.
-    *   On success, retrieve `portalUrl`.
-    *   Redirect the user: `window.location.href = portalUrl;`.
-    *   Handle potential errors.
-4.  **Handling 402 Errors:**
-    *   When API calls (like creating/activating a wizard) return the structured 402 error, the frontend should parse the error details.
-    *   Instead of just showing a generic error toast, it could display a more specific message like "Upgrade to Pro to add more active wizards (Limit: 3)" and include a prominent link/button directing the user to the Billing Section UI.
+Implement a modular approach using custom hooks and a dedicated component for reusability.
+
+1.  **Custom Hooks (@tanstack/react-query):**
+    *   `useCommunityBillingInfo`: Create a hook to fetch data from `/api/community/billing-info`. Encapsulates data fetching, caching, loading, and error states for community plan details and `stripe_customer_id`.
+    *   `useCreateCheckoutSession`: Create a `useMutation` hook to call `POST /api/stripe/create-checkout-session`. Manages the API call state (loading, error) and handles the redirect to Stripe Checkout using `@stripe/stripe-js` on success.
+    *   `useCreatePortalSession`: Create a `useMutation` hook to call `POST /api/stripe/create-portal-session`. Manages the API call state and handles the redirect to the Stripe Billing Portal on success.
+2.  **Dedicated UI Component (`BillingManagementSection.tsx`):**
+    *   Create a new component responsible for displaying billing status and actions.
+    *   Uses `useCommunityBillingInfo` to fetch data.
+    *   Conditionally renders current plan info ("Free Plan" / "Pro Plan").
+    *   Conditionally renders either an "Upgrade to Pro" button or a "Manage Subscription" button (only if `stripe_customer_id` exists).
+    *   Uses the mutation hooks (`useCreateCheckoutSession`, `useCreatePortalSession`) to get mutate functions and loading states for the buttons.
+    *   Handles displaying loading states on buttons and showing errors via `useToast`.
+3.  **Integration in Admin Settings (`AdminView.tsx`):**
+    *   Import and render the `<BillingManagementSection />` component within the `activeSection === 'account'` block, replacing the placeholder.
+4.  **Handling 402 Errors Elsewhere:**
+    *   When other parts of the application receive a structured 402 error:
+        *   Display a relevant message (e.g., "Upgrade required to add more wizards").
+        *   Provide an "Upgrade" button/link that directly triggers the mutation function from the `useCreateCheckoutSession` hook, initiating the checkout flow without necessarily rendering the full `<BillingManagementSection />`.
 
 ## 6. Metered Billing (Aspirational / Phase 2)
 
@@ -118,17 +119,18 @@ All Stripe API calls must happen server-side.
 
 1.  **Stripe Product/Price Setup (User Task):** Create the "Pro" Product and its recurring Price in Stripe Test mode. Note the Price ID (`price_...`).
 2.  **Database Migration:**
-    *   Create a new migration file.
-    *   Add `stripe_customer_id TEXT UNIQUE NULLABLE` column to `communities` table.
-    *   Update the `plans` table to set the `stripe_price_id` for the `pro` plan code using the ID from Step 1 (`UPDATE plans SET stripe_price_id = 'price_xyz...' WHERE code = 'pro';`). Use `pgm.sql()` within the migration.
-3.  **Environment Setup:** Add `STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, and `STRIPE_WEBHOOK_SECRET` (from Stripe Dashboard webhook creation) to `.env.local` (and relevant deployment environments).
-4.  **Implement Webhook Handler (`/api/webhooks/stripe`):** Start with signature verification and handling `checkout.session.completed` and `customer.subscription.deleted/updated` to reliably update `communities.current_plan_id` and `communities.stripe_customer_id`.
-5.  **Implement Checkout Session API (`/api/stripe/create-checkout-session`):** Handle customer creation/retrieval and session creation for the 'pro' plan.
-6.  **Implement Portal Session API (`/api/stripe/create-portal-session`):** Handle retrieval of customer ID and portal session creation.
-7.  **Basic Frontend Integration:** Add "Upgrade" and "Manage" buttons (logic based on current plan ID), integrate `@stripe/stripe-js` for redirects.
-8.  **Test Thoroughly:** Use Stripe test cards, Stripe CLI webhook forwarding, simulate plan changes, cancellations.
-9.  **Integrate 402 Error Handling:** Enhance frontend components that might trigger quota errors to show upgrade prompts/links based on the structured 402 response.
-10. **(Phase 2) Metered Billing:** Implement steps outlined in Section 6 if/when needed.
+    *   Create migration file (`...002`) to add `stripe_customer_id` to `communities`.
+    *   Create migration file (`...003`) to update `plans` table with `stripe_price_id`. (Requires manual update of placeholder ID).
+3.  **Environment Setup:** Add Stripe keys and webhook secret to `.env.local`.
+4.  **Implement Webhook Handler (`/api/webhooks/stripe`):** Handle key events (`checkout.session.completed`, `customer.subscription.*`, etc.) to update DB state.
+5.  **Implement Backend API for Billing Info (`GET /api/community/billing-info`):** (New Step) Create endpoint to fetch community plan code, name, and stripe_customer_id.
+6.  **Implement Checkout Session API (`/api/stripe/create-checkout-session`):** Handle customer creation/retrieval and session creation.
+7.  **Implement Portal Session API (`/api/stripe/create-portal-session`):** Handle retrieval of customer ID and portal session creation.
+8.  **Implement Frontend Hooks & Component:** Create `useCommunityBillingInfo`, `useCreateCheckoutSession`, `useCreatePortalSession` hooks and the `<BillingManagementSection />` component.
+9.  **Integrate Billing Component:** Add `<BillingManagementSection />` to `AdminView.tsx`.
+10. **Test Thoroughly:** End-to-end testing with Stripe test mode, webhooks, UI interactions.
+11. **Integrate 402 Error Handling:** Enhance components triggering quotas to use the billing hooks/UI for upgrade prompts.
+12. **(Phase 2) Metered Billing:** Implement steps outlined in Section 6 if/when needed.
 
 ## 8. Open Questions & Considerations
 
