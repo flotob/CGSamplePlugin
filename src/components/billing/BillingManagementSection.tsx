@@ -127,6 +127,25 @@ export const BillingManagementSection: React.FC<BillingManagementSectionProps> =
         {/* Additional Pro Plan Details */} 
         {isProPlan && (
           <div className="space-y-2 border-t pt-4 mt-4">
+            {/* 
+              KNOWN ISSUE / TODO:
+              Currently, the UI does not always reflect when a subscription is set to 
+              'cancel_at_period_end' in Stripe. Even though the Stripe Billing Portal 
+              correctly shows the cancellation date, and the backend API 
+              (/api/community/billing-info) is intended to fetch and return the 
+              `cancelAtPeriodEnd: true` flag, this component sometimes fails to display 
+              the "(Cancels on...)" message.
+              
+              Possible causes could be:
+              - Caching issues with React Query (`useCommunityBillingInfo`).
+              - Intermittent issues fetching/assigning the `cancelAtPeriodEnd` flag in the backend API.
+              - Subtle type mismatches or runtime discrepancies with the Stripe SDK/API response.
+              
+              Since users can verify the correct cancellation status and date directly in the 
+              Stripe Billing Portal via the "Manage Subscription" button, this is not currently
+              blocking core functionality, but should be investigated further for a more 
+              seamless UI experience.
+            */}
             {billingInfo.subscriptionStatus && (
                 <DetailRow 
                     icon={CheckCircle} 
