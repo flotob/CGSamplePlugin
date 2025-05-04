@@ -17,12 +17,6 @@ export interface QuotaComparisonData {
   plans: PlanQuotaInfo[]; // Array of all available plans
 }
 
-// Define potential error structure from the API
-interface ApiError {
-    error: string;
-    details?: string;
-}
-
 /**
  * React Query hook to fetch the community's current quota usage for active wizards.
  * This is intended for use in admin-only contexts.
