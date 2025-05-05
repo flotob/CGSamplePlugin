@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Step, useUpdateStep, useDeleteStep } from '@/hooks/useStepsQuery';
 import { Button } from '@/components/ui/button';
 import { useStepTypesQuery, StepType } from '@/hooks/useStepTypesQuery';
@@ -32,6 +32,9 @@ import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BackgroundType } from './CommonStepPresentationSettings';
 import { ColorPicker } from '../../color-picker';
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Input } from "@/components/ui/input";
+import { extractYouTubeVideoId, isValidYouTubeUrl } from "@/lib/utils";
 
 interface CommunityRole {
   id: string;
@@ -94,6 +97,9 @@ export const StepEditor: React.FC<StepEditorProps> = ({
   const [isImageLibraryOpen, setIsImageLibraryOpen] = useState(false);
 
   const myImagesQuery = useAdminImagesQuery({ scope: 'mine' });
+
+  const [youtubeUrlInput, setYoutubeUrlInput] = useState('');
+  const [youtubeError, setYoutubeError] = useState<string | null>(null);
 
   const handlePresentationChange = React.useCallback((newPresentationConfig: PresentationConfig) => {
     setStepConfig(prev => ({ ...prev, presentation: newPresentationConfig }));
@@ -189,7 +195,62 @@ export const StepEditor: React.FC<StepEditorProps> = ({
     setIsImageLibraryOpen(false);
   }, [step, isCreating]);
 
+  useEffect(() => {
+    const type = stepConfig.presentation.backgroundType;
+    const value = stepConfig.presentation.backgroundValue;
+
+    if (type === 'youtube' && typeof value === 'string') {
+      if (youtubeUrlInput !== value) { 
+          setYoutubeUrlInput(value || '');
+      }
+      setYoutubeError(null); 
+    } else {
+       if (youtubeUrlInput !== '') {
+           setYoutubeUrlInput('');
+       }
+       setYoutubeError(null);
+    }
+  }, [stepConfig.presentation.backgroundType, stepConfig.presentation.backgroundValue]);
+
   const currentMutation = isCreating ? createStepMutation : updateStep;
+
+  const handleYouTubeUrlChange = (url: string) => {
+    setYoutubeUrlInput(url);
+
+    if (!url) {
+      setYoutubeError(null);
+      if (stepConfig.presentation.backgroundType === 'youtube') {
+          setStepConfig(prev => ({
+            ...prev,
+            presentation: { ...prev.presentation, backgroundValue: null }
+          }));
+      }
+      return;
+    }
+
+    if (isValidYouTubeUrl(url)) {
+      const videoId = extractYouTubeVideoId(url);
+      if (videoId) {
+        setYoutubeError(null);
+        setStepConfig(prev => ({
+          ...prev,
+          presentation: { 
+            ...prev.presentation, 
+            backgroundType: 'youtube', 
+            backgroundValue: url
+          }
+        }));
+      } else {
+        setYoutubeError('Could not extract Video ID from URL.');
+      } 
+    } else {
+      setYoutubeError('Please enter a valid YouTube URL (youtube.com or youtu.be).');
+    }
+  };
+
+  const previewVideoId = (stepConfig.presentation.backgroundType === 'youtube' && typeof stepConfig.presentation.backgroundValue === 'string') 
+      ? extractYouTubeVideoId(stepConfig.presentation.backgroundValue)
+      : null;
 
   if (isSummaryPreview) {
     return (
@@ -394,10 +455,40 @@ export const StepEditor: React.FC<StepEditorProps> = ({
                   </div>
                 </TabsContent>
 
-                <TabsContent value="youtube" className="mt-4">
-                   <div className="p-4 border rounded bg-muted/30">
-                    <p className="text-sm text-muted-foreground">[YouTube Background Settings Coming Soon]</p>
-                  </div>
+                <TabsContent value="youtube" className="mt-4 space-y-3">
+                    <div>
+                        <Label htmlFor="youtube-url">YouTube Video URL</Label>
+                        <Input 
+                            id="youtube-url"
+                            type="url" 
+                            placeholder="https://www.youtube.com/watch?v=..." 
+                            value={youtubeUrlInput}
+                            onChange={(e) => setYoutubeUrlInput(e.target.value)}
+                            onBlur={(e) => handleYouTubeUrlChange(e.target.value)}
+                            className={cn(youtubeError && "border-destructive")}
+                        />
+                        {youtubeError && <p className="text-xs text-destructive mt-1">{youtubeError}</p>}
+                    </div>
+                    <div>
+                        <Label className="text-sm font-medium mb-1 block">Preview</Label>
+                        {previewVideoId ? (
+                            <div className="aspect-video w-full max-w-sm border rounded overflow-hidden bg-black">
+                                <iframe
+                                    width="100%"
+                                    height="100%"
+                                    src={`https://www.youtube.com/embed/${previewVideoId}?autoplay=0&origin=${typeof window !== 'undefined' ? window.location.origin : ''}`}
+                                    title="YouTube video preview"
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                    allowFullScreen
+                                    style={{ border: 0 }}
+                                />
+                            </div>
+                        ) : (
+                            <div className="flex items-center justify-center h-32 w-full max-w-sm border rounded bg-muted text-sm text-muted-foreground">
+                                {stepConfig.presentation.backgroundType === 'youtube' && stepConfig.presentation.backgroundValue ? 'Invalid or unsupported URL' : 'Enter URL to see preview'}
+                            </div>
+                        )}
+                    </div>
                 </TabsContent>
               </Tabs>
            </AccordionContent>
