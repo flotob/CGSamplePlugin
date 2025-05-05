@@ -32,13 +32,13 @@ const s3Client = new S3Client({
  * Downloads an image from a source URL and uploads it to the configured S3 bucket.
  * 
  * @param sourceUrl The temporary URL of the image to download (e.g., from OpenAI).
- * @param pathPrefix A prefix for the object key (e.g., 'communityId/wizardId/stepId').
+ * @param communityId The ID of the community this image belongs to.
  * @returns The persistent public URL of the uploaded image.
  * @throws If download or upload fails.
  */
 export async function uploadImageFromUrl(
   sourceUrl: string,
-  pathPrefix: string
+  communityId: string
 ): Promise<string> {
   if (!publicUrlPrefix) {
       throw new Error('STORAGE_PUBLIC_URL_PREFIX environment variable is not set.');
@@ -56,7 +56,7 @@ export async function uploadImageFromUrl(
     // 2. Generate a unique destination key
     const fileExtension = contentType.split('/')[1] || 'png';
     const uniqueFilename = `${uuidv4()}.${fileExtension}`;
-    const destinationKey = `${pathPrefix.replace(/\/$/, '')}/${uniqueFilename}`; // Ensure no trailing slash in prefix
+    const destinationKey = `${communityId}/images/${uniqueFilename}`;
 
     console.log(`Uploading image to: ${bucketName}/${destinationKey}`);
 
