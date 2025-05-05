@@ -6,6 +6,13 @@ import { Textarea } from '@/components/ui/textarea';
 // Define the possible background types
 export type BackgroundType = 'image' | 'color' | 'gradient' | 'youtube';
 
+// Define structure for gradient options - ADD EXPORT
+export interface GradientValue {
+  color1: string;
+  color2: string;
+  direction: 'to right' | 'to bottom';
+}
+
 // Updated PresentationConfig structure
 export interface PresentationConfig {
   headline?: string | null;

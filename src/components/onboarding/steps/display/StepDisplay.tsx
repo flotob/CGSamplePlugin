@@ -3,6 +3,9 @@
 import React from 'react';
 import type { UserStepProgress } from '@/app/api/user/wizards/[wizardId]/steps/route';
 import type { StepType } from '@/hooks/useStepTypesQuery'; // Assuming StepType definition
+import { cn } from "@/lib/utils"; // Import cn
+// Import background types and GradientValue structure
+import { BackgroundType, GradientValue, PresentationConfig } from '../CommonStepPresentationSettings'; 
 
 // Import specific step display components
 import { EnsVerificationStepDisplay } from './EnsVerificationStepDisplay';
@@ -15,7 +18,7 @@ interface StepDisplayProps {
   step: UserStepProgress;
   stepType: StepType | undefined; // Pass the resolved step type object
   // Add callbacks for completion/error handling later
-  onComplete: () => void; // Pass down the onComplete handler
+  onComplete: (completionData?: Record<string, unknown>) => void; // Added arg type based on usage
   // onError: (errorMessage: string) => void;
 }
 
@@ -26,30 +29,58 @@ export const StepDisplay: React.FC<StepDisplayProps> = ({
   // onError,
 }) => {
 
-  if (!stepType) {
-    return <div className="text-destructive p-4">Error: Unknown step type ID: {step.step_type_id}</div>;
+  // Log received configuration
+  console.log('[StepDisplay] Received step config:', step.config?.presentation);
+
+  const presentationConfig = step.config?.presentation as PresentationConfig | undefined;
+  const backgroundType = presentationConfig?.backgroundType;
+  const backgroundValue = presentationConfig?.backgroundValue;
+
+  const backgroundStyle: React.CSSProperties = {};
+  // Background container classes - remove overflow-y-auto since scrolling will be handled by parent
+  let backgroundClasses = "w-full h-full flex-grow flex flex-col relative"; 
+  let renderYoutubeBackground = false;
+
+  if (backgroundType === 'image' && typeof backgroundValue === 'string') {
+    backgroundStyle.backgroundImage = `url("${backgroundValue}")`;
+    backgroundClasses = cn(backgroundClasses, "bg-cover bg-center");
+  } else if (backgroundType === 'color' && typeof backgroundValue === 'string') {
+    backgroundStyle.backgroundColor = backgroundValue;
+  } else if (backgroundType === 'gradient' && typeof backgroundValue === 'object' && backgroundValue !== null) {
+    const grad = backgroundValue as GradientValue; 
+    if (grad.color1 && grad.color2 && grad.direction) {
+      backgroundStyle.background = `linear-gradient(${grad.direction}, ${grad.color1}, ${grad.color2})`;
+    }
+  } else if (backgroundType === 'youtube' && typeof backgroundValue === 'string') {
+     renderYoutubeBackground = true;
+     backgroundStyle.backgroundColor = '#000000'; 
   }
 
-  // Dynamically render the correct component based on the step type name
+  // --- Log calculated styles --- 
+  console.log('[StepDisplay] Calculated Style:', backgroundStyle);
+  console.log('[StepDisplay] Calculated Classes:', backgroundClasses);
+
+  // --- Handle case where stepType is missing --- 
+  if (!stepType) {
+    return (
+        <div style={backgroundStyle} className={cn(backgroundClasses, "p-4 text-destructive")}>
+           Error: Unknown step type ID: {step.step_type_id}
+        </div>
+    );
+  }
+
+  // --- Determine the step content based on type --- 
+  let stepContentElement: React.ReactNode;
   switch (stepType.name) {
-    case 'ens': // Corrected case name from 'ens_verification'
-      return <EnsVerificationStepDisplay step={step} stepType={stepType} onComplete={onComplete} />;
-    // case 'info_display':
-    //   return <InfoStepDisplay step={step} stepType={stepType} onComplete={onComplete} />;
-    // case 'multiple_choice':
-    //  return <MultipleChoiceStepDisplay step={step} stepType={stepType} onComplete={onComplete} />;
-    
-    // --- Add case for content step --- 
+    case 'ens':
+      stepContentElement = <EnsVerificationStepDisplay step={step} stepType={stepType} onComplete={onComplete} />;
+      break;
     case 'content':
-      return <ContentStepDisplay step={step} stepType={stepType} onComplete={onComplete} />;
-    // --- End case --- 
-
-    // Add cases for other step types here
-
+      stepContentElement = <ContentStepDisplay step={step} stepType={stepType} onComplete={onComplete} />;
+      break;
     default:
-      // Placeholder for unhandled step types
-      return (
-        <div>
+      stepContentElement = (
+        <div className="p-4 bg-background/80 rounded m-4 max-w-prose mx-auto">
           <h3 className="text-lg font-semibold">Unhandled Step Type: {stepType.name}</h3>
           <p>Step ID: {step.id}</p>
           <p>Configuration:</p>
@@ -58,5 +89,26 @@ export const StepDisplay: React.FC<StepDisplayProps> = ({
           </pre>
         </div>
       );
+      break;
   }
+
+  // --- Render the final component --- 
+  return (
+    <div style={backgroundStyle} className={cn(backgroundClasses)}>
+       {/* Overlay for image backgrounds */}
+       {(backgroundType === 'image' || backgroundType === 'youtube') && (
+          <div className="absolute inset-0 bg-black/40 z-0"></div> 
+       )}
+       {/* Placeholder for YouTube Player - this will be added later */}
+       {renderYoutubeBackground && (
+          <div className="absolute inset-0 z-0">
+            {/* YouTube player will be rendered here */}
+          </div>
+       )}
+       {/* Content wrapper with padding */}
+       <div className="relative z-10 w-full h-full flex-grow flex flex-col items-center justify-center p-6"> 
+           {stepContentElement}
+       </div>
+    </div>
+  );
 }; 
