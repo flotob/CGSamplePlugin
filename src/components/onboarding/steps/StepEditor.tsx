@@ -29,6 +29,8 @@ import Image from 'next/image';
 import { useAdminImagesQuery } from '@/hooks/useAdminImagesQuery';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { cn } from "@/lib/utils";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BackgroundType } from './CommonStepPresentationSettings';
 
 interface CommunityRole {
   id: string;
@@ -53,11 +55,12 @@ interface StepEditorProps {
 const INITIAL_PRESENTATION_CONFIG: PresentationConfig = {
   headline: null,
   subtitle: null,
+  backgroundType: null,
+  backgroundValue: null,
 };
 
 const INITIAL_SPECIFIC_CONFIG: Record<string, unknown> = {};
 
-// Combined initial state for the entire config
 const INITIAL_STEP_CONFIG = {
   presentation: INITIAL_PRESENTATION_CONFIG,
   specific: INITIAL_SPECIFIC_CONFIG,
@@ -83,19 +86,14 @@ export const StepEditor: React.FC<StepEditorProps> = ({
   const [isMandatory, setIsMandatory] = React.useState<boolean>(true);
   const [isActive, setIsActive] = React.useState<boolean>(true);
 
-  // Unified state for the entire config object
   const [stepConfig, setStepConfig] = React.useState(INITIAL_STEP_CONFIG);
 
-  // State for enabling/disabling role assignment
   const [isRoleAssignmentEnabled, setIsRoleAssignmentEnabled] = React.useState<boolean>(false);
   
-  // State for the Image Library Modal
   const [isImageLibraryOpen, setIsImageLibraryOpen] = useState(false);
 
-  // Fetch user's own generated images for quick selection
   const myImagesQuery = useAdminImagesQuery({ scope: 'mine' });
 
-  // ADD BACK the change handlers, modified for unified state
   const handlePresentationChange = React.useCallback((newPresentationConfig: PresentationConfig) => {
     setStepConfig(prev => ({ ...prev, presentation: newPresentationConfig }));
   }, []);
@@ -108,70 +106,83 @@ export const StepEditor: React.FC<StepEditorProps> = ({
   const deleteStep = useDeleteStep(wizardId, step?.id);
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
 
-  // Function to handle image selection from the modal
   const handleImageSelected = (imageUrl: string) => {
     setStepConfig(prev => ({ 
       ...prev, 
       presentation: { 
         ...(prev.presentation),
-        backgroundImageUrl: imageUrl 
+        backgroundType: 'image',
+        backgroundValue: imageUrl
       } 
     }));
     setIsImageLibraryOpen(false);
   };
 
   const parseConfig = (config: Record<string, unknown> | undefined | null): { presentation: PresentationConfig, specific: Record<string, unknown> } => {
-    const presentation = config?.presentation as PresentationConfig || INITIAL_PRESENTATION_CONFIG;
+    const presentation = config?.presentation as PresentationConfig || {};
     const specific = config?.specific as Record<string, unknown> || INITIAL_SPECIFIC_CONFIG;
     return { 
         presentation: {
             headline: presentation.headline ?? null,
             subtitle: presentation.subtitle ?? null,
-            backgroundImageUrl: presentation.backgroundImageUrl ?? null,
+            backgroundType: presentation.backgroundType ?? null,
+            backgroundValue: presentation.backgroundValue ?? null,
         },
         specific: specific
     };
   };
 
+  const handleBackgroundTabChange = (newType: string) => {
+    const type = newType as BackgroundType;
+    setStepConfig(prev => {
+      if (prev.presentation.backgroundType === type) {
+        return prev;
+      }
+      return {
+        ...prev,
+        presentation: {
+          ...prev.presentation,
+          backgroundType: type,
+          backgroundValue: null,
+        }
+      }
+    });
+  }
+
   React.useEffect(() => {
-    // Reset mutation status when step/mode changes
     updateStep.reset();
-    createStepMutation.reset(); // Also reset create mutation
+    createStepMutation.reset();
 
     if (isCreating) {
       setTargetRoleId('');
       setIsMandatory(true);
       setIsActive(true);
-      setStepConfig(INITIAL_STEP_CONFIG); // Reset unified config
+      setStepConfig(INITIAL_STEP_CONFIG);
       setIsRoleAssignmentEnabled(false); 
     } else if (step) {
       const shouldEnableRole = !!step.target_role_id;
       setTargetRoleId(step.target_role_id ?? '');
       setIsMandatory(step.is_mandatory);
       setIsActive(step.is_active);
-      setStepConfig(parseConfig(step.config)); // Set unified config
+      setStepConfig(parseConfig(step.config));
       setIsRoleAssignmentEnabled(shouldEnableRole);
     } else {
-      // Reset case (e.g., if step becomes null)
       setTargetRoleId('');
       setIsMandatory(true);
       setIsActive(true);
-      setStepConfig(INITIAL_STEP_CONFIG); // Reset unified config
+      setStepConfig(INITIAL_STEP_CONFIG);
       setIsRoleAssignmentEnabled(false);
     }
     setShowDeleteConfirm(false);
     setIsImageLibraryOpen(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, isCreating]); // Intentionally omit mutations to prevent infinite loop
+  }, [step, isCreating]);
 
   const currentMutation = isCreating ? createStepMutation : updateStep;
 
-  // Conditional rendering for summary preview
   if (isSummaryPreview) {
     return (
       <div className="p-6">
         <h2 className="text-xl font-semibold mb-4">Wizard Summary Preview</h2>
-        {/* Render actual component if data exists, else show loading/empty state */}
         {summaryData ? (
            <AdminWizardSummaryPreview 
              includedStepTypes={summaryData.includedStepTypes}
@@ -186,7 +197,6 @@ export const StepEditor: React.FC<StepEditorProps> = ({
     );
   }
 
-  // Original return logic if not in summary mode
   if (!isCreating && !step) {
     return <div className="p-8 text-muted-foreground">Select a step to edit or add a new one.</div>;
   }
@@ -206,7 +216,7 @@ export const StepEditor: React.FC<StepEditorProps> = ({
         target_role_id: finalTargetRoleId,
         is_mandatory: isMandatory,
         is_active: isActive,
-        config: stepConfig, // Use unified config state
+        config: stepConfig,
       };
       onCreate(payload);
     } else {
@@ -214,7 +224,7 @@ export const StepEditor: React.FC<StepEditorProps> = ({
         target_role_id: finalTargetRoleId,
         is_mandatory: isMandatory,
         is_active: isActive,
-        config: stepConfig, // Use unified config state
+        config: stepConfig,
       }
       updateStep.mutate(updatePayload, {
         onSuccess: () => onSave && onSave(),
@@ -238,7 +248,6 @@ export const StepEditor: React.FC<StepEditorProps> = ({
         <span className="text-xs font-semibold uppercase text-muted-foreground">Step Type</span>
         <div className="flex items-center gap-2 mt-1">
           <span className="inline-block px-2 py-1 rounded bg-primary/10 text-primary font-medium text-sm capitalize">
-            {/* Use label for display, fallback to formatted name */}
             {stepTypeInfo ? (stepTypeInfo.label || stepTypeInfo.name.replace(/_/g, ' ')) : 'Unknown'}
           </span>
           {stepTypeInfo?.description && (
@@ -250,99 +259,122 @@ export const StepEditor: React.FC<StepEditorProps> = ({
       <Accordion type="single" collapsible defaultValue="presentation-settings" className="w-full space-y-3 border-t border-border/30 pt-4 mt-4">
         <AccordionItem value="presentation-settings">
           <AccordionTrigger className="text-sm font-medium text-muted-foreground uppercase tracking-wide hover:no-underline py-2">
-            Presentation
+            Presentation (Headline & Subtitle)
           </AccordionTrigger>
-          <AccordionContent className="pt-1 space-y-1">
-            {/* Nested Accordion for Presentation Subsections */}
-            <Accordion type="multiple" className="w-full space-y-1">
-              <AccordionItem value="text-content" className="border-b-0">
-                 <AccordionTrigger className="text-xs font-medium text-muted-foreground/80 hover:no-underline py-2">
-                   Headline & Subtitle
-                 </AccordionTrigger>
-                 <AccordionContent className="pt-1 pb-2">
-                    <CommonStepPresentationSettings 
-                      initialData={stepConfig.presentation}
-                      onChange={handlePresentationChange}
-                      disabled={currentMutation.isPending}
-                    />
-                 </AccordionContent>
-              </AccordionItem>
+          <AccordionContent className="pt-1 pb-2">
+            <CommonStepPresentationSettings 
+              initialData={stepConfig.presentation}
+              onChange={handlePresentationChange}
+              disabled={currentMutation.isPending}
+            />
+          </AccordionContent>
+        </AccordionItem>
 
-              <AccordionItem value="background-image" className="border-b-0">
-                 <AccordionTrigger className="text-xs font-medium text-muted-foreground/80 hover:no-underline py-2">
-                   Background Image
-                 </AccordionTrigger>
-                 <AccordionContent className="pt-1 pb-2 space-y-4">
-                    <div className="flex items-start gap-4">
-                      <div className="flex-shrink-0">
-                        <Label className="text-xs font-medium text-muted-foreground">Selected</Label>
-                        <div 
-                          className={cn(
-                            "mt-1 border rounded-md overflow-hidden w-32 h-32 relative bg-muted",
-                            stepConfig.presentation.backgroundImageUrl && "border-2 border-primary shadow-md"
-                          )}
-                        >
-                          {stepConfig.presentation.backgroundImageUrl ? (
-                            <Image 
-                               src={stepConfig.presentation.backgroundImageUrl}
-                               alt="Selected background preview"
-                               layout="fill"
-                               objectFit="cover"
-                               unoptimized
-                            />
-                          ) : (
-                            <div className="flex items-center justify-center h-full text-xs text-muted-foreground italic p-2 text-center">
-                              No image selected
-                            </div>
-                          )}
-                        </div>
-                      </div>
+        <AccordionItem value="background-settings">
+           <AccordionTrigger className="text-sm font-medium text-muted-foreground uppercase tracking-wide hover:no-underline py-2">
+             Background
+           </AccordionTrigger>
+           <AccordionContent className="pt-1 pb-2">
+              <Tabs 
+                 defaultValue="image" 
+                 value={stepConfig.presentation.backgroundType ?? 'image'}
+                 onValueChange={handleBackgroundTabChange}
+                 className="w-full"
+              >
+                <TabsList className="grid w-full grid-cols-4 h-9">
+                  <TabsTrigger value="image" className="text-xs px-2">Image</TabsTrigger>
+                  <TabsTrigger value="color" className="text-xs px-2">Solid Color</TabsTrigger>
+                  <TabsTrigger value="gradient" className="text-xs px-2">Gradient</TabsTrigger>
+                  <TabsTrigger value="youtube" className="text-xs px-2">YouTube</TabsTrigger>
+                </TabsList>
 
-                      <div className="flex-grow">
-                         <Label className="text-xs font-medium text-muted-foreground">Recently Generated</Label>
-                         <div className="mt-1 flex gap-2 flex-wrap">
-                            {myImagesQuery.isLoading && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground"/>}
-                            {myImagesQuery.isError && <AlertCircle className="h-5 w-5 text-destructive" />}
-                            {myImagesQuery.data && myImagesQuery.data.images.length === 0 && (
-                                <p className="text-xs text-muted-foreground italic">No recent images.</p>
-                            )}
-                            {myImagesQuery.data && myImagesQuery.data.images.slice(0, 3).map(img => (
-                                <button 
-                                  type="button" 
-                                  key={img.id} 
-                                  onClick={() => handleImageSelected(img.storage_url)}
-                                  className="border rounded-md overflow-hidden w-16 h-16 relative bg-muted hover:ring-2 hover:ring-primary focus:ring-2 focus:ring-primary transition-shadow"
-                                  title="Select this image"
-                                >
-                                  <Image 
-                                     src={img.storage_url}
-                                     alt="Recent image preview"
-                                     layout="fill"
-                                     objectFit="cover"
-                                     unoptimized
-                                  />
-                                </button>
-                            ))}
-                         </div>
+                <TabsContent value="image" className="mt-4 space-y-4">
+                  <div className="flex items-start gap-4">
+                    <div className="flex-shrink-0">
+                      <Label className="text-xs font-medium text-muted-foreground">Selected</Label>
+                      <div 
+                        className={cn(
+                          "mt-1 border rounded-md overflow-hidden w-32 h-32 relative bg-muted",
+                          stepConfig.presentation.backgroundType === 'image' && stepConfig.presentation.backgroundValue && "border-2 border-primary shadow-md"
+                        )}
+                      >
+                        {stepConfig.presentation.backgroundType === 'image' && stepConfig.presentation.backgroundValue ? (
+                          <Image 
+                             src={stepConfig.presentation.backgroundValue}
+                             alt="Selected background preview"
+                             layout="fill"
+                             objectFit="cover"
+                             unoptimized
+                          />
+                        ) : (
+                          <div className="flex items-center justify-center h-full text-xs text-muted-foreground italic p-2 text-center">
+                            No image selected
+                          </div>
+                        )}
                       </div>
                     </div>
 
-                    <Button 
-                      type="button"
-                      variant="default"
-                      size="sm"
-                      onClick={() => setIsImageLibraryOpen(true)}
-                      disabled={currentMutation.isPending}
-                      className="mt-2"
-                    >
-                      {stepConfig.presentation.backgroundImageUrl 
-                        ? 'Generate or choose another background image' 
-                        : 'Generate or choose background image'}
-                    </Button>
-                 </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          </AccordionContent>
+                    <div className="flex-grow">
+                       <Label className="text-xs font-medium text-muted-foreground">Recently Generated (Quick Select)</Label>
+                       <div className="mt-1 flex gap-2 flex-wrap">
+                          {myImagesQuery.isLoading && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground"/>}
+                          {myImagesQuery.isError && <AlertCircle className="h-5 w-5 text-destructive" />}
+                          {myImagesQuery.data && myImagesQuery.data.images.length === 0 && (
+                              <p className="text-xs text-muted-foreground italic">No recent images.</p>
+                          )}
+                          {myImagesQuery.data && myImagesQuery.data.images.slice(0, 3).map(img => (
+                              <button 
+                                type="button" 
+                                key={img.id} 
+                                onClick={() => handleImageSelected(img.storage_url)}
+                                className="border rounded-md overflow-hidden w-16 h-16 relative bg-muted hover:ring-2 hover:ring-primary focus:ring-2 focus:ring-primary transition-shadow"
+                                title="Select this image"
+                              >
+                                <Image 
+                                   src={img.storage_url}
+                                   alt="Recent image preview"
+                                   layout="fill"
+                                   objectFit="cover"
+                                   unoptimized
+                                />
+                              </button>
+                          ))}
+                       </div>
+                    </div>
+                  </div>
+
+                  <Button 
+                    type="button"
+                    variant="default" 
+                    size="sm" 
+                    onClick={() => setIsImageLibraryOpen(true)} 
+                    disabled={currentMutation.isPending}
+                  >
+                    {stepConfig.presentation.backgroundType === 'image' && stepConfig.presentation.backgroundValue 
+                      ? 'Generate or choose another background image' 
+                      : 'Generate or choose background image'}
+                  </Button>
+                </TabsContent>
+
+                <TabsContent value="color" className="mt-4">
+                  <div className="p-4 border rounded bg-muted/30">
+                    <p className="text-sm text-muted-foreground">[Solid Color Picker Coming Soon]</p>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="gradient" className="mt-4">
+                   <div className="p-4 border rounded bg-muted/30">
+                    <p className="text-sm text-muted-foreground">[Gradient Generator Coming Soon]</p>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="youtube" className="mt-4">
+                   <div className="p-4 border rounded bg-muted/30">
+                    <p className="text-sm text-muted-foreground">[YouTube Background Settings Coming Soon]</p>
+                  </div>
+                </TabsContent>
+              </Tabs>
+           </AccordionContent>
         </AccordionItem>
 
         <AccordionItem value="target-role">
@@ -350,7 +382,6 @@ export const StepEditor: React.FC<StepEditorProps> = ({
              Target Role Assignment
           </AccordionTrigger>
           <AccordionContent className="pt-3 space-y-4">
-            {/* Checkbox to enable/disable role assignment */}
             <div className="flex items-center space-x-2">
               <Checkbox 
                 id="enable-role-assignment"
@@ -359,7 +390,7 @@ export const StepEditor: React.FC<StepEditorProps> = ({
                   const isEnabled = Boolean(checked);
                   setIsRoleAssignmentEnabled(isEnabled);
                   if (!isEnabled) {
-                    setTargetRoleId(''); // Clear role ID if disabled
+                    setTargetRoleId('');
                   }
                 }}
                 disabled={currentMutation.isPending}
@@ -372,7 +403,6 @@ export const StepEditor: React.FC<StepEditorProps> = ({
               </Label>
             </div>
 
-            {/* Conditionally render the dropdown only if enabled */}
             {isRoleAssignmentEnabled && (
               <div>
                 <p className="text-xs text-muted-foreground mb-2">
@@ -380,14 +410,13 @@ export const StepEditor: React.FC<StepEditorProps> = ({
                 </p>
                 <Select
                   onValueChange={(value) => setTargetRoleId(value)}
-                  value={targetRoleId} // This will be '' if just enabled, prompting selection
+                  value={targetRoleId}
                   disabled={currentMutation.isPending}
                 >
                   <SelectTrigger id="target_role_id">
                     <SelectValue placeholder="Select a role to grant" />
                   </SelectTrigger>
                   <SelectContent>
-                    {/* Removed the '-- No Target Role --' option */}
                     {roleOptions.map(role => (
                       <SelectItem key={role.id} value={role.id}>
                         {role.title}
