@@ -6,6 +6,8 @@ import type { StepType } from '@/hooks/useStepTypesQuery'; // Assuming StepType 
 import { cn } from "@/lib/utils"; // Import cn
 // Import background types and GradientValue structure
 import { BackgroundType, GradientValue, PresentationConfig } from '../CommonStepPresentationSettings'; 
+// Import the YouTube background component
+import { YouTubeBackground } from './YouTubeBackground';
 
 // Import specific step display components
 import { EnsVerificationStepDisplay } from './EnsVerificationStepDisplay';
@@ -40,6 +42,7 @@ export const StepDisplay: React.FC<StepDisplayProps> = ({
   // Background container classes - remove overflow-y-auto since scrolling will be handled by parent
   let backgroundClasses = "w-full h-full flex-grow flex flex-col relative"; 
   let renderYoutubeBackground = false;
+  let youtubeUrl = '';
 
   if (backgroundType === 'image' && typeof backgroundValue === 'string') {
     backgroundStyle.backgroundImage = `url("${backgroundValue}")`;
@@ -53,7 +56,8 @@ export const StepDisplay: React.FC<StepDisplayProps> = ({
     }
   } else if (backgroundType === 'youtube' && typeof backgroundValue === 'string') {
      renderYoutubeBackground = true;
-     backgroundStyle.backgroundColor = '#000000'; 
+     youtubeUrl = backgroundValue;
+     backgroundStyle.backgroundColor = '#000000'; // Fallback color while video loads
   }
 
   // --- Log calculated styles --- 
@@ -99,11 +103,9 @@ export const StepDisplay: React.FC<StepDisplayProps> = ({
        {(backgroundType === 'image' || backgroundType === 'youtube') && (
           <div className="absolute inset-0 bg-black/40 z-0"></div> 
        )}
-       {/* Placeholder for YouTube Player - this will be added later */}
-       {renderYoutubeBackground && (
-          <div className="absolute inset-0 z-0">
-            {/* YouTube player will be rendered here */}
-          </div>
+       {/* YouTube background player */}
+       {renderYoutubeBackground && youtubeUrl && (
+          <YouTubeBackground videoUrl={youtubeUrl} />
        )}
        {/* Content wrapper with padding */}
        <div className="relative z-10 w-full h-full flex-grow flex flex-col items-center justify-center p-6"> 
