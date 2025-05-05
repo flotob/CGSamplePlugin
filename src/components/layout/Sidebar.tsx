@@ -3,8 +3,11 @@
 import React from 'react';
 import Image from 'next/image';
 import { Button } from "@/components/ui/button";
-import { BookOpen, Loader2 } from 'lucide-react';
+import { BookOpen, Loader2, Eye, Undo } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { cn } from "@/lib/utils";
+import { LucideProps } from 'lucide-react';
+import { ForwardRefExoticComponent, RefAttributes, SVGProps, Dispatch, SetStateAction } from 'react';
 
 // Define expected link structure
 interface SidebarLink {
@@ -22,15 +25,21 @@ interface CommunityLogoResponse {
 interface SidebarProps {
   links: SidebarLink[];
   activeSection: string;
-  setActiveSection: (sectionId: string) => void;
-  communityId?: string | null;
+  setActiveSection: (section: string) => void;
+  communityId?: string;
+  isAdmin: boolean;
+  isPreviewingAsUser: boolean;
+  setIsPreviewingAsUser: Dispatch<SetStateAction<boolean>>;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ 
   links,
   activeSection,
   setActiveSection,
-  communityId
+  communityId,
+  isAdmin,
+  isPreviewingAsUser,
+  setIsPreviewingAsUser,
 }) => {
 
   // --- Fetch Community Logo from Cache --- 
@@ -79,8 +88,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
 
+      {/* Preview Mode Button Section (Moved Up) */}
+      {isAdmin && (
+        <div className="px-3 py-4"> {/* Add padding for spacing */}
+           {!isPreviewingAsUser ? (
+              <Button 
+                 className="w-full justify-center text-sm font-medium text-white bg-gradient-to-r from-purple-500 to-indigo-600 hover:opacity-90 transition-opacity shadow-md" 
+                 onClick={() => setIsPreviewingAsUser(true)}
+               >
+                 <Eye className="mr-2 h-4 w-4" />
+                 Preview as User
+              </Button>
+           ) : (
+              <Button 
+                 className="w-full justify-center text-sm font-medium text-white bg-gradient-to-r from-pink-500 to-rose-500 hover:opacity-90 transition-opacity shadow-md" 
+                 onClick={() => setIsPreviewingAsUser(false)}
+               >
+                 <Undo className="mr-2 h-4 w-4" />
+                 Exit User Preview
+              </Button>
+           )}
+        </div>
+      )}
+
       {/* Navigation with improved spacing and styling */}
-      <div className="flex-1 overflow-auto py-4 px-3">
+      <div className="flex-1 overflow-auto py-2 px-3"> {/* Adjusted padding */}
         <div className="mb-4">
           <p className="text-xs font-medium text-muted-foreground px-2 mb-2">NAVIGATION</p>
           <nav className="space-y-1.5">

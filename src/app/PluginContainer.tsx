@@ -16,7 +16,7 @@ import { AdminView } from '../components/AdminView';
 import { UserView } from '../components/UserView';
 import { HelpView } from '../components/HelpView';
 import { WizardView } from '../components/WizardView';
-import { LayoutDashboard, Settings, Plug, User, Wand2, Building, Loader2 } from 'lucide-react';
+import { LayoutDashboard, Settings, Plug, User, Wand2, Building, Loader2, Eye, Undo } from 'lucide-react';
 import { Toaster } from "@/components/ui/toaster";
 import { useWizardSlideshow } from '../context/WizardSlideshowContext';
 import { WizardSlideshowModal } from '../components/onboarding/WizardSlideshowModal';
@@ -55,6 +55,8 @@ const PluginContainer = () => {
   // State for current active section
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [previousSection, setPreviousSection] = useState<string | null>(null);
+  // Add state for preview mode
+  const [isPreviewingAsUser, setIsPreviewingAsUser] = useState<boolean>(false);
 
   // Custom section setter with transition
   const handleSetActiveSection = (section: string) => {
@@ -66,18 +68,32 @@ const PluginContainer = () => {
     }
   };
 
-  // Determine sidebar links based on admin status only when status is loaded
-  const sidebarLinks = !isLoadingAdminStatus ? (isAdmin ? adminLinks : userLinks) : [];
+  // Determine sidebar links based on admin status AND preview mode
+  const linksToShow = !isLoadingAdminStatus ? ((isAdmin && !isPreviewingAsUser) ? adminLinks : userLinks) : [];
 
   // Effect to set initial active section once admin status is known
   React.useEffect(() => {
+    // Only set initial section if one isn't already active
     if (!isLoadingAdminStatus && !activeSection) {
       startTransition(() => {
-        // Set default view to 'wizards' for users, 'dashboard' for admins
-        setActiveSection(isAdmin ? 'dashboard' : 'wizards');
+        // Default to user view if previewing, otherwise normal logic
+        const defaultView = isPreviewingAsUser ? 'wizards' : (isAdmin ? 'dashboard' : 'wizards');
+        setActiveSection(defaultView);
       });
     }
-  }, [isAdmin, isLoadingAdminStatus, activeSection]);
+    // Reset to default admin/user view if preview mode changes
+    // Or handle navigation more explicitly if needed
+    if (!isLoadingAdminStatus && activeSection) {
+       const currentViewIsAdminOnly = adminLinks.some(link => link.id === activeSection);
+       const currentViewIsUserOnly = userLinks.some(link => link.id === activeSection);
+
+       if (isPreviewingAsUser && currentViewIsAdminOnly) {
+           startTransition(() => setActiveSection('wizards')); // Go to user default
+       } else if (!isPreviewingAsUser && isAdmin && currentViewIsUserOnly) {
+           startTransition(() => setActiveSection('dashboard')); // Go to admin default
+       }
+    }
+  }, [isAdmin, isLoadingAdminStatus, activeSection, isPreviewingAsUser]); // Add isPreviewingAsUser dependency
 
   const { data: userInfoResponse, isLoading: isLoadingUserInfo, error: userInfoError } = useCgQuery<
     UserInfoResponsePayload,
@@ -353,7 +369,7 @@ const PluginContainer = () => {
     authError
   };
 
-  // Render appropriate view based on active section with a wrapper div for animations
+  // Render appropriate view based on active section AND preview mode
   const renderView = () => {
     if (isPending && previousSection === activeSection) {
       return null;
@@ -361,20 +377,20 @@ const PluginContainer = () => {
     
     let view;
     if (activeSection === 'help') {
-      view = <HelpView isAdmin={isAdmin} />;
-    } else if (isAdmin) {
-      view = <AdminView {...viewProps} />;
-    } else {
-      // User views
+      view = <HelpView isAdmin={isAdmin && !isPreviewingAsUser} />; // Pass effective admin status
+    } else if (isAdmin && !isPreviewingAsUser) { // Render AdminView only if admin and NOT previewing
+      view = <AdminView {...viewProps} activeSection={activeSection} />; // Pass activeSection
+    } else { // Render User views if non-admin OR if admin IS previewing
       switch (activeSection) {
         case 'wizards':
-          view = <WizardView {...viewProps} />;
+          view = <WizardView />; // Pass only necessary props if any
           break;
         case 'profile':
-          view = <UserView {...viewProps} />;
+          view = <UserView {...viewProps} />; 
           break;
         default:
-          view = <WizardView {...viewProps} />;
+          // Default to wizards view for users/preview
+          view = <WizardView />; 
       }
     }
 
@@ -390,10 +406,14 @@ const PluginContainer = () => {
       <AppLayout
         sidebar={(
           <Sidebar 
-            links={sidebarLinks} 
+            links={linksToShow} // Use dynamically determined links
             activeSection={activeSection ?? ''}
             setActiveSection={handleSetActiveSection} 
             communityId={communityId}
+            // Pass down preview state and admin status
+            isAdmin={isAdmin ?? false}
+            isPreviewingAsUser={isPreviewingAsUser}
+            setIsPreviewingAsUser={setIsPreviewingAsUser}
           />
         )}
       >
