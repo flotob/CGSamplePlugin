@@ -2,7 +2,6 @@
 
 import { useMutation, UseMutationResult } from '@tanstack/react-query';
 import { useAuthFetch } from '@/lib/authFetch';
-import { useToast } from '@/hooks/use-toast';
 
 // Define the type for the variables the mutation function will receive
 interface GenerateBackgroundVariables {
@@ -26,7 +25,6 @@ export function useGenerateBackgroundMutation(): UseMutationResult<
   unknown                     // Type of context (optional)
 > {
   const { authFetch } = useAuthFetch();
-  const { toast } = useToast();
 
   return useMutation<GenerateBackgroundResponse, Error, GenerateBackgroundVariables>({
     mutationFn: async (variables: GenerateBackgroundVariables) => {
@@ -56,14 +54,8 @@ export function useGenerateBackgroundMutation(): UseMutationResult<
       // Toasting is usually handled by the component calling the mutation 
       // as it can provide more context, but logging the error here is good.
       console.error("Error generating background image:", error);
-      // A default toast could be added here as a fallback
-      // toast({
-      //   title: "Generation Failed",
-      //   description: error.message || "Could not generate background image.",
-      //   variant: "destructive",
-      // });
+      // No toast here now
     },
-    // You might want to configure retries, etc.
-    // retry: false, 
+    retry: false, 
   });
 } 

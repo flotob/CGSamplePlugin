@@ -43,13 +43,13 @@ export function useToggleImagePublicMutation(): UseMutationResult<
 
       return response;
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (data) => {
       // Invalidate both 'mine' and 'public' image queries to ensure UI consistency
       // regardless of the direction of the toggle.
       queryClient.invalidateQueries({ queryKey: ['adminImages', 'mine'] }); 
       queryClient.invalidateQueries({ queryKey: ['adminImages', 'public'] }); 
 
-      // Check if the response contains the updated image to determine status
+      // Determine public status from data
       let isNowPublic = false;
       if (typeof data === 'object' && data !== null && 'is_public' in data) {
         isNowPublic = data.is_public;
@@ -65,8 +65,8 @@ export function useToggleImagePublicMutation(): UseMutationResult<
           description: `Image is now ${isNowPublic ? 'public' : 'private'}.`
       });
     },
-    onError: (error, variables) => {
-      console.error(`Error toggling public status for image ${variables.imageId}:`, error);
+    onError: (error) => {
+      console.error(`Error toggling public status:`, error);
       toast({
         title: "Visibility Update Failed",
         description: error.message || "Could not update image visibility.",

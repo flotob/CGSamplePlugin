@@ -7,7 +7,7 @@ export interface GeneratedImage {
   user_id: string;
   community_id: string;
   storage_url: string;
-  prompt_structured: Record<string, any>; // JSONB - assuming a key-value structure
+  prompt_structured: Record<string, unknown>; // Changed any to unknown
   is_public: boolean;
   created_at: string; // Timestamptz - usually serialized as ISO 8601 string
 } 

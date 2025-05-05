@@ -5,7 +5,7 @@ import type { UserStepProgress } from '@/app/api/user/wizards/[wizardId]/steps/r
 import type { StepType } from '@/hooks/useStepTypesQuery'; // Assuming StepType definition
 import { cn } from "@/lib/utils"; // Import cn
 // Import background types and GradientValue structure
-import { BackgroundType, GradientValue, PresentationConfig } from '../CommonStepPresentationSettings'; 
+import { PresentationConfig, GradientValue } from '../CommonStepPresentationSettings'; 
 // Import the YouTube background component
 import { YouTubeBackground } from './YouTubeBackground';
 

@@ -32,7 +32,6 @@ import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BackgroundType } from './CommonStepPresentationSettings';
 import { ColorPicker } from '../../color-picker';
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
 import { extractYouTubeVideoId, isValidYouTubeUrl } from "@/lib/utils";
 
@@ -101,14 +100,6 @@ export const StepEditor: React.FC<StepEditorProps> = ({
   const [youtubeUrlInput, setYoutubeUrlInput] = useState('');
   const [youtubeError, setYoutubeError] = useState<string | null>(null);
 
-  const handlePresentationChange = React.useCallback((newPresentationConfig: PresentationConfig) => {
-    setStepConfig(prev => ({ ...prev, presentation: newPresentationConfig }));
-  }, []);
-
-  const handleSpecificConfigChange = React.useCallback((newSpecificConfig: Record<string, unknown> | ContentSpecificConfigType) => {
-    setStepConfig(prev => ({ ...prev, specific: newSpecificConfig as Record<string, unknown> }));
-  }, []);
-
   const updateStep = useUpdateStep(wizardId, step?.id);
   const deleteStep = useDeleteStep(wizardId, step?.id);
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
@@ -156,16 +147,9 @@ export const StepEditor: React.FC<StepEditorProps> = ({
     });
   }
 
-  const handleColorChange = (newColor: string) => {
-    setStepConfig(prev => ({ 
-      ...prev,
-      presentation: {
-        ...prev.presentation,
-        backgroundType: 'color',
-        backgroundValue: newColor
-      }
-    }));
-  };
+  const handleSpecificConfigChange = useCallback((newSpecificConfig: Record<string, unknown> | ContentSpecificConfigType) => {
+    setStepConfig(prev => ({ ...prev, specific: newSpecificConfig as Record<string, unknown> }));
+  }, []);
 
   React.useEffect(() => {
     updateStep.reset();
@@ -193,7 +177,7 @@ export const StepEditor: React.FC<StepEditorProps> = ({
     }
     setShowDeleteConfirm(false);
     setIsImageLibraryOpen(false);
-  }, [step, isCreating]);
+  }, [step, isCreating, updateStep, createStepMutation]);
 
   useEffect(() => {
     const type = stepConfig.presentation.backgroundType;
@@ -210,7 +194,7 @@ export const StepEditor: React.FC<StepEditorProps> = ({
        }
        setYoutubeError(null);
     }
-  }, [stepConfig.presentation.backgroundType, stepConfig.presentation.backgroundValue]);
+  }, [stepConfig.presentation.backgroundType, stepConfig.presentation.backgroundValue, youtubeUrlInput]);
 
   const currentMutation = isCreating ? createStepMutation : updateStep;
 
@@ -337,7 +321,7 @@ export const StepEditor: React.FC<StepEditorProps> = ({
           <AccordionContent className="pt-1 pb-2">
             <CommonStepPresentationSettings 
               initialData={stepConfig.presentation}
-              onChange={handlePresentationChange}
+              onChange={(newPresentationConfig) => setStepConfig(prev => ({ ...prev, presentation: { ...prev.presentation, headline: newPresentationConfig.headline, subtitle: newPresentationConfig.subtitle } }))}
               disabled={currentMutation.isPending}
             />
           </AccordionContent>
@@ -429,12 +413,19 @@ export const StepEditor: React.FC<StepEditorProps> = ({
                   </Button>
                 </TabsContent>
 
-                <TabsContent value="color" className="mt-4">
+                <TabsContent value="color" className="mt-4 space-y-4">
                   <div className="flex flex-col items-start gap-4 p-1">
                     <Label className="text-sm font-medium">Select Solid Background Color</Label>
                     <ColorPicker 
                        color={stepConfig.presentation.backgroundType === 'color' ? stepConfig.presentation.backgroundValue : '#ffffff'}
-                       onChange={handleColorChange} 
+                       onChange={(newColor) => setStepConfig(prev => ({ 
+                         ...prev,
+                         presentation: {
+                           ...prev.presentation,
+                           backgroundType: 'color',
+                           backgroundValue: newColor
+                         }
+                       }))}
                        label="Select solid background color"
                     />
                     {stepConfig.presentation.backgroundType === 'color' && stepConfig.presentation.backgroundValue && (
@@ -554,7 +545,7 @@ export const StepEditor: React.FC<StepEditorProps> = ({
             <AccordionContent className="pt-1">
               <EnsStepConfig 
                 initialData={stepConfig.specific as EnsSpecificConfig} 
-                onChange={handleSpecificConfigChange} 
+                onChange={handleSpecificConfigChange}
               />
             </AccordionContent>
           </AccordionItem>

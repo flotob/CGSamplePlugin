@@ -1,10 +1,9 @@
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-import type { JwtPayload } from '@/app/api/auth/session/route';
-import { enforceEventRateLimit, logUsageEvent, Feature, QuotaExceededError } from '@/lib/quotas';
-import { uploadImageFromUrl } from '@/lib/storage';
 import OpenAI from 'openai';
+import { uploadImageFromUrl } from '@/lib/storage';
+import { Feature, enforceEventRateLimit, QuotaExceededError, logUsageEvent } from '@/lib/quotas';
 
 // Define expected request body
 interface StructuredPrompt { 
@@ -24,106 +23,109 @@ interface GenerateBackgroundBody {
 }
 
 // Initialize OpenAI client
-const openaiApiKey = process.env.OPENAI_API_KEY;
-let openai: OpenAI | null = null;
-if (openaiApiKey) {
-  openai = new OpenAI({ apiKey: openaiApiKey });
-} else {
-  console.warn('OPENAI_API_KEY is not set. Image generation feature will be disabled.');
-}
-
-// Style prefix for the prompt
-const STYLE_PREFIX = 'Illustration, cinematic lighting, high detail: ';
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || '',
+});
 
 export const POST = withAuth(async (req: AuthenticatedRequest) => {
-  if (!openai) {
-    return NextResponse.json({ error: 'Image generation service not configured.' }, { status: 503 });
+  const user = req.user;
+  if (!user || !user.sub || !user.cid) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
   }
-
-  const user = req.user as JwtPayload | undefined;
-  if (!user || !user.cid || !user.sub) {
-    return NextResponse.json({ error: 'Missing user or community ID in token' }, { status: 401 });
-  }
+  const userId = user.sub;
   const communityId = user.cid;
-  const userId = user.sub; // For usage logging
 
-  let body: GenerateBackgroundBody;
+  let payload: GenerateBackgroundBody;
   try {
-    body = await req.json();
+    payload = await req.json();
   } catch {
-    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
   }
 
-  // Use structuredPrompt for generation, ensure it exists
-  const { wizardId, stepId, structuredPrompt } = body;
-  if (!wizardId || !stepId || !structuredPrompt) { // Check structuredPrompt
-    return NextResponse.json({ error: 'Missing wizardId, stepId, or structuredPrompt' }, { status: 400 });
-  }
+  const { structuredPrompt } = payload;
 
-  // Format structured prompt into a string for OpenAI
-  const textPrompt = Object.entries(structuredPrompt)
-      .filter(([key, value]) => value && String(value).trim() !== '') // Filter out empty/null values
-      .map(([key, value]) => `${key}: ${value}`) // Format as key: value (optional)
-      .join(', '); // Combine with commas
-      
-  if (!textPrompt) {
-      return NextResponse.json({ error: 'Prompt cannot be empty after formatting.' }, { status: 400 });
-  }
-
+  // --- 1. Quota Check --- 
   try {
-    // 1. Authorize: Check if step belongs to wizard and wizard to community
-    const authCheck = await query(
-      `SELECT w.id 
-       FROM onboarding_wizards w 
-       JOIN onboarding_steps s ON s.wizard_id = w.id 
-       WHERE w.id = $1 AND w.community_id = $2 AND s.id = $3`,
-      [wizardId, communityId, stepId]
-    );
-    if (authCheck.rows.length === 0) {
-      return NextResponse.json({ error: 'Wizard/Step not found or access denied' }, { status: 404 });
-    }
-
-    // 2. Check Quota
     await enforceEventRateLimit(communityId, Feature.ImageGeneration);
+  } catch (error) {
+    if (error instanceof QuotaExceededError) {
+      return NextResponse.json({ error: error.message, quotaError: true }, { status: 429 }); // Too Many Requests
+    }
+    console.error('Error checking quota:', error);
+    return NextResponse.json({ error: 'Internal server error checking quota' }, { status: 500 });
+  }
 
-    // 3. Generate Image with OpenAI
-    const augmentedPrompt = STYLE_PREFIX + textPrompt; // Use formatted prompt
-    console.log(`Generating image for step ${stepId} with prompt: "${augmentedPrompt}"`);
-    const imageResponse = await openai.images.generate({
+  // --- 2. Format Prompt (Simple example) --- 
+  let formattedPrompt = '';
+  if (structuredPrompt) {
+    // Example: "A cyberpunk style image of a cat sleeping on a futuristic couch, mood is calm."
+    // More sophisticated formatting could happen here.
+    formattedPrompt = [
+      structuredPrompt.style,
+      structuredPrompt.subject,
+      structuredPrompt.mood
+    ].filter(Boolean).join(', '); 
+    // Add a base style/prefix if desired
+    // formattedPrompt = `cinematic photo, ${formattedPrompt}`; 
+  }
+
+  if (!formattedPrompt) {
+    return NextResponse.json({ error: 'Prompt cannot be empty after formatting.' }, { status: 400 });
+  }
+
+  // --- 3. Call OpenAI --- 
+  try {
+    console.log(`Generating image for prompt: "${formattedPrompt}"`);
+    const response = await openai.images.generate({
       model: "dall-e-3",
-      prompt: augmentedPrompt,
+      prompt: formattedPrompt,
       n: 1,
-      size: "1024x1024",
-      response_format: "url", // Get URL to download from
-      // style: "vivid", // Optional style
+      size: "1024x1024", // Standard size for DALL-E 3
+      quality: "standard", // or "hd"
+      response_format: "url", // Get temporary URL
     });
 
-    const temporaryUrl = imageResponse.data?.[0]?.url;
+    // Check if response.data exists before accessing it
+    if (!response.data || response.data.length === 0) {
+      throw new Error('OpenAI response did not contain image data.');
+    }
+
+    const temporaryUrl = response.data[0]?.url;
     if (!temporaryUrl) {
       throw new Error('OpenAI did not return an image URL.');
     }
-    console.log(`Generated image temporary URL: ${temporaryUrl}`);
 
-    // 4. Upload image to persistent storage
-    const pathPrefix = `${communityId}/images`; // Updated path prefix
-    const persistentUrl = await uploadImageFromUrl(temporaryUrl, pathPrefix);
+    // --- 4. Upload to Storage --- 
+    console.log('Uploading image from temporary URL:', temporaryUrl);
+    const persistentUrl = await uploadImageFromUrl(temporaryUrl, communityId);
+    console.log('Image uploaded successfully:', persistentUrl);
 
-    // 5. Insert metadata into generated_images table
-    await query(
-      `INSERT INTO generated_images (user_id, community_id, storage_url, prompt_structured, is_public)
-       VALUES ($1, $2, $3, $4, false)`,
-       [userId, communityId, persistentUrl, JSON.stringify(structuredPrompt)] // Save structured prompt
-    );
-    console.log(`Saved generated image metadata for user ${userId}`);
+    // --- 5. Save Metadata to DB --- 
+    const insertQuery = `
+      INSERT INTO generated_images (user_id, community_id, storage_url, prompt_structured, is_public, created_at)
+      VALUES ($1, $2, $3, $4, $5, NOW())
+      RETURNING id;
+    `;
+    // Remove unused 'key' variable from structured prompt before saving
+    // const { key: _key, ...promptToSave } = structuredPrompt;
+    const { rows } = await query(insertQuery, [
+      userId,
+      communityId,
+      persistentUrl,
+      JSON.stringify(structuredPrompt), // Save the original structured prompt
+      false // Default to private
+    ]);
+    const newImageId = rows[0]?.id;
+    console.log('Image metadata saved to DB with ID:', newImageId);
 
-    // 6. Log usage event AFTER successful generation and upload and DB insert
+    // --- 6. Track Usage Event (Using correct function name) --- 
     await logUsageEvent(communityId, userId, Feature.ImageGeneration);
 
-    // 7. Return persistent URL
+    // --- 7. Return Success --- 
     return NextResponse.json({ imageUrl: persistentUrl });
 
-  } catch (error) {
-    console.error(`Error generating background for step ${stepId}:`, error);
+  } catch (error: unknown) {
+    console.error(`Error generating background for step:`, error);
 
     // Handle specific Quota Exceeded error
     if (error instanceof QuotaExceededError) {
@@ -135,13 +137,13 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
     
     // Handle potential OpenAI errors (e.g., content policy)
     if (error instanceof OpenAI.APIError) {
-        let message = `OpenAI API Error: ${error.status} ${error.name}`;
-        if (error.code === 'content_policy_violation') {
-             message = 'Image prompt violates content policy. Please modify your prompt.';
-             return NextResponse.json({ error: 'Content Policy Violation', message }, { status: 400 });
-        }
-        // Add more specific OpenAI error handling if needed
-        return NextResponse.json({ error: 'OpenAI Error', message }, { status: 502 }); // Bad Gateway
+      let message = `OpenAI API Error: ${error.status} ${error.name}`;
+      if (error.code === 'content_policy_violation') {
+        message = 'Image prompt violates content policy. Please modify your prompt.';
+        return NextResponse.json({ error: 'Content Policy Violation', message }, { status: 400 });
+      }
+      // Add more specific OpenAI error handling if needed
+      return NextResponse.json({ error: 'OpenAI Error', message }, { status: 502 }); // Bad Gateway
     }
 
     // Handle storage or other errors

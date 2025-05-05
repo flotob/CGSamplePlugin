@@ -55,7 +55,7 @@ export function useGenerateAndSaveImageMutation(): UseMutationResult<
       );
       return response;
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       // Invalidate the query for the admin's own images so the new one appears
       queryClient.invalidateQueries({ queryKey: ['adminImages', 'mine'] }); 
       toast({ 
