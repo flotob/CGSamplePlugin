@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Wand2, CheckCircle, Loader2, AlertCircle, CirclePlay, CircleCheck, Ticket, ExternalLink, ShieldCheck } from 'lucide-react';
-import { useUserWizardsQuery } from '@/hooks/useUserWizardsQuery';
+import { useUserWizardsQuery, UserWizard } from '@/hooks/useUserWizardsQuery';
 import { useWizardSlideshow } from '@/context/WizardSlideshowContext';
 
 // --- Added hooks for earnable roles calculation ---
@@ -22,12 +22,50 @@ import { useUserWizardCompletionsQuery } from '@/hooks/useUserWizardCompletionsQ
 import type { CommunityInfoResponsePayload, UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib'; // Added CG Lib Types
 // --- End Added hooks ---
 
+import { useUserWizardPreviewImageQuery } from '@/hooks/useUserWizardPreviewImageQuery';
+import { Skeleton } from "@/components/ui/skeleton";
+import Image from 'next/image';
+import { ImageOff } from 'lucide-react';
+
 // Define Role type alias using the imported payload
 type Role = NonNullable<CommunityInfoResponsePayload['roles']>[number];
 
 // Define props - currently none needed, but keep interface for consistency
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface WizardViewProps {}
+
+// --- Helper component for Wizard Preview Image --- 
+const WizardPreviewImage: React.FC<{ wizardId: string, wizardName: string }> = ({ wizardId, wizardName }) => {
+  const { 
+    data: previewData, 
+    isLoading: isLoadingPreview, 
+    isError: isPreviewError 
+  } = useUserWizardPreviewImageQuery(wizardId);
+
+  if (isLoadingPreview) {
+    return <Skeleton className="h-10 w-16 rounded-sm flex-shrink-0" />;
+  }
+  if (isPreviewError || !previewData?.previewImageUrl) {
+    return (
+      <div className="h-10 w-16 rounded-sm bg-muted flex items-center justify-center flex-shrink-0">
+        <ImageOff className="h-4 w-4 text-muted-foreground" />
+      </div>
+    );
+  }
+  return (
+    <div className="h-10 w-16 rounded-sm overflow-hidden border relative flex-shrink-0">
+      <Image 
+        src={previewData.previewImageUrl}
+        alt={`${wizardName} preview`}
+        fill
+        sizes="4rem"
+        className="object-cover"
+        unoptimized
+      />
+    </div>
+  );
+};
+// --------------------------------------------
 
 export const WizardView: React.FC<WizardViewProps> = () => {
   const { data: userWizardsData, isLoading: isLoadingUserWizards, error: userWizardsError } = useUserWizardsQuery();
@@ -168,13 +206,13 @@ export const WizardView: React.FC<WizardViewProps> = () => {
                   style={{ animationDelay: `${150 + (index * 50)}ms` }}
                   onClick={() => setActiveSlideshowWizardId(wizard.id)}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className={`h-8 w-8 rounded-full flex items-center justify-center text-accent-foreground ${wizard.progressStatus === 'in-progress' ? 'bg-blue-500/10 text-blue-600' : 'bg-accent'}`}>
-                      {wizard.progressStatus === 'in-progress' ? <CirclePlay className="h-4 w-4" /> : <Wand2 className="h-4 w-4" />}
-                    </div>
+                  <div className="flex items-center gap-3 flex-grow">
+                    <WizardPreviewImage wizardId={wizard.id} wizardName={wizard.name} />
                     <div>
                       <p className="font-medium">{wizard.name}</p>
-                      <p className="text-xs text-muted-foreground">{wizard.description || 'No description available.'}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-1">
+                        {wizard.description || 'No description available.'}
+                      </p>
                       {/* Add Required Role display */} 
                       {wizard.required_role_id && (
                           <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
