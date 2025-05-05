@@ -7,10 +7,20 @@ import { uploadImageFromUrl } from '@/lib/storage';
 import OpenAI from 'openai';
 
 // Define expected request body
+interface StructuredPrompt { 
+    // Define fields based on planned UI, e.g.:
+    style?: string | null;
+    subject?: string | null;
+    mood?: string | null;
+    // Add other fields as needed
+}
+
+// Extend GenerateBackgroundBody
 interface GenerateBackgroundBody {
   wizardId: string;
   stepId: string;
-  prompt: string;
+  prompt: string; // Keep raw prompt maybe? Or just structured?
+  structuredPrompt: StructuredPrompt; // Use structured prompt
 }
 
 // Initialize OpenAI client
@@ -44,9 +54,20 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { wizardId, stepId, prompt } = body;
-  if (!wizardId || !stepId || !prompt || prompt.trim().length === 0) {
-    return NextResponse.json({ error: 'Missing wizardId, stepId, or prompt' }, { status: 400 });
+  // Use structuredPrompt for generation, ensure it exists
+  const { wizardId, stepId, structuredPrompt } = body;
+  if (!wizardId || !stepId || !structuredPrompt) { // Check structuredPrompt
+    return NextResponse.json({ error: 'Missing wizardId, stepId, or structuredPrompt' }, { status: 400 });
+  }
+
+  // Format structured prompt into a string for OpenAI
+  const textPrompt = Object.entries(structuredPrompt)
+      .filter(([key, value]) => value && String(value).trim() !== '') // Filter out empty/null values
+      .map(([key, value]) => `${key}: ${value}`) // Format as key: value (optional)
+      .join(', '); // Combine with commas
+      
+  if (!textPrompt) {
+      return NextResponse.json({ error: 'Prompt cannot be empty after formatting.' }, { status: 400 });
   }
 
   try {
@@ -62,11 +83,11 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       return NextResponse.json({ error: 'Wizard/Step not found or access denied' }, { status: 404 });
     }
 
-    // 2. Check Quota using Event Rate Limit
+    // 2. Check Quota
     await enforceEventRateLimit(communityId, Feature.ImageGeneration);
 
     // 3. Generate Image with OpenAI
-    const augmentedPrompt = STYLE_PREFIX + prompt;
+    const augmentedPrompt = STYLE_PREFIX + textPrompt; // Use formatted prompt
     console.log(`Generating image for step ${stepId} with prompt: "${augmentedPrompt}"`);
     const imageResponse = await openai.images.generate({
       model: "dall-e-3",
@@ -84,13 +105,21 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
     console.log(`Generated image temporary URL: ${temporaryUrl}`);
 
     // 4. Upload image to persistent storage
-    const pathPrefix = `${communityId}/${wizardId}/${stepId}`;
+    const pathPrefix = `${communityId}/images`; // Updated path prefix
     const persistentUrl = await uploadImageFromUrl(temporaryUrl, pathPrefix);
 
-    // 5. Log usage event AFTER successful generation and upload
+    // 5. Insert metadata into generated_images table
+    await query(
+      `INSERT INTO generated_images (user_id, community_id, storage_url, prompt_structured, is_public)
+       VALUES ($1, $2, $3, $4, false)`,
+       [userId, communityId, persistentUrl, JSON.stringify(structuredPrompt)] // Save structured prompt
+    );
+    console.log(`Saved generated image metadata for user ${userId}`);
+
+    // 6. Log usage event AFTER successful generation and upload and DB insert
     await logUsageEvent(communityId, userId, Feature.ImageGeneration);
 
-    // 6. Return persistent URL
+    // 7. Return persistent URL
     return NextResponse.json({ imageUrl: persistentUrl });
 
   } catch (error) {
