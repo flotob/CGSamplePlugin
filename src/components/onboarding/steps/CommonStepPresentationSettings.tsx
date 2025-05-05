@@ -71,28 +71,6 @@ export const CommonStepPresentationSettings: React.FC<CommonStepPresentationSett
            className="text-sm resize-none"
          />
        </div>
-       <div className="space-y-1.5 pt-4 border-t">
-         <Label htmlFor="step-background-url">Background Image</Label>
-         <Input 
-           id="step-background-url"
-           value={backgroundImageUrl}
-           readOnly
-           placeholder="No background image selected"
-           disabled={disabled}
-           className="text-sm bg-muted/50"
-         />
-         {backgroundImageUrl && (
-           <div className="mt-2 border rounded-md overflow-hidden w-32 h-32 relative bg-muted">
-             <Image 
-                src={backgroundImageUrl}
-                alt="Background preview"
-                layout="fill"
-                objectFit="cover"
-                unoptimized
-             />
-           </div>
-         )}
-       </div>
     </div>
   );
 }; 

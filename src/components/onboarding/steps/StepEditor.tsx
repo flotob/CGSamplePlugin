@@ -25,6 +25,10 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { AdminWizardSummaryPreview } from './AdminWizardSummaryPreview';
 import { ImageLibraryModal } from '../ImageLibraryModal';
+import Image from 'next/image';
+import { useAdminImagesQuery } from '@/hooks/useAdminImagesQuery';
+import { Loader2, AlertCircle } from 'lucide-react';
+import { cn } from "@/lib/utils";
 
 interface CommunityRole {
   id: string;
@@ -87,6 +91,9 @@ export const StepEditor: React.FC<StepEditorProps> = ({
   
   // State for the Image Library Modal
   const [isImageLibraryOpen, setIsImageLibraryOpen] = useState(false);
+
+  // Fetch user's own generated images for quick selection
+  const myImagesQuery = useAdminImagesQuery({ scope: 'mine' });
 
   // ADD BACK the change handlers, modified for unified state
   const handlePresentationChange = React.useCallback((newPresentationConfig: PresentationConfig) => {
@@ -245,20 +252,96 @@ export const StepEditor: React.FC<StepEditorProps> = ({
           <AccordionTrigger className="text-sm font-medium text-muted-foreground uppercase tracking-wide hover:no-underline py-2">
             Presentation
           </AccordionTrigger>
-          <AccordionContent className="pt-1 space-y-4">
-            <CommonStepPresentationSettings 
-              initialData={stepConfig.presentation}
-              onChange={handlePresentationChange}
-              disabled={currentMutation.isPending}
-            />
-            <Button 
-              type="button"
-              variant="outline"
-              onClick={() => setIsImageLibraryOpen(true)} 
-              disabled={currentMutation.isPending}
-            >
-              Choose Background Image...
-            </Button>
+          <AccordionContent className="pt-1 space-y-1">
+            {/* Nested Accordion for Presentation Subsections */}
+            <Accordion type="multiple" className="w-full space-y-1">
+              <AccordionItem value="text-content" className="border-b-0">
+                 <AccordionTrigger className="text-xs font-medium text-muted-foreground/80 hover:no-underline py-2">
+                   Headline & Subtitle
+                 </AccordionTrigger>
+                 <AccordionContent className="pt-1 pb-2">
+                    <CommonStepPresentationSettings 
+                      initialData={stepConfig.presentation}
+                      onChange={handlePresentationChange}
+                      disabled={currentMutation.isPending}
+                    />
+                 </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="background-image" className="border-b-0">
+                 <AccordionTrigger className="text-xs font-medium text-muted-foreground/80 hover:no-underline py-2">
+                   Background Image
+                 </AccordionTrigger>
+                 <AccordionContent className="pt-1 pb-2 space-y-4">
+                    <div className="flex items-start gap-4">
+                      <div className="flex-shrink-0">
+                        <Label className="text-xs font-medium text-muted-foreground">Selected</Label>
+                        <div 
+                          className={cn(
+                            "mt-1 border rounded-md overflow-hidden w-32 h-32 relative bg-muted",
+                            stepConfig.presentation.backgroundImageUrl && "border-2 border-primary shadow-md"
+                          )}
+                        >
+                          {stepConfig.presentation.backgroundImageUrl ? (
+                            <Image 
+                               src={stepConfig.presentation.backgroundImageUrl}
+                               alt="Selected background preview"
+                               layout="fill"
+                               objectFit="cover"
+                               unoptimized
+                            />
+                          ) : (
+                            <div className="flex items-center justify-center h-full text-xs text-muted-foreground italic p-2 text-center">
+                              No image selected
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex-grow">
+                         <Label className="text-xs font-medium text-muted-foreground">Recently Generated</Label>
+                         <div className="mt-1 flex gap-2 flex-wrap">
+                            {myImagesQuery.isLoading && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground"/>}
+                            {myImagesQuery.isError && <AlertCircle className="h-5 w-5 text-destructive" />}
+                            {myImagesQuery.data && myImagesQuery.data.images.length === 0 && (
+                                <p className="text-xs text-muted-foreground italic">No recent images.</p>
+                            )}
+                            {myImagesQuery.data && myImagesQuery.data.images.slice(0, 3).map(img => (
+                                <button 
+                                  type="button" 
+                                  key={img.id} 
+                                  onClick={() => handleImageSelected(img.storage_url)}
+                                  className="border rounded-md overflow-hidden w-16 h-16 relative bg-muted hover:ring-2 hover:ring-primary focus:ring-2 focus:ring-primary transition-shadow"
+                                  title="Select this image"
+                                >
+                                  <Image 
+                                     src={img.storage_url}
+                                     alt="Recent image preview"
+                                     layout="fill"
+                                     objectFit="cover"
+                                     unoptimized
+                                  />
+                                </button>
+                            ))}
+                         </div>
+                      </div>
+                    </div>
+
+                    <Button 
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      onClick={() => setIsImageLibraryOpen(true)}
+                      disabled={currentMutation.isPending}
+                      className="mt-2"
+                    >
+                      {stepConfig.presentation.backgroundImageUrl 
+                        ? 'Generate or choose another background image' 
+                        : 'Generate or choose background image'}
+                    </Button>
+                 </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </AccordionContent>
         </AccordionItem>
 
