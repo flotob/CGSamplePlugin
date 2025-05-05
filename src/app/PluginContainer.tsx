@@ -21,6 +21,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { useWizardSlideshow } from '../context/WizardSlideshowContext';
 import { WizardSlideshowModal } from '../components/onboarding/WizardSlideshowModal';
 import { useToast } from "@/hooks/use-toast";
+import { useUserWizardCompletionsQuery } from '@/hooks/useUserWizardCompletionsQuery';
+import { useUserWizardsQuery } from '@/hooks/useUserWizardsQuery';
 
 // Removed targetRoleIdFromEnv constant
 // const targetRoleIdFromEnv = process.env.NEXT_PUBLIC_TARGET_ROLE_ID;
@@ -57,6 +59,7 @@ const PluginContainer = () => {
   const [previousSection, setPreviousSection] = useState<string | null>(null);
   // Add state for preview mode
   const [isPreviewingAsUser, setIsPreviewingAsUser] = useState<boolean>(false);
+  const [hasCheckedHero, setHasCheckedHero] = useState(false); // State to prevent re-checking
 
   // Custom section setter with transition
   const handleSetActiveSection = (section: string) => {
@@ -195,11 +198,66 @@ const PluginContainer = () => {
     return communityInfo?.roles?.filter((role) => role.assignmentRules?.type === 'free' || role.assignmentRules === null);
   }, [communityInfo]);
 
-  // Combined loading and error states
-  // We also consider `isAuthenticating` as part of the loading phase now.
-  // The JWT is needed for backend calls, so the app isn't fully ready until it's attempted.
-  const isCoreLoading = isInitializing || isLoadingAdminStatus || !activeSection || (isAuthenticating && !jwt);
-  const coreError = initError || adminStatusError || authError || userInfoError || communityInfoError;
+  // --- Fetch Data needed for Hero Logic ---
+  // Fetch USER wizards and completions (require JWT)
+  const { data: userWizardsData, isLoading: isLoadingUserWizards, error: userWizardsError } = useUserWizardsQuery(
+      { enabled: !!jwt } // Enable once JWT is available
+  );
+  const { data: completionsData, isLoading: isLoadingCompletions } = useUserWizardCompletionsQuery(
+      { enabled: !!jwt } // Enable once JWT is available
+  );
+  
+  // --- Effect for Hero Wizard Auto-Launch --- 
+  useEffect(() => {
+    // Conditions to run:
+    // - Not loading essential data (admin status, *user* wizards, completions)
+    // - User is definitively NOT an admin
+    // - We haven't already checked/launched the hero wizard
+    // - Slideshow isn't already open
+    // - User wizards data is loaded
+    if (
+      !isLoadingAdminStatus && 
+      !isLoadingUserWizards && // Use user wizards loading state
+      !isLoadingCompletions && 
+      !isAdmin && 
+      !hasCheckedHero && 
+      !activeSlideshowWizardId &&
+      userWizardsData // Ensure user wizard data is present
+    ) {
+      console.log("Checking for Hero Wizard...");
+      setHasCheckedHero(true); // Mark as checked
+
+      // Get hero ID directly from user wizard data
+      const heroWizardId = userWizardsData.heroWizardId;
+      const completedIds = completionsData?.completed_wizard_ids ?? [];
+
+      if (heroWizardId) {
+          console.log(`Found active Hero Wizard ID: ${heroWizardId}`);
+          if (!completedIds.includes(heroWizardId)) {
+              console.log(`User has not completed Hero Wizard. Auto-launching...`);
+              // Need a slight delay to ensure initial render completes before modal opens
+              setTimeout(() => {
+                 setActiveSlideshowWizardId(heroWizardId);
+              }, 100); 
+          } else {
+              console.log('User has already completed Hero Wizard.');
+          }
+      } else {
+          console.log('No active Hero Wizard found for this community.');
+      }
+    }
+  }, [
+    isAdmin, isLoadingAdminStatus, 
+    userWizardsData, isLoadingUserWizards, // Update dependencies
+    completionsData, isLoadingCompletions, 
+    hasCheckedHero, activeSlideshowWizardId,
+    setActiveSlideshowWizardId 
+  ]);
+
+  // Display loading indicator
+  // Update core loading check to use userWizards loading state
+  const isCoreLoading = isInitializing || isLoadingAdminStatus || !activeSection || (isAuthenticating && !jwt) || isLoadingUserWizards || isLoadingCompletions;
+  const coreError = initError || adminStatusError || authError || userInfoError || communityInfoError || userWizardsError; // Include userWizardsError
 
   // --- Effect for Stripe Callback Listener ---
   useEffect(() => {

@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, UseQueryOptions } from '@tanstack/react-query';
 import { useAuthFetch } from '@/lib/authFetch';
 
 export interface Wizard {
@@ -11,12 +11,14 @@ export interface Wizard {
   updated_at: string;
   required_role_id: string | null;
   assign_roles_per_step: boolean;
+  is_hero: boolean;
 }
 
-export function useWizardsQuery() {
+export function useWizardsQuery(options?: Omit<UseQueryOptions<{ wizards: Wizard[] }, Error>, 'queryKey' | 'queryFn'>) {
   const { authFetch } = useAuthFetch();
   return useQuery<{ wizards: Wizard[] }, Error>({
     queryKey: ['wizards'],
     queryFn: async () => await authFetch<{ wizards: Wizard[] }>('/api/wizards'),
+    ...options,
   });
 } 

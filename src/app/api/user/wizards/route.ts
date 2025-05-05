@@ -2,6 +2,7 @@ import { withAuth } from '@/lib/withAuth';
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import type { JwtPayload } from '@/app/api/auth/session/route';
+import type { Step } from '@/hooks/useStepsQuery'; // Import Step type for base structure
 
 // Define the expected structure of the response items
 export interface UserWizard {
@@ -11,6 +12,12 @@ export interface UserWizard {
   required_role_id: string | null;
   progressStatus: 'not-started' | 'in-progress' | 'completed';
   // Potentially add total step count, completed step count later if needed
+}
+
+// Define the structure for the overall API response
+export interface UserWizardsApiResponse {
+  wizards: UserWizard[];
+  heroWizardId: string | null;
 }
 
 // GET: Lists wizards relevant to the user, including their progress status
@@ -24,7 +31,14 @@ export const GET = withAuth(async (req) => {
   const userRoles = user.roles ?? [];
 
   try {
-    // Query using MAX aggregate for completion check
+    // Fetch Hero Wizard ID first (simpler)
+    const heroRes = await query(
+        `SELECT id FROM onboarding_wizards WHERE community_id = $1 AND is_hero = true AND is_active = true LIMIT 1`,
+        [communityId]
+    );
+    const heroWizardId: string | null = heroRes.rows[0]?.id ?? null;
+
+    // Fetch user-accessible wizards with progress
     const wizardQuery = `
       SELECT 
         w.id, 
@@ -52,7 +66,13 @@ export const GET = withAuth(async (req) => {
 
     const wizards = result.rows;
 
-    return NextResponse.json({ wizards });
+    // Construct the final response object
+    const responsePayload: UserWizardsApiResponse = {
+        wizards: wizards,
+        heroWizardId: heroWizardId
+    };
+
+    return NextResponse.json(responsePayload);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {

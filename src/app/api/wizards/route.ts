@@ -27,6 +27,7 @@ export interface WizardSummary {
   updated_at: string;
   required_role_id: string | null;
   assign_roles_per_step: boolean;
+  is_hero: boolean;
 }
 
 // GET: List wizards for the user's community, optionally filtering by active status
@@ -52,7 +53,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest) => {
   }
 
   try {
-    let queryString = `SELECT id, community_id, name, description, is_active, created_at, updated_at, required_role_id, assign_roles_per_step 
+    let queryString = `SELECT id, community_id, name, description, is_active, created_at, updated_at, required_role_id, assign_roles_per_step, is_hero 
                        FROM onboarding_wizards 
                        WHERE community_id = $1`;
     const queryParams: (string | boolean)[] = [communityId];

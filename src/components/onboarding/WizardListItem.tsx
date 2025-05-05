@@ -27,11 +27,12 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from 'date-fns';
-import { Edit2, Copy, Trash2, Play, Square, Check, Loader2, Settings, ShieldCheck } from 'lucide-react';
+import { Edit2, Copy, Trash2, Play, Square, Check, Loader2, Settings, ShieldCheck, Star } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import type { CommunityInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useSetHeroWizardMutation } from '@/hooks/useSetHeroWizardMutation';
 
 // Define Role type (can be shared or imported if defined elsewhere)
 // Assuming structure from CommunityInfoResponsePayload
@@ -68,6 +69,7 @@ export const WizardListItem: React.FC<WizardListItemProps> = ({
   const duplicateMutation = useDuplicateWizard();
   const deleteMutation = useDeleteWizard();
   const updateDetailsMutation = useUpdateWizardDetails();
+  const setHeroMutation = useSetHeroWizardMutation();
 
   const handleTogglePublish = useCallback(() => {
     publishMutation.mutate(
@@ -156,7 +158,8 @@ export const WizardListItem: React.FC<WizardListItemProps> = ({
     publishMutation.isPending || 
     duplicateMutation.isPending || 
     deleteMutation.isPending || 
-    updateDetailsMutation.isPending;
+    updateDetailsMutation.isPending ||
+    setHeroMutation.isPending;
 
   // Format date
   const updatedAt = formatDistanceToNow(new Date(wizard.updated_at), { addSuffix: true });
@@ -234,7 +237,22 @@ export const WizardListItem: React.FC<WizardListItemProps> = ({
             </div>
           ) : (
             <div className="flex-grow">
-              <CardTitle className="text-lg mb-1">{wizard.name}</CardTitle>
+              <CardTitle className="text-lg mb-1 flex items-center gap-1.5">
+                 {wizard.name}
+                 {/* Add Hero indicator */} 
+                 {wizard.is_hero && (
+                    <TooltipProvider delayDuration={150}>
+                       <Tooltip>
+                          <TooltipTrigger>
+                             <Star className="h-4 w-4 text-yellow-500 fill-yellow-400" />
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs">
+                             <p>Hero Wizard</p>
+                          </TooltipContent>
+                       </Tooltip>
+                    </TooltipProvider>
+                 )}
+              </CardTitle>
               <CardDescription className="line-clamp-2">
                 {wizard.description || <span className="italic text-muted-foreground/70">No description</span>}
               </CardDescription>
@@ -287,6 +305,52 @@ export const WizardListItem: React.FC<WizardListItemProps> = ({
          <div className="flex items-center gap-1.5">
            {/* ----- Conditional Actions ----- */} 
            
+           {/* Set Hero / Is Hero Indicator Button */} 
+           {!wizard.is_hero ? (
+              // Show "Make Hero" button if not hero
+              <TooltipProvider delayDuration={200}>
+                 <Tooltip>
+                    <TooltipTrigger asChild>
+                       <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={() => setHeroMutation.mutate({ wizardId: wizard.id })}
+                          disabled={isMutatingAny}
+                          className="h-8 px-3 text-xs">
+                          {setHeroMutation.isPending ? 
+                             <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : 
+                             <Star className="mr-1.5 h-3.5 w-3.5"/> // Outline star
+                          }
+                          Make Hero
+                       </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="text-xs">
+                       <p>Set as the primary wizard for new users</p>
+                    </TooltipContent>
+                 </Tooltip>
+              </TooltipProvider>
+           ) : (
+              // Show disabled "Hero" indicator if it IS the hero
+              <TooltipProvider delayDuration={200}>
+                  <Tooltip>
+                     <TooltipTrigger asChild>
+                        {/* Disabled button as visual indicator */}
+                        <Button 
+                           size="sm" 
+                           variant="outline" 
+                           disabled={true} // Always disabled
+                           className="h-8 px-3 text-xs opacity-100 cursor-default border-yellow-500/30 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400">
+                           <Star className="mr-1.5 h-3.5 w-3.5 fill-current"/> {/* Filled star */} 
+                           Hero
+                        </Button>
+                     </TooltipTrigger>
+                     <TooltipContent side="bottom" className="text-xs">
+                        <p>This is the current Hero wizard</p>
+                     </TooltipContent>
+                  </Tooltip>
+              </TooltipProvider>
+           )}
+
            {/* Edit Steps (Only for Drafts) */} 
            {!wizard.is_active && (
               <TooltipProvider delayDuration={200}>

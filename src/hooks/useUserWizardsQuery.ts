@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, UseQueryOptions, UseQueryResult } from '@tanstack/react-query';
 import { useAuthFetch } from '@/lib/authFetch';
 
 // Re-define the expected structure for clarity, or import if shared
@@ -10,24 +10,25 @@ export interface UserWizard {
   progressStatus: 'not-started' | 'in-progress' | 'completed'; 
 }
 
-// Define the expected API response structure
+// Update the response type to include heroWizardId
 interface UserWizardsResponse {
   wizards: UserWizard[];
+  heroWizardId: string | null;
 }
 
-export const useUserWizardsQuery = () => {
+export const useUserWizardsQuery = (options?: Omit<UseQueryOptions<UserWizardsResponse, Error>, 'queryKey' | 'queryFn'>): UseQueryResult<UserWizardsResponse, Error> => {
   const { authFetch } = useAuthFetch();
 
+  // Update the expected generic type here
   return useQuery<UserWizardsResponse, Error>({
-    // Query key for caching
     queryKey: ['userWizards'],
 
     // Function to fetch data
     queryFn: async () => {
       // authFetch handles the authentication header
-      const response = await authFetch('/api/user/wizards');
-      // Cast the response to the expected type
-      return response as UserWizardsResponse;
+      // Update the expected generic type here too
+      const response = await authFetch<UserWizardsResponse>('/api/user/wizards');
+      return response; // Return the full response object
     },
 
     // Options (optional, but good practice)
