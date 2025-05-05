@@ -7,6 +7,7 @@ export enum Feature {
   WizardStepCompletion = 'wizard_step_completion',
   ApiCallGeneric = 'api_call_generic',
   ActiveWizard = 'active_wizard', // Added for resource limit
+  ImageGeneration = 'image_generation', // Add the new feature
   // Add other features here as they are added to the DB enum
 }
 
