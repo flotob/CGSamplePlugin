@@ -15,6 +15,25 @@ CREATE TABLE "public"."communities" (
 CREATE UNIQUE INDEX communities_stripe_customer_id_key ON public.communities USING btree (stripe_customer_id);
 
 
+DROP TABLE IF EXISTS "generated_images";
+CREATE TABLE "public"."generated_images" (
+    "id" uuid DEFAULT gen_random_uuid() NOT NULL,
+    "user_id" text NOT NULL,
+    "community_id" text NOT NULL,
+    "storage_url" text NOT NULL,
+    "prompt_structured" jsonb NOT NULL,
+    "is_public" boolean DEFAULT false NOT NULL,
+    "created_at" timestamptz DEFAULT now() NOT NULL,
+    CONSTRAINT "generated_images_pkey" PRIMARY KEY ("id")
+) WITH (oids = false);
+
+CREATE UNIQUE INDEX generated_images_storage_url_key ON public.generated_images USING btree (storage_url);
+
+CREATE INDEX idx_generated_images_user_created ON public.generated_images USING btree (user_id, created_at DESC);
+
+CREATE INDEX idx_generated_images_community_public ON public.generated_images USING btree (community_id, is_public, created_at DESC) WHERE (is_public = true);
+
+
 DROP TABLE IF EXISTS "onboarding_steps";
 CREATE TABLE "public"."onboarding_steps" (
     "id" uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -45,12 +64,16 @@ CREATE TABLE "public"."onboarding_wizards" (
     "created_at" timestamptz DEFAULT now() NOT NULL,
     "updated_at" timestamptz DEFAULT now() NOT NULL,
     "required_role_id" text,
+    "assign_roles_per_step" boolean DEFAULT false NOT NULL,
+    "is_hero" boolean DEFAULT false NOT NULL,
     CONSTRAINT "onboarding_wizards_pkey" PRIMARY KEY ("id")
 ) WITH (oids = false);
 
 CREATE UNIQUE INDEX uniq_wizard_name_per_community ON public.onboarding_wizards USING btree (community_id, name);
 
 CREATE INDEX onboarding_wizards_community_id_index ON public.onboarding_wizards USING btree (community_id);
+
+CREATE UNIQUE INDEX only_one_hero_wizard_per_community ON public.onboarding_wizards USING btree (community_id, is_hero) WHERE (is_hero = true);
 
 
 DROP TABLE IF EXISTS "pgmigrations";
@@ -204,6 +227,8 @@ CREATE INDEX user_wizard_sessions_last_viewed_step_id_index ON public.user_wizar
 
 ALTER TABLE ONLY "public"."communities" ADD CONSTRAINT "fk_communities_plan" FOREIGN KEY (current_plan_id) REFERENCES plans(id) NOT DEFERRABLE;
 
+ALTER TABLE ONLY "public"."generated_images" ADD CONSTRAINT "generated_images_community_id_fkey" FOREIGN KEY (community_id) REFERENCES communities(id) ON DELETE CASCADE NOT DEFERRABLE;
+
 ALTER TABLE ONLY "public"."onboarding_steps" ADD CONSTRAINT "onboarding_steps_step_type_id_fkey" FOREIGN KEY (step_type_id) REFERENCES step_types(id) ON DELETE RESTRICT NOT DEFERRABLE;
 ALTER TABLE ONLY "public"."onboarding_steps" ADD CONSTRAINT "onboarding_steps_wizard_id_fkey" FOREIGN KEY (wizard_id) REFERENCES onboarding_wizards(id) ON DELETE CASCADE NOT DEFERRABLE;
 
@@ -219,4 +244,4 @@ ALTER TABLE ONLY "public"."user_wizard_progress" ADD CONSTRAINT "user_wizard_pro
 ALTER TABLE ONLY "public"."user_wizard_sessions" ADD CONSTRAINT "user_wizard_sessions_last_viewed_step_id_fkey" FOREIGN KEY (last_viewed_step_id) REFERENCES onboarding_steps(id) ON DELETE CASCADE NOT DEFERRABLE;
 ALTER TABLE ONLY "public"."user_wizard_sessions" ADD CONSTRAINT "user_wizard_sessions_wizard_id_fkey" FOREIGN KEY (wizard_id) REFERENCES onboarding_wizards(id) ON DELETE CASCADE NOT DEFERRABLE;
 
--- 2025-05-04 21:49:32 UTC
+-- 2025-05-05 16:35:35 UTC
