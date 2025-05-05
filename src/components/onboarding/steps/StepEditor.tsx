@@ -390,7 +390,7 @@ export const StepEditor: React.FC<StepEditorProps> = ({
 
                 <TabsContent value="gradient" className="mt-4">
                    <div className="p-4 border rounded bg-muted/30">
-                    <p className="text-sm text-muted-foreground">[Gradient Generator Coming Soon]</p>
+                    <p className="text-sm text-muted-foreground italic">Gradient Generator Coming Soon</p>
                   </div>
                 </TabsContent>
 
