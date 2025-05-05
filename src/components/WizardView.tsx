@@ -43,22 +43,22 @@ const WizardPreviewImage: React.FC<{ wizardId: string, wizardName: string }> = (
   } = useUserWizardPreviewImageQuery(wizardId);
 
   if (isLoadingPreview) {
-    return <Skeleton className="h-10 w-16 rounded-sm flex-shrink-0" />;
+    return <Skeleton className="h-16 w-24 rounded-sm flex-shrink-0" />;
   }
   if (isPreviewError || !previewData?.previewImageUrl) {
     return (
-      <div className="h-10 w-16 rounded-sm bg-muted flex items-center justify-center flex-shrink-0">
-        <ImageOff className="h-4 w-4 text-muted-foreground" />
+      <div className="h-16 w-24 rounded-sm bg-muted flex items-center justify-center flex-shrink-0">
+        <ImageOff className="h-6 w-6 text-muted-foreground" />
       </div>
     );
   }
   return (
-    <div className="h-10 w-16 rounded-sm overflow-hidden border relative flex-shrink-0">
+    <div className="h-16 w-24 rounded-sm overflow-hidden border relative flex-shrink-0">
       <Image 
         src={previewData.previewImageUrl}
         alt={`${wizardName} preview`}
         fill
-        sizes="4rem"
+        sizes="6rem"
         className="object-cover"
         unoptimized
       />
@@ -206,9 +206,9 @@ export const WizardView: React.FC<WizardViewProps> = () => {
                   style={{ animationDelay: `${150 + (index * 50)}ms` }}
                   onClick={() => setActiveSlideshowWizardId(wizard.id)}
                 >
-                  <div className="flex items-center gap-3 flex-grow">
+                  <div className="flex items-center gap-4 flex-grow">
                     <WizardPreviewImage wizardId={wizard.id} wizardName={wizard.name} />
-                    <div>
+                    <div className="ml-1">
                       <p className="font-medium">{wizard.name}</p>
                       <p className="text-xs text-muted-foreground line-clamp-1">
                         {wizard.description || 'No description available.'}
