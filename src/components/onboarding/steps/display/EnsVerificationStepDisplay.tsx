@@ -4,7 +4,7 @@ import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useAccount } from 'wagmi';
 import { useProfileDetails } from 'ethereum-identity-kit';
 import { Loader2, CheckCircle, Search } from 'lucide-react';
-import type { UserStepProgress } from '@/app/api/user/wizards/[wizardId]/steps/route';
+import type { UserStepProgress } from '@/app/api/user/wizards/[id]/steps/route';
 import type { StepType } from '@/hooks/useStepTypesQuery';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { useEnsAddress } from 'wagmi';

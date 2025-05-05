@@ -1,9 +1,8 @@
 // 'use client'; // Removed directive
 
-import { withAuth } from '@/lib/withAuth';
+import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-import type { JwtPayload } from '@/app/api/auth/session/route';
 // import { validateStepCompletion } from '@/lib/credentialVerification'; // Removed unused import
 
 // Define the expected shape of the request body (optional)
@@ -13,7 +12,7 @@ interface CompleteStepRequestBody {
 
 // Define the params type for this route
 interface CompleteStepParams {
-    wizardId: string;
+    id: string;       // Renamed from wizardId
     stepId: string;
 }
 
@@ -38,19 +37,18 @@ interface WizardInfo {
   assign_roles_per_step: boolean;
 }
 
-export const POST = withAuth<CompleteStepParams>(async (req, { params }) => {
-  // Type guard: ensure req.user exists
-  const user = req.user as JwtPayload | undefined;
-  if (!user || !user.sub || !user.cid) {
+export const POST = withAuth<CompleteStepParams>(async (req: AuthenticatedRequest, context: { params: CompleteStepParams }) => {
+  const user = req.user;
+  if (!user?.sub || !user.cid) { 
     return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
   }
   const userId = user.sub;
-  const communityId = user.cid;
+  const communityId = user.cid; 
 
-  // Params are already resolved
-  const { wizardId, stepId } = params;
+  // Correctly destructure 'id' and rename to 'wizardId'
+  const { id: wizardId, stepId } = context.params;
   if (!wizardId || !stepId) {
-    return NextResponse.json({ error: 'Missing wizard or step id' }, { status: 400 });
+    return NextResponse.json({ error: 'Missing wizard or step ID' }, { status: 400 });
   }
 
   let body: CompleteStepRequestBody | null = null;

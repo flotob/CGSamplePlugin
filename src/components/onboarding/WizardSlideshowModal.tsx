@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { X, Loader2, AlertCircle } from 'lucide-react';
 import { useUserWizardStepsQuery } from '@/hooks/useUserWizardStepsQuery';
 import { useStepTypesQuery } from '@/hooks/useStepTypesQuery';
-import type { UserStepProgress } from '@/app/api/user/wizards/[wizardId]/steps/route';
+import type { UserStepProgress } from '@/app/api/user/wizards/[id]/steps/route';
 import { StepDisplay } from './steps/display/StepDisplay';
 import { useCompleteStepMutation } from '@/hooks/useCompleteStepMutation';
 import { WizardSummaryScreen } from './WizardSummaryScreen';

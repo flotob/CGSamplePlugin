@@ -194,7 +194,7 @@ export const StepEditor: React.FC<StepEditorProps> = ({
        }
        setYoutubeError(null);
     }
-  }, [stepConfig.presentation.backgroundType, stepConfig.presentation.backgroundValue]);
+  }, [stepConfig.presentation.backgroundType, stepConfig.presentation.backgroundValue, youtubeUrlInput]);
 
   const currentMutation = isCreating ? createStepMutation : updateStep;
 

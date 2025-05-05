@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
-import { withAuth } from '@/lib/withAuth';
+import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { query } from '@/lib/db';
-import type { JwtPayload } from '@/app/api/auth/session/route'; // Assuming user ID is in payload
 
 // Params type for this dynamic route
 interface UserWizardSessionParams {
-  wizardId: string;
+  id: string; // Renamed from wizardId to match route segment
 }
 
 // Expected request body for PUT
@@ -14,24 +13,20 @@ interface UpdateSessionBody {
 }
 
 // --- GET Handler: Fetch last viewed step --- 
-export const GET = withAuth<UserWizardSessionParams>(async (req, { params }) => {
-  const user = req.user as JwtPayload | undefined;
-  // Standard JWT claim for user ID is typically 'sub'
-  const userId = user?.sub; // || user?.id; // Keep fallback commented for now unless needed
+export const GET = withAuth<UserWizardSessionParams>(async (req: AuthenticatedRequest, context: { params: UserWizardSessionParams }) => {
+  const user = req.user;
+  if (!user?.sub) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
 
-  if (!userId) {
-    return NextResponse.json({ error: 'User ID not found in token' }, { status: 401 });
-  }
-
-  const { wizardId } = params;
+  // Correctly destructure 'id' and rename to 'wizardId'
+  const { id: wizardId } = context.params; 
   if (!wizardId) {
-    return NextResponse.json({ error: 'Missing wizard ID' }, { status: 400 });
+    return NextResponse.json({ error: 'Missing wizard ID parameter' }, { status: 400 });
   }
 
   try {
     const result = await query(
       `SELECT last_viewed_step_id FROM user_wizard_sessions WHERE user_id = $1 AND wizard_id = $2`,
-      [userId, wizardId]
+      [user.sub, wizardId]
     );
 
     if (result.rows.length > 0) {
@@ -47,17 +42,14 @@ export const GET = withAuth<UserWizardSessionParams>(async (req, { params }) => 
 }); // Assuming GET doesn't require special admin perms, adjust final bool if needed
 
 // --- PUT Handler: Update/Create last viewed step --- 
-export const PUT = withAuth<UserWizardSessionParams>(async (req, { params }) => {
-  const user = req.user as JwtPayload | undefined;
-  const userId = user?.sub; // Use 'sub' claim for user ID
+export const PUT = withAuth<UserWizardSessionParams>(async (req: AuthenticatedRequest, context: { params: UserWizardSessionParams }) => {
+  const user = req.user;
+  if (!user?.sub) return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
 
-  if (!userId) {
-    return NextResponse.json({ error: 'User ID not found in token' }, { status: 401 });
-  }
-
-  const { wizardId } = params;
+  // Correctly destructure 'id' and rename to 'wizardId'
+  const { id: wizardId } = context.params; 
   if (!wizardId) {
-    return NextResponse.json({ error: 'Missing wizard ID' }, { status: 400 });
+    return NextResponse.json({ error: 'Missing wizard ID parameter' }, { status: 400 });
   }
 
   let body: UpdateSessionBody;
@@ -91,7 +83,7 @@ export const PUT = withAuth<UserWizardSessionParams>(async (req, { params }) => 
        DO UPDATE SET
          last_viewed_step_id = EXCLUDED.last_viewed_step_id,
          updated_at = NOW();`,
-      [userId, wizardId, stepId]
+      [user.sub, wizardId, stepId]
     );
 
     return NextResponse.json({ message: 'Session updated' }, { status: 200 });

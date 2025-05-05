@@ -3,7 +3,7 @@
 import React from 'react';
 import { CheckCircle, Award, User /*, Shield*/ } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import type { UserStepProgress } from '@/app/api/user/wizards/[wizardId]/steps/route';
+import type { UserStepProgress } from "@/app/api/user/wizards/[id]/steps/route";
 import type { StepType } from '@/hooks/useStepTypesQuery';
 // import { UserAvatar } from '@/components/UserAvatar';
 import type { UserCredential } from '@/hooks/useUserCredentialsQuery';

@@ -32,7 +32,7 @@ export const PATCH = withAuth<SetHeroParams>(async (req: AuthenticatedRequest, c
         if (typeof body.is_hero === 'boolean') {
             targetState = body.is_hero;
         }
-    } catch (e) { /* Ignore body parsing errors, use default targetState */ }
+    } catch { /* Ignore body parsing errors, use default targetState */ }
 
     // --- Verify wizard ownership first --- 
     try {

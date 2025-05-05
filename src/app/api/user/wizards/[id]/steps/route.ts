@@ -1,9 +1,8 @@
 // 'use client'; // Removed directive
 
-import { withAuth } from '@/lib/withAuth';
+import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-import type { JwtPayload } from '@/app/api/auth/session/route';
 import type { Step } from '@/hooks/useStepsQuery'; // Import Step type for base structure
 
 // Define the structure for the joined step and progress data
@@ -20,22 +19,19 @@ interface UserWizardStepsResponse {
 }
 
 // Define the params type for this route
-interface StepsParams {
-  wizardId: string;
+interface WizardStepsParams {
+  id: string; // Renamed from wizardId
 }
 
-export const GET = withAuth<StepsParams>(async (req, { params }) => {
-  // Type guard: ensure req.user exists and has the expected shape
-  const user = req.user as JwtPayload | undefined;
-  // Need both user ID (sub) and community ID (cid) to verify context
-  if (!user || !user.sub || !user.cid) {
-    return NextResponse.json({ error: 'Missing user or community ID in token' }, { status: 400 });
+export const GET = withAuth<WizardStepsParams>(async (req: AuthenticatedRequest, context: { params: WizardStepsParams }) => {
+  const user = req.user;
+  if (!user?.sub) {
+    return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
   }
   const userId = user.sub;
-  const communityId = user.cid; // Use communityId to ensure wizard belongs to the correct community
 
-  // Now params are already resolved, so no need to await them again
-  const { wizardId } = params;
+  // Correctly destructure 'id' and rename to 'wizardId'
+  const { id: wizardId } = context.params;
   if (!wizardId) {
     return NextResponse.json({ error: 'Missing wizard ID' }, { status: 400 });
   }
@@ -44,7 +40,7 @@ export const GET = withAuth<StepsParams>(async (req, { params }) => {
     // First, verify the wizard belongs to the user's community AND fetch its flag
     const wizardRes = await query(
       `SELECT id, assign_roles_per_step FROM onboarding_wizards WHERE id = $1 AND community_id = $2`,
-      [wizardId, communityId]
+      [wizardId, user.cid]
     );
     if (wizardRes.rows.length === 0) {
       return NextResponse.json({ error: 'Wizard not found or access denied' }, { status: 404 });

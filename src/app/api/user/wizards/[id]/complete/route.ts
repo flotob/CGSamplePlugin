@@ -5,10 +5,10 @@ import type { JwtPayload } from '@/app/api/auth/session/route';
 
 // Define the params type for this route
 interface CompleteWizardParams {
-  wizardId: string;
+  id: string;
 }
 
-export const POST = withAuth<CompleteWizardParams>(async (req, { params }) => {
+export const POST = withAuth<CompleteWizardParams>(async (req, context) => {
   // Type guard: ensure req.user exists
   const user = req.user as JwtPayload | undefined;
   if (!user || !user.sub || !user.cid) {
@@ -17,8 +17,8 @@ export const POST = withAuth<CompleteWizardParams>(async (req, { params }) => {
   const userId = user.sub;
   const communityId = user.cid;
 
-  // Params are already resolved
-  const { wizardId } = params;
+  // Correctly destructure 'id' and rename to 'wizardId'
+  const { id: wizardId } = context.params;
   if (!wizardId) {
     return NextResponse.json({ error: 'Missing wizard ID' }, { status: 400 });
   }

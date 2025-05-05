@@ -3,7 +3,7 @@
 import React, { useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import type { UserStepProgress } from '@/app/api/user/wizards/[wizardId]/steps/route';
+import type { UserStepProgress } from '@/app/api/user/wizards/[id]/steps/route';
 import type { StepType } from '@/hooks/useStepTypesQuery';
 // Import the CSS module
 import styles from './ContentStepDisplay.module.css';

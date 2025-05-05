@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import type { UserStepProgress } from '@/app/api/user/wizards/[wizardId]/steps/route';
+import type { UserStepProgress } from '@/app/api/user/wizards/[id]/steps/route';
 import type { StepType } from '@/hooks/useStepTypesQuery';
 import { LoadingState, ErrorState, SuccessState } from '@/components/ui/verification-states';
 

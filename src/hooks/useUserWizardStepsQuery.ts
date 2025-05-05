@@ -2,7 +2,7 @@
 
 import { useQuery, UseQueryResult, useMutation, UseMutationResult } from '@tanstack/react-query';
 import { useAuthFetch } from '@/lib/authFetch';
-import type { UserStepProgress } from '@/app/api/user/wizards/[wizardId]/steps/route';
+import type { UserStepProgress } from '@/app/api/user/wizards/[id]/steps/route';
 
 // Define the expected API response structure for steps query
 interface UserWizardStepsResponse {
