@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Step, useUpdateStep, useDeleteStep } from '@/hooks/useStepsQuery';
 import { Button } from '@/components/ui/button';
 import { useStepTypesQuery, StepType } from '@/hooks/useStepTypesQuery';
@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AdminWizardSummaryPreview } from './AdminWizardSummaryPreview';
+import { ImageLibraryModal } from '../ImageLibraryModal';
 
 interface CommunityRole {
   id: string;
@@ -83,6 +84,9 @@ export const StepEditor: React.FC<StepEditorProps> = ({
 
   // State for enabling/disabling role assignment
   const [isRoleAssignmentEnabled, setIsRoleAssignmentEnabled] = React.useState<boolean>(false);
+  
+  // State for the Image Library Modal
+  const [isImageLibraryOpen, setIsImageLibraryOpen] = useState(false);
 
   // ADD BACK the change handlers, modified for unified state
   const handlePresentationChange = React.useCallback((newPresentationConfig: PresentationConfig) => {
@@ -97,10 +101,29 @@ export const StepEditor: React.FC<StepEditorProps> = ({
   const deleteStep = useDeleteStep(wizardId, step?.id);
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
 
+  // Function to handle image selection from the modal
+  const handleImageSelected = (imageUrl: string) => {
+    setStepConfig(prev => ({ 
+      ...prev, 
+      presentation: { 
+        ...(prev.presentation),
+        backgroundImageUrl: imageUrl 
+      } 
+    }));
+    setIsImageLibraryOpen(false);
+  };
+
   const parseConfig = (config: Record<string, unknown> | undefined | null): { presentation: PresentationConfig, specific: Record<string, unknown> } => {
-    const parsedPresentation = config?.presentation as PresentationConfig || INITIAL_PRESENTATION_CONFIG;
-    const parsedSpecific = config?.specific as Record<string, unknown> || INITIAL_SPECIFIC_CONFIG;
-    return { presentation: parsedPresentation, specific: parsedSpecific };
+    const presentation = config?.presentation as PresentationConfig || INITIAL_PRESENTATION_CONFIG;
+    const specific = config?.specific as Record<string, unknown> || INITIAL_SPECIFIC_CONFIG;
+    return { 
+        presentation: {
+            headline: presentation.headline ?? null,
+            subtitle: presentation.subtitle ?? null,
+            backgroundImageUrl: presentation.backgroundImageUrl ?? null,
+        },
+        specific: specific
+    };
   };
 
   React.useEffect(() => {
@@ -130,6 +153,7 @@ export const StepEditor: React.FC<StepEditorProps> = ({
       setIsRoleAssignmentEnabled(false);
     }
     setShowDeleteConfirm(false);
+    setIsImageLibraryOpen(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, isCreating]); // Intentionally omit mutations to prevent infinite loop
 
@@ -221,12 +245,20 @@ export const StepEditor: React.FC<StepEditorProps> = ({
           <AccordionTrigger className="text-sm font-medium text-muted-foreground uppercase tracking-wide hover:no-underline py-2">
             Presentation
           </AccordionTrigger>
-          <AccordionContent className="pt-1">
+          <AccordionContent className="pt-1 space-y-4">
             <CommonStepPresentationSettings 
-              initialData={stepConfig.presentation} // Pass presentation part
+              initialData={stepConfig.presentation}
               onChange={handlePresentationChange}
               disabled={currentMutation.isPending}
             />
+            <Button 
+              type="button"
+              variant="outline"
+              onClick={() => setIsImageLibraryOpen(true)} 
+              disabled={currentMutation.isPending}
+            >
+              Choose Background Image...
+            </Button>
           </AccordionContent>
         </AccordionItem>
 
@@ -385,6 +417,13 @@ export const StepEditor: React.FC<StepEditorProps> = ({
           Error: {deleteStep.error instanceof Error ? deleteStep.error.message : 'Failed to delete step'}
         </div>
       )}
+      <ImageLibraryModal 
+        isOpen={isImageLibraryOpen}
+        onClose={() => setIsImageLibraryOpen(false)}
+        onSelect={handleImageSelected}
+        wizardId={wizardId}
+        stepId={step?.id}
+      />
     </form>
   );
 }; 
