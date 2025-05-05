@@ -2,7 +2,6 @@ import { withAuth } from '@/lib/withAuth';
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import type { JwtPayload } from '@/app/api/auth/session/route';
-import type { Step } from '@/hooks/useStepsQuery'; // Import Step type for base structure
 
 // Define the expected structure of the response items
 export interface UserWizard {
