@@ -151,8 +151,10 @@ export const StepEditor: React.FC<StepEditorProps> = ({
     setStepConfig(prev => ({ ...prev, specific: newSpecificConfig as Record<string, unknown> }));
   }, []);
 
+  // Main useEffect - Initializes step-level things 
   React.useEffect(() => {
-    updateStep.reset();
+    // Reset mutation status when step/mode changes
+    updateStep.reset(); 
     createStepMutation.reset();
 
     if (isCreating) {
@@ -177,7 +179,9 @@ export const StepEditor: React.FC<StepEditorProps> = ({
     }
     setShowDeleteConfirm(false);
     setIsImageLibraryOpen(false);
-  }, [step, isCreating]);
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, isCreating]); // REMOVED mutations from deps, added eslint disable comment
 
   useEffect(() => {
     const type = stepConfig.presentation.backgroundType;

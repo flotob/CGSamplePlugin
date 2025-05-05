@@ -9,8 +9,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Wand2, CheckCircle, Loader2, AlertCircle, CirclePlay, CircleCheck, Ticket, ExternalLink, ShieldCheck } from 'lucide-react';
-import { useUserWizardsQuery, UserWizard } from '@/hooks/useUserWizardsQuery';
+import { Wand2, CheckCircle, Loader2, AlertCircle, CircleCheck, Ticket, ExternalLink, ShieldCheck, ImageOff } from 'lucide-react';
+import { useUserWizardsQuery } from '@/hooks/useUserWizardsQuery';
 import { useWizardSlideshow } from '@/context/WizardSlideshowContext';
 
 // --- Added hooks for earnable roles calculation ---
@@ -25,7 +25,6 @@ import type { CommunityInfoResponsePayload, UserInfoResponsePayload } from '@com
 import { useUserWizardPreviewImageQuery } from '@/hooks/useUserWizardPreviewImageQuery';
 import { Skeleton } from "@/components/ui/skeleton";
 import Image from 'next/image';
-import { ImageOff } from 'lucide-react';
 
 // Define Role type alias using the imported payload
 type Role = NonNullable<CommunityInfoResponsePayload['roles']>[number];
