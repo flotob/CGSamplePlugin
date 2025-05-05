@@ -177,7 +177,7 @@ export const StepEditor: React.FC<StepEditorProps> = ({
     }
     setShowDeleteConfirm(false);
     setIsImageLibraryOpen(false);
-  }, [step, isCreating, updateStep, createStepMutation]);
+  }, [step, isCreating]);
 
   useEffect(() => {
     const type = stepConfig.presentation.backgroundType;
