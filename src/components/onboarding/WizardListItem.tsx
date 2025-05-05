@@ -34,6 +34,10 @@ import type { CommunityInfoResponsePayload } from '@common-ground-dao/cg-plugin-
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useSetHeroWizardMutation } from '@/hooks/useSetHeroWizardMutation';
 import { HeroToggleButton } from './HeroToggleButton';
+import { useWizardPreviewImageQuery } from '@/hooks/useWizardPreviewImageQuery';
+import Image from 'next/image';
+import { Skeleton } from "@/components/ui/skeleton";
+import { ImageOff } from 'lucide-react';
 
 // Define Role type (can be shared or imported if defined elsewhere)
 // Assuming structure from CommunityInfoResponsePayload
@@ -71,6 +75,11 @@ export const WizardListItem: React.FC<WizardListItemProps> = ({
   const deleteMutation = useDeleteWizard();
   const updateDetailsMutation = useUpdateWizardDetails();
   const setHeroMutation = useSetHeroWizardMutation();
+  const { 
+    data: previewData, 
+    isLoading: isLoadingPreview, 
+    isError: isPreviewError 
+  } = useWizardPreviewImageQuery(wizard.id);
 
   const handleTogglePublish = useCallback(() => {
     publishMutation.mutate(
@@ -171,10 +180,42 @@ export const WizardListItem: React.FC<WizardListItemProps> = ({
       return assignableRoles?.find(r => r.id === roleId)?.title ?? "Unknown Role";
   };
 
+  // --- Helper component for Preview Image/Placeholder --- 
+  const PreviewImage: React.FC = () => {
+    if (isLoadingPreview) {
+      return <Skeleton className="h-16 w-24 rounded-sm" />; // Consistent size skeleton
+    }
+    if (isPreviewError || !previewData?.previewImageUrl) {
+      // Placeholder with icon
+      return (
+        <div className="h-16 w-24 rounded-sm bg-muted flex items-center justify-center">
+          <ImageOff className="h-6 w-6 text-muted-foreground" />
+        </div>
+      );
+    }
+    // Display the image
+    return (
+      <div className="h-16 w-24 rounded-sm overflow-hidden border relative">
+        <Image 
+          src={previewData.previewImageUrl}
+          alt={`${wizard.name} preview`}
+          fill // Use fill instead of layout="fill"
+          sizes="6rem" // Roughly 24 * 4px = 96px
+          className="object-cover" // Use object-cover
+          unoptimized // Good for external URLs
+        />
+      </div>
+    );
+  };
+  // -----------------------------------------------------
+
   return (
     <Card className={`transition-all border border-border/40 hover:border-border/60 ${isMutatingAny ? 'opacity-70 pointer-events-none' : ''}`}>
       <CardHeader className="pb-3">
-        <div className="flex justify-between items-start gap-2">
+        <div className="flex justify-between items-start gap-4">
+          <div className="flex-shrink-0">
+             <PreviewImage />
+          </div>
           {isInlineEditing ? (
             <div className="flex-grow space-y-3">
               <Input
