@@ -31,6 +31,7 @@ import { Loader2, AlertCircle } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BackgroundType } from './CommonStepPresentationSettings';
+import { ColorPicker } from '../../color-picker';
 
 interface CommunityRole {
   id: string;
@@ -148,6 +149,17 @@ export const StepEditor: React.FC<StepEditorProps> = ({
       }
     });
   }
+
+  const handleColorChange = (newColor: string) => {
+    setStepConfig(prev => ({ 
+      ...prev,
+      presentation: {
+        ...prev.presentation,
+        backgroundType: 'color',
+        backgroundValue: newColor
+      }
+    }));
+  };
 
   React.useEffect(() => {
     updateStep.reset();
@@ -357,8 +369,22 @@ export const StepEditor: React.FC<StepEditorProps> = ({
                 </TabsContent>
 
                 <TabsContent value="color" className="mt-4">
-                  <div className="p-4 border rounded bg-muted/30">
-                    <p className="text-sm text-muted-foreground">[Solid Color Picker Coming Soon]</p>
+                  <div className="flex flex-col items-start gap-4 p-1">
+                    <Label className="text-sm font-medium">Select Solid Background Color</Label>
+                    <ColorPicker 
+                       color={stepConfig.presentation.backgroundType === 'color' ? stepConfig.presentation.backgroundValue : '#ffffff'}
+                       onChange={handleColorChange} 
+                       label="Select solid background color"
+                    />
+                    {stepConfig.presentation.backgroundType === 'color' && stepConfig.presentation.backgroundValue && (
+                        <div className="flex items-center gap-2">
+                           <div 
+                              className="h-6 w-6 rounded border border-border/50"
+                              style={{ backgroundColor: stepConfig.presentation.backgroundValue }}
+                           />
+                           <code className="text-sm text-muted-foreground">{stepConfig.presentation.backgroundValue}</code>
+                        </div>
+                    )}
                   </div>
                 </TabsContent>
 
