@@ -2,7 +2,7 @@ import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import type { JwtPayload } from '@/app/api/auth/session/route';
-import { enforceResourceLimit, logUsageEvent, Feature, QuotaExceededError } from '@/lib/quotas';
+import { enforceEventRateLimit, logUsageEvent, Feature, QuotaExceededError } from '@/lib/quotas';
 import { uploadImageFromUrl } from '@/lib/storage';
 import OpenAI from 'openai';
 
@@ -62,9 +62,8 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       return NextResponse.json({ error: 'Wizard/Step not found or access denied' }, { status: 404 });
     }
 
-    // 2. Check Quota
-    // Use Feature.ImageGeneration enum value (ensure type matches enum definition)
-    await enforceResourceLimit(communityId, Feature.ImageGeneration);
+    // 2. Check Quota using Event Rate Limit
+    await enforceEventRateLimit(communityId, Feature.ImageGeneration);
 
     // 3. Generate Image with OpenAI
     const augmentedPrompt = STYLE_PREFIX + prompt;
