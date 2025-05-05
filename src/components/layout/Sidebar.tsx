@@ -5,9 +5,7 @@ import Image from 'next/image';
 import { Button } from "@/components/ui/button";
 import { BookOpen, Loader2, Eye, Undo } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { cn } from "@/lib/utils";
-import { LucideProps } from 'lucide-react';
-import { ForwardRefExoticComponent, RefAttributes, SVGProps, Dispatch, SetStateAction } from 'react';
+import { Dispatch, SetStateAction } from 'react';
 
 // Define expected link structure
 interface SidebarLink {

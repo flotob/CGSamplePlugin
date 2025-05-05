@@ -16,7 +16,7 @@ import { AdminView } from '../components/AdminView';
 import { UserView } from '../components/UserView';
 import { HelpView } from '../components/HelpView';
 import { WizardView } from '../components/WizardView';
-import { LayoutDashboard, Settings, Plug, User, Wand2, Building, Loader2, Eye, Undo } from 'lucide-react';
+import { LayoutDashboard, Settings, Plug, User, Wand2, Building, Loader2 } from 'lucide-react';
 import { Toaster } from "@/components/ui/toaster";
 import { useWizardSlideshow } from '../context/WizardSlideshowContext';
 import { WizardSlideshowModal } from '../components/onboarding/WizardSlideshowModal';
