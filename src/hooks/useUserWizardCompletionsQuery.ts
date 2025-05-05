@@ -2,6 +2,7 @@
 
 import { useQuery, UseQueryResult, UseQueryOptions } from '@tanstack/react-query';
 import { useAuthFetch } from '@/lib/authFetch';
+import { useAuth } from '@/context/AuthContext';
 
 // Mirror the type from the API route
 interface UserWizardCompletionsResponse {
@@ -15,11 +16,17 @@ interface UserWizardCompletionsResponse {
  */
 export function useUserWizardCompletionsQuery(options?: Omit<UseQueryOptions<UserWizardCompletionsResponse, Error>, 'queryKey' | 'queryFn'>): UseQueryResult<UserWizardCompletionsResponse, Error> {
   const { authFetch } = useAuthFetch();
+  const { jwt } = useAuth();
 
   // Merge passed options with default queryKey and queryFn
   return useQuery<UserWizardCompletionsResponse, Error>({
     queryKey: ['userWizardCompletions'], 
     queryFn: async () => {
+      // Safeguard: Throw error if JWT is missing when function executes
+      if (!jwt) {
+        console.warn('useUserWizardCompletionsQuery: Query function running but JWT is missing. Throwing error.');
+        throw new Error('Attempted fetch without JWT'); 
+      }
       // Use authFetch to make the authenticated GET request
       return authFetch<UserWizardCompletionsResponse>('/api/user/wizard-completions');
     },

@@ -1,5 +1,6 @@
 import { useQuery, UseQueryOptions, UseQueryResult } from '@tanstack/react-query';
 import { useAuthFetch } from '@/lib/authFetch';
+import { useAuth } from '@/context/AuthContext';
 
 // Re-define the expected structure for clarity, or import if shared
 export interface UserWizard {
@@ -18,21 +19,18 @@ interface UserWizardsResponse {
 
 export const useUserWizardsQuery = (options?: Omit<UseQueryOptions<UserWizardsResponse, Error>, 'queryKey' | 'queryFn'>): UseQueryResult<UserWizardsResponse, Error> => {
   const { authFetch } = useAuthFetch();
+  const { jwt } = useAuth();
 
-  // Update the expected generic type here
   return useQuery<UserWizardsResponse, Error>({
     queryKey: ['userWizards'],
-
-    // Function to fetch data
     queryFn: async () => {
-      // authFetch handles the authentication header
-      // Update the expected generic type here too
+      if (!jwt) {
+         console.warn('useUserWizardsQuery: Query function running but JWT is missing. Throwing error.');
+         throw new Error('Attempted fetch without JWT'); 
+      }
       const response = await authFetch<UserWizardsResponse>('/api/user/wizards');
-      return response; // Return the full response object
+      return response;
     },
-
-    // Options (optional, but good practice)
-    staleTime: 5 * 60 * 1000, // Refetch data considered stale after 5 minutes
-    // enabled: !!authFetch // Query only runs when authFetch is available (implicitly handled by useAuthFetch)
+    ...options,
   });
 }; 

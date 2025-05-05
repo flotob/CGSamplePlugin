@@ -1,4 +1,5 @@
 import { useAuth } from '../context/AuthContext';
+import { useCallback } from 'react';
 
 // Define a generic type for fetch options
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
@@ -17,9 +18,11 @@ interface UseAuthFetchReturn {
  * Handles basic response checking and JSON parsing.
  */
 export function useAuthFetch(): UseAuthFetchReturn {
-    const { jwt, logout } = useAuth();
+    const authContext = useAuth();
 
-    const authFetch = async <T = unknown>(url: string, options: AuthFetchOptions = {}): Promise<T> => {
+    const authFetch = useCallback(async <T = unknown>(url: string, options: AuthFetchOptions = {}): Promise<T> => {
+        const { jwt, logout } = authContext;
+
         if (!jwt) {
             // This shouldn't happen if auth flow is correct, but good safeguard
             console.error('authFetch called without JWT token.');
@@ -67,7 +70,7 @@ export function useAuthFetch(): UseAuthFetchReturn {
             console.error('Failed to parse JSON response:', error);
             throw new Error('Invalid JSON response from server');
         }
-    };
+    }, [authContext]);
 
     return { authFetch };
 } 

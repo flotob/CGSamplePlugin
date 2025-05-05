@@ -217,9 +217,9 @@ const PluginContainer = () => {
     // - User wizards data is loaded
     if (
       !isLoadingAdminStatus && 
-      !isLoadingUserWizards && // Use user wizards loading state
+      !isLoadingUserWizards && 
       !isLoadingCompletions && 
-      !isAdmin && 
+      (!isAdmin || isPreviewingAsUser) && // MODIFIED: Allow if !isAdmin OR isPreviewingAsUser
       !hasCheckedHero && 
       !activeSlideshowWizardId &&
       userWizardsData // Ensure user wizard data is present
@@ -248,11 +248,19 @@ const PluginContainer = () => {
     }
   }, [
     isAdmin, isLoadingAdminStatus, 
-    userWizardsData, isLoadingUserWizards, // Update dependencies
+    userWizardsData, isLoadingUserWizards, 
     completionsData, isLoadingCompletions, 
     hasCheckedHero, activeSlideshowWizardId,
-    setActiveSlideshowWizardId 
+    setActiveSlideshowWizardId,
+    isPreviewingAsUser // Add isPreviewingAsUser to dependency array
   ]);
+
+  // Effect to reset hero check when exiting preview mode
+  useEffect(() => {
+    if (!isPreviewingAsUser) {
+      setHasCheckedHero(false);
+    }
+  }, [isPreviewingAsUser]);
 
   // Display loading indicator
   // Update core loading check to use userWizards loading state
