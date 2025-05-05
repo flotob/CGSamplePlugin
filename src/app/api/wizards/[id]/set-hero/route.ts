@@ -1,17 +1,20 @@
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
-import type { JwtPayload } from '@/app/api/auth/session/route';
 
 // Define the structure of the route parameters
 interface SetHeroParams {
    id: string; // This is the wizardId
 }
 
-// PATCH: Set the specified wizard as the hero for the community
-// This implicitly unsets any other hero wizard for the same community.
+// Optional request body to specify the desired state
+interface SetHeroBody {
+    is_hero: boolean;
+}
+
+// PATCH: Set or Unset the specified wizard as the hero for the community
 export const PATCH = withAuth<SetHeroParams>(async (req: AuthenticatedRequest, context: { params: SetHeroParams }) => {
-    const user = req.user as JwtPayload | undefined;
+    const user = req.user;
     if (!user || !user.cid) {
       return NextResponse.json({ error: 'Missing community ID in token' }, { status: 401 });
     }
@@ -22,55 +25,71 @@ export const PATCH = withAuth<SetHeroParams>(async (req: AuthenticatedRequest, c
       return NextResponse.json({ error: 'Missing wizard ID' }, { status: 400 });
     }
 
+    let targetState = true; // Default to setting hero (maintains previous behavior)
     try {
-        // Start transaction
-        await query('BEGIN');
+        // Try to parse body, ignore if empty or invalid JSON
+        const body: Partial<SetHeroBody> = await req.json();
+        if (typeof body.is_hero === 'boolean') {
+            targetState = body.is_hero;
+        }
+    } catch (e) { /* Ignore body parsing errors, use default targetState */ }
 
+    // --- Verify wizard ownership first --- 
+    try {
+        const wizardCheck = await query(
+            `SELECT id FROM onboarding_wizards WHERE id = $1 AND community_id = $2`,
+            [wizardId, communityId]
+        );
+        if (wizardCheck.rows.length === 0) {
+            return NextResponse.json({ error: 'Wizard not found or not accessible' }, { status: 404 });
+        }
+    } catch (error) {
+        console.error('Failed to verify wizard ownership:', error);
+        return NextResponse.json({ error: 'Internal server error verifying wizard' }, { status: 500 });
+    }
+
+    // --- Perform Update based on targetState --- 
+    if (targetState === true) {
+        // --- Logic to SET hero --- 
         try {
-            // 1. Verify wizard exists and belongs to the community
-            const wizardCheck = await query(
-                `SELECT id FROM onboarding_wizards WHERE id = $1 AND community_id = $2`,
-                [wizardId, communityId]
-            );
-
-            if (wizardCheck.rows.length === 0) {
-                await query('ROLLBACK');
-                return NextResponse.json({ error: 'Wizard not found or not accessible' }, { status: 404 });
-            }
-
-            // 2. Unset any current hero wizard in this community
+            await query('BEGIN');
+            // Unset any current hero wizard in this community
             await query(
                 `UPDATE onboarding_wizards SET is_hero = false, updated_at = NOW() WHERE community_id = $1 AND is_hero = true`,
                 [communityId]
             );
-
-            // 3. Set the target wizard as the hero
+            // Set the target wizard as the hero
             const updateResult = await query(
                 `UPDATE onboarding_wizards SET is_hero = true, updated_at = NOW() WHERE id = $1 RETURNING *`,
                 [wizardId]
             );
-
-            // Commit transaction
             await query('COMMIT');
 
             if (updateResult.rows.length === 0) {
-                // Should not happen if step 1 passed, but safety check
-                console.error(`Failed to set wizard ${wizardId} as hero after unsetting others.`);
-                return NextResponse.json({ error: 'Failed to update hero status' }, { status: 500 });
+                throw new Error('Failed to update wizard row after commit');
             }
-
-            return NextResponse.json({ wizard: updateResult.rows[0] }, { status: 200 });
+            return NextResponse.json({ wizard: updateResult.rows[0], message: 'Wizard set as hero.' }, { status: 200 });
 
         } catch (dbError) {
-            // Rollback on any error during the transaction
             await query('ROLLBACK');
             console.error('Database error during set-hero transaction:', dbError);
-            // Re-throw to be caught by the outer catch block
-            throw dbError;
+            return NextResponse.json({ error: 'Failed to set hero status' }, { status: 500 });
         }
-
-    } catch (error) {
-        console.error('Failed to set hero wizard:', error);
-        return NextResponse.json({ error: 'Internal server error while setting hero wizard.' }, { status: 500 });
+    } else {
+        // --- Logic to UNSET hero --- 
+        try {
+            const updateResult = await query(
+                `UPDATE onboarding_wizards SET is_hero = false, updated_at = NOW() WHERE id = $1 AND community_id = $2 RETURNING *`,
+                [wizardId, communityId] // Ensure we only unset for the correct community
+            );
+            if (updateResult.rows.length === 0) {
+                 // Should not happen if ownership check passed, but good safety.
+                return NextResponse.json({ error: 'Failed to unset hero status, wizard not found?' }, { status: 404 });
+            }
+             return NextResponse.json({ wizard: updateResult.rows[0], message: 'Wizard hero status removed.'}, { status: 200 });
+        } catch (dbError) {
+             console.error('Database error during unset-hero operation:', dbError);
+            return NextResponse.json({ error: 'Failed to unset hero status' }, { status: 500 });
+        }
     }
 }, true); // true = admin only 

@@ -314,7 +314,7 @@ export const WizardListItem: React.FC<WizardListItemProps> = ({
                        <Button 
                           size="sm" 
                           variant="outline" 
-                          onClick={() => setHeroMutation.mutate({ wizardId: wizard.id })}
+                          onClick={() => setHeroMutation.mutate({ wizardId: wizard.id, targetState: true })}
                           disabled={isMutatingAny}
                           className="h-8 px-3 text-xs">
                           {setHeroMutation.isPending ? 
@@ -330,22 +330,24 @@ export const WizardListItem: React.FC<WizardListItemProps> = ({
                  </Tooltip>
               </TooltipProvider>
            ) : (
-              // Show disabled "Hero" indicator if it IS the hero
+              // Show CLICKABLE "Hero" indicator if it IS the hero
               <TooltipProvider delayDuration={200}>
                   <Tooltip>
                      <TooltipTrigger asChild>
-                        {/* Disabled button as visual indicator */}
+                        {/* Button is now active, but looks like an indicator */}
                         <Button 
                            size="sm" 
                            variant="outline" 
-                           disabled={true} // Always disabled
-                           className="h-8 px-3 text-xs opacity-100 cursor-default border-yellow-500/30 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400">
+                           onClick={() => setHeroMutation.mutate({ wizardId: wizard.id, targetState: false })}
+                           disabled={isMutatingAny} // Still disable while any mutation runs
+                           className="h-8 px-3 text-xs border-yellow-500/30 bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 hover:bg-yellow-500/20">
                            <Star className="mr-1.5 h-3.5 w-3.5 fill-current"/> {/* Filled star */} 
                            Hero
                         </Button>
                      </TooltipTrigger>
                      <TooltipContent side="bottom" className="text-xs">
-                        <p>This is the current Hero wizard</p>
+                        {/* Update tooltip based on action */} 
+                        <p>Click to remove Hero status</p>
                      </TooltipContent>
                   </Tooltip>
               </TooltipProvider>

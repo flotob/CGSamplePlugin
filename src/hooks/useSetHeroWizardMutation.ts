@@ -5,8 +5,14 @@ import { useAuthFetch } from '@/lib/authFetch';
 import { useToast } from '@/hooks/use-toast';
 import type { Wizard } from './useWizardsQuery'; // Assuming Wizard type includes is_hero now
 
+// Update variables type
+interface SetHeroVariables {
+    wizardId: string;
+    targetState: boolean; // Add target state
+}
+
 /**
- * React Query mutation hook to set a specific wizard as the hero wizard.
+ * React Query mutation hook to set or unset a wizard as the hero wizard.
  */
 export const useSetHeroWizardMutation = () => {
   const { authFetch } = useAuthFetch();
@@ -14,35 +20,37 @@ export const useSetHeroWizardMutation = () => {
   const { toast } = useToast();
 
   return useMutation<
-    { wizard: Wizard }, // Type of data returned on success (the updated hero wizard)
-    Error,              // Type of error
-    { wizardId: string }, // Type of variables passed to mutationFn
-    unknown             // Type of context (optional)
+    { wizard: Wizard, message?: string }, // Update success type slightly
+    Error,              
+    SetHeroVariables,   // Use updated variables type
+    unknown             
   >(
     {
-      mutationFn: async ({ wizardId }) => {
+      // Update mutationFn to accept targetState
+      mutationFn: async ({ wizardId, targetState }: SetHeroVariables) => {
         if (!wizardId) {
-          throw new Error('Wizard ID is required to set as hero.');
+          throw new Error('Wizard ID is required to update hero status.');
         }
-        // Use PATCH request to the specific set-hero endpoint
-        const response = await authFetch<{ wizard: Wizard }>(
+        const response = await authFetch<{ wizard: Wizard, message?: string }>(
           `/api/wizards/${wizardId}/set-hero`,
           {
             method: 'PATCH',
-            // No body needed, the wizard ID is in the URL
+            // Send the target state in the body
+            body: JSON.stringify({ is_hero: targetState }), 
+            headers: { 'Content-Type': 'application/json' },
           }
         );
         return response;
       },
       onSuccess: (data) => {
-        // Invalidate the wizards query to refetch the list with updated hero status
         queryClient.invalidateQueries({ queryKey: ['wizards'] });
-        toast({ title: `Wizard "${data.wizard.name}" set as hero!` });
+        // Use message from API if available, otherwise generic
+        toast({ title: data.message || 'Hero status updated successfully!' });
       },
       onError: (error) => {
-        console.error("Error setting hero wizard:", error);
+        console.error("Error updating hero wizard status:", error);
         toast({
-          title: "Error Setting Hero",
+          title: "Error Updating Hero Status",
           description: error.message || "An unknown error occurred.",
           variant: "destructive",
         });
