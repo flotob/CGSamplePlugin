@@ -12,7 +12,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { UseMutationResult } from '@tanstack/react-query';
-import { Menu, X, Save, ArrowLeft } from 'lucide-react'; // Import menu and close icons
+import { Menu, X, ArrowLeft } from 'lucide-react'; // Import menu and close icons
 
 // Define CommunityRole based on assignableRoles prop structure
 // Ensure this matches the actual structure from CommunityInfoResponsePayload
