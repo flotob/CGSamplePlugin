@@ -41,6 +41,9 @@ export function useCreateStep(wizardId: string | undefined) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['steps', wizardId] });
+      // Also invalidate preview image queries when creating steps
+      queryClient.invalidateQueries({ queryKey: ['wizardPreviewImage', wizardId] });
+      queryClient.invalidateQueries({ queryKey: ['userWizardPreviewImage', wizardId] });
     },
   });
 }
@@ -59,6 +62,9 @@ export function useUpdateStep(wizardId: string | undefined, stepId: string | und
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['steps', wizardId] });
+      // Also invalidate both preview image queries to ensure they update when backgrounds change
+      queryClient.invalidateQueries({ queryKey: ['wizardPreviewImage', wizardId] });
+      queryClient.invalidateQueries({ queryKey: ['userWizardPreviewImage', wizardId] });
     },
   });
 }
@@ -76,6 +82,9 @@ export function useDeleteStep(wizardId: string | undefined, stepId: string | und
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['steps', wizardId] });
+      // Also invalidate preview image queries when deleting steps
+      queryClient.invalidateQueries({ queryKey: ['wizardPreviewImage', wizardId] });
+      queryClient.invalidateQueries({ queryKey: ['userWizardPreviewImage', wizardId] });
     },
   });
 }
