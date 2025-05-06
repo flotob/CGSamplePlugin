@@ -440,20 +440,20 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
       {/* Render Configuration Section */}
       {activeSection === 'config' && (
-        <div className="w-full max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-5 duration-500 delay-150">
-           <Card interactive>
-               <CardHeader className="flex flex-row items-center justify-between">
+        <div className="w-full max-w-4xl mx-auto px-1 sm:px-2 animate-in fade-in slide-in-from-bottom-5 duration-500 delay-150">
+           <div className="sm:rounded-xl sm:border sm:bg-card sm:shadow-sm sm:p-6 sm:transition-all">
+               <div className="flex flex-row items-center justify-between px-1 sm:px-0 pb-2 sm:pb-6">
                    <div>
-                     <CardTitle>Wizard Configuration</CardTitle>
-                     <CardDescription>Setup roles and steps for the onboarding wizard here.</CardDescription>
+                     <h2 className="text-xl font-semibold leading-none tracking-tight">Wizard Configuration</h2>
+                     <p className="text-sm text-muted-foreground mt-2 text-balance">Setup roles and steps for the onboarding wizard here.</p>
                    </div>
                    <NewWizardButton assignableRoles={assignableRoles} />
-               </CardHeader>
-               <CardContent>
+               </div>
+               <div className="px-1 sm:px-0 pt-2 sm:pt-0">
                  {/* Pass assignableRoles to WizardList */}
                  <WizardList setEditingWizardId={setEditingWizardId} assignableRoles={assignableRoles} />
-               </CardContent>
-           </Card>
+               </div>
+           </div>
          </div>
       )}
 

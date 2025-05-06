@@ -177,39 +177,41 @@ export const WizardView: React.FC<WizardViewProps> = () => {
 
   return (
     <>
-      {/* Section title */}
-      <div className="mb-6 animate-in fade-in slide-in-from-bottom-5 duration-500">
+      {/* Section title - Updated with padding and better text wrapping */}
+      <div className="mb-6 px-1 animate-in fade-in slide-in-from-bottom-5 duration-500">
         <div className="flex items-center gap-2">
           <Wand2 className="h-6 w-6 text-primary" />
           <h1 className="text-2xl font-bold tracking-tight">Onboarding Wizards</h1>
         </div>
-        <p className="text-muted-foreground mt-2">
+        <p className="text-muted-foreground mt-2 text-balance max-w-full">
           Complete wizards to gain roles and access within the community.
         </p>
       </div>
 
-      {/* Main content grid */}
-      <div className="w-full max-w-4xl mx-auto space-y-8">
+      {/* Main content grid - Updated with responsive padding */}
+      <div className="w-full max-w-4xl mx-auto px-1 sm:px-2 space-y-8">
         {/* Available Wizards Card (Includes Not Started and Started) */}
-        <Card className="animate-in fade-in slide-in-from-bottom-5 duration-500 delay-150" interactive>
-          <CardHeader>
-            <CardTitle>Available Wizards</CardTitle>
-            <CardDescription>Start or continue these wizards to progress.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
+        <div className="sm:rounded-xl sm:border sm:bg-card sm:shadow-sm sm:p-6 sm:transition-all animate-in fade-in slide-in-from-bottom-5 duration-500 delay-150">
+          <div className="px-1 sm:px-0 pb-2 sm:pb-6">
+            <h2 className="text-xl font-semibold leading-none tracking-tight">Available Wizards</h2>
+            <p className="text-sm text-muted-foreground mt-2">Start or continue these wizards to progress.</p>
+          </div>
+          <div className="space-y-3 px-1 sm:px-0 pt-2 sm:pt-0">
             {availableWizards.length > 0 ? (
               availableWizards.map((wizard, index) => (
                 <div 
                   key={wizard.id} 
-                  className='flex items-center justify-between p-3 rounded-md border border-border bg-card transition-all hover:bg-secondary/20 cursor-pointer'
+                  className='flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 rounded-md border border-border bg-card transition-all hover:bg-secondary/20 cursor-pointer'
                   style={{ animationDelay: `${150 + (index * 50)}ms` }}
                   onClick={() => setActiveSlideshowWizardId(wizard.id)}
                 >
-                  <div className="flex items-center gap-4 flex-grow">
+                  <div className="flex items-center gap-4 flex-grow w-full">
                     <WizardPreviewImage wizardId={wizard.id} wizardName={wizard.name} />
-                    <div className="ml-1">
-                      <p className="font-medium">{wizard.name}</p>
-                      <p className="text-xs text-muted-foreground line-clamp-1">
+                    <div className="ml-1 w-full">
+                      <p className="font-medium">
+                        {wizard.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground line-clamp-1 pr-2">
                         {wizard.description || 'No description available.'}
                       </p>
                       {/* Add Required Role display */} 
@@ -221,7 +223,7 @@ export const WizardView: React.FC<WizardViewProps> = () => {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2"> 
+                  <div className="flex items-center gap-2 self-end sm:self-center mt-2 sm:mt-0"> 
                     {wizard.progressStatus === 'in-progress' ? (
                        <span className="text-xs font-medium text-blue-600">Continue</span>
                     ) : (
@@ -236,21 +238,21 @@ export const WizardView: React.FC<WizardViewProps> = () => {
             ) : (
               <p className="text-sm text-muted-foreground p-4 text-center">No available wizards at this time.</p>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* --- Added Roles to Earn Card --- */}
-        <Card className="animate-in fade-in slide-in-from-bottom-5 duration-500 delay-225" interactive>
-           <CardHeader className="pb-3">
+        <div className="sm:rounded-xl sm:border sm:bg-card sm:shadow-sm sm:p-6 sm:transition-all animate-in fade-in slide-in-from-bottom-5 duration-500 delay-225">
+           <div className="pb-3 px-1 sm:px-0">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-full bg-primary/10">
                 <Ticket className="h-4 w-4 text-primary" /> 
               </div>
-              <CardTitle>Roles to Earn</CardTitle>
+              <h2 className="text-xl font-semibold leading-none tracking-tight">Roles to Earn</h2>
             </div>
-            <CardDescription className="pt-1 pl-10">Complete available wizards to earn these roles.</CardDescription> 
-          </CardHeader>
-          <CardContent className='flex flex-col gap-4'>
+            <p className="text-sm text-muted-foreground mt-2 pt-1 pl-10 text-balance">Complete available wizards to earn these roles.</p>
+           </div>
+           <div className='flex flex-col gap-4 px-1 sm:px-0'>
             {isLoading ? (
                <div className="flex items-center justify-center p-8">
                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -259,8 +261,6 @@ export const WizardView: React.FC<WizardViewProps> = () => {
                 earnableRoles.map(({ roleInfo, grantingWizards }) => (
                   <div key={roleInfo.id} className="p-3 border rounded-md bg-card/50">
                     <p className="font-medium mb-1">{roleInfo.title}</p>
-                    {/* Assume description is on Role type from lib - adjust if not */}
-                    {/* {roleInfo.description && ( <p className="text-xs text-muted-foreground mb-2">{roleInfo.description}</p> )} */}
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                       <span className="text-xs text-muted-foreground mr-1">Earn via:</span>
                       {grantingWizards.length > 0 ? (
@@ -277,7 +277,7 @@ export const WizardView: React.FC<WizardViewProps> = () => {
                            </Button>
                          ))
                       ) : (
-                         <span className="text-xs italic text-muted-foreground">Error: No wizards found for this role.</span> // Should not happen based on calc
+                         <span className="text-xs italic text-muted-foreground">Error: No wizards found for this role.</span>
                       )}
                     </div>
                   </div>
@@ -292,42 +292,42 @@ export const WizardView: React.FC<WizardViewProps> = () => {
                  <p>Error loading roles information: {(error as Error)?.message || 'An unknown error occurred'}</p>
               </div>
             )}
-          </CardContent>
-        </Card>
+           </div>
+        </div>
         {/* --- End Roles to Earn Card --- */}
 
         {/* Completed Wizards Card */}
-        <Card className="animate-in fade-in slide-in-from-bottom-5 duration-500 delay-300" interactive>
-          <CardHeader>
-            <CardTitle>Completed Wizards</CardTitle>
-            <CardDescription>You have successfully completed these wizards.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
+        <div className="sm:rounded-xl sm:border sm:bg-card sm:shadow-sm sm:p-6 sm:transition-all animate-in fade-in slide-in-from-bottom-5 duration-500 delay-300">
+          <div className="px-1 sm:px-0 pb-2 sm:pb-6">
+            <h2 className="text-xl font-semibold leading-none tracking-tight">Completed Wizards</h2>
+            <p className="text-sm text-muted-foreground mt-2 text-balance">You have successfully completed these wizards.</p>
+          </div>
+          <div className="space-y-3 px-1 sm:px-0 pt-2 sm:pt-0">
             {completedWizards.length > 0 ? (
               completedWizards.map((wizard, index) => (
                 <div 
                   key={wizard.id} 
-                  className='flex items-center justify-between p-3 rounded-md border border-border bg-card/50 opacity-70 cursor-default'
+                  className='flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 rounded-md border border-border bg-card/50 opacity-70 cursor-default'
                   style={{ animationDelay: `${300 + (index * 50)}ms` }}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-full bg-green-500/10 flex items-center justify-center text-green-600">
+                  <div className="flex items-center gap-3 w-full">
+                    <div className="h-8 w-8 rounded-full bg-green-500/10 flex items-center justify-center text-green-600 flex-shrink-0">
                       <CircleCheck className="h-4 w-4" />
                     </div>
-                    <div>
+                    <div className="flex-grow">
                       <p className="font-medium">{wizard.name}</p>
-                      <p className="text-xs text-muted-foreground">{wizard.description || 'No description available.'}</p>
+                      <p className="text-xs text-muted-foreground pr-2">{wizard.description || 'No description available.'}</p>
                     </div>
                   </div>
                   {/* Indicator for completion */}
-                   <CheckCircle className="h-5 w-5 text-green-500" />
+                  <CheckCircle className="h-5 w-5 text-green-500 self-end sm:self-center mt-2 sm:mt-0" />
                 </div>
               ))
             ) : (
               <p className="text-sm text-muted-foreground p-4 text-center">You haven&apos;t completed any wizards yet.</p>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </>
   );
