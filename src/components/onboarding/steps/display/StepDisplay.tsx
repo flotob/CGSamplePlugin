@@ -3,7 +3,7 @@
 import React from 'react';
 import type { UserStepProgress } from '@/app/api/user/wizards/[id]/steps/route';
 import type { StepType } from '@/hooks/useStepTypesQuery'; // Assuming StepType definition
-import { cn } from "@/lib/utils"; // Import cn
+// import { cn } from "@/lib/utils"; // Removed unused import
 // Import background types and GradientValue structure
 import { PresentationConfig, GradientValue } from '../CommonStepPresentationSettings'; 
 // Import the YouTube background component
@@ -13,7 +13,7 @@ import { YouTubeBackground } from './YouTubeBackground';
 import { EnsVerificationStepDisplay } from './EnsVerificationStepDisplay';
 // Import the new content display component
 import { ContentStepDisplay } from './ContentStepDisplay';
-// import { InfoStepDisplay } from './InfoStepDisplay';
+// import { InfoStepDisplay } from './InfoStepDisplay'; // Commented out potentially incorrect import
 // import { MultipleChoiceStepDisplay } from './MultipleChoiceStepDisplay';
 
 interface StepDisplayProps {

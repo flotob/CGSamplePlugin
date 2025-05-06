@@ -1,13 +1,6 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Wand2, CheckCircle, Loader2, AlertCircle, CircleCheck, Ticket, ExternalLink, ShieldCheck, ImageOff } from 'lucide-react';
 import { useUserWizardsQuery } from '@/hooks/useUserWizardsQuery';
@@ -214,7 +207,7 @@ export const WizardView: React.FC<WizardViewProps> = () => {
                       <p className="text-xs text-muted-foreground line-clamp-1 pr-2">
                         {wizard.description || 'No description available.'}
                       </p>
-                      {/* Add Required Role display */} 
+                      {/* Add Required Role display */}
                       {wizard.required_role_id && (
                           <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                              <ShieldCheck className="h-3 w-3 flex-shrink-0" />
