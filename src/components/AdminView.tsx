@@ -548,15 +548,23 @@ export const AdminView: React.FC<AdminViewProps> = ({
 
       {editingWizardId && (
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
-          <div className="bg-white rounded-lg shadow-lg max-w-5xl w-full relative">
+          <div className="bg-white dark:bg-slate-900 rounded-lg shadow-lg max-w-5xl w-full relative">
+            {/* Close button - updated visibility and mobile friendliness */}
             <button
-              className="absolute top-2 right-2 text-xl p-2 rounded hover:bg-muted"
+              className="absolute top-3 right-3 z-50 text-lg p-2.5 rounded-full bg-background/80 backdrop-blur-sm shadow-sm hover:bg-muted text-foreground flex items-center justify-center"
               onClick={() => setEditingWizardId(null)}
               aria-label="Close step editor"
             >
-              ×
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 6 6 18"></path>
+                <path d="m6 6 12 12"></path>
+              </svg>
             </button>
-            <WizardStepEditorPage wizardId={editingWizardId} assignableRoles={assignableRoles} />
+            <WizardStepEditorPage 
+              wizardId={editingWizardId} 
+              assignableRoles={assignableRoles} 
+              onClose={() => setEditingWizardId(null)}
+            />
           </div>
         </div>
       )}

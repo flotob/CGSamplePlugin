@@ -6,7 +6,7 @@ import { StepType } from '@/hooks/useStepTypesQuery';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Button } from "@/components/ui/button";
-import { Trash2, GripVertical } from 'lucide-react';
+import { Trash2, GripVertical, ArrowRight } from 'lucide-react';
 
 interface StepSidebarItemProps {
   wizardId: string;
@@ -64,6 +64,13 @@ export const StepSidebarItem: React.FC<StepSidebarItemProps> = ({
     setShowDeleteConfirm(false);
   };
 
+  // Directly select this step - no event handling, just direct state update
+  const selectStep = () => {
+    if (!showDeleteConfirm && !deleteStep.isPending) {
+      setActiveStepId(step.id);
+    }
+  };
+
   // Use label for display, fallback to formatted name
   const stepTypeDisplay = stepType ? (stepType.label || stepType.name.replace(/_/g, ' ')) : 'Loading type...';
 
@@ -71,40 +78,53 @@ export const StepSidebarItem: React.FC<StepSidebarItemProps> = ({
     <div 
       ref={setNodeRef} 
       style={style} 
-      className={`group relative border rounded-md p-3 transition-colors duration-150 ease-in-out cursor-pointer ${
+      className={`group relative border rounded-md p-3 transition-colors duration-150 ease-in-out overflow-hidden ${
         isActive ? 'bg-primary/10 border-primary/30' : 'bg-card hover:bg-muted/50'
       } ${
         deleteStep.isPending ? 'opacity-70 pointer-events-none' : ''
       }`}
-      onClick={() => !showDeleteConfirm && setActiveStepId(step.id)}
+      onClick={selectStep}
     >
-      <div className="flex items-center justify-between">
-        <div className="flex-1 overflow-hidden pr-2">
-          <p className="text-sm font-medium capitalize truncate">{stepTypeDisplay}</p>
-          <p className="text-xs text-muted-foreground truncate">
-            {(step.config?.presentation as { headline?: string | null })?.headline || `Step ${step.step_order + 1}`}
-          </p>
-        </div>
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-150 ease-in-out">
-          <Button 
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-muted-foreground hover:text-destructive"
-            onClick={handleDeleteClick}
-            disabled={deleteStep.isPending}
-            aria-label="Delete step"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
-          <div 
-            {...attributes} 
-            {...listeners} 
-            className="p-1 cursor-grab touch-none text-muted-foreground"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <GripVertical className="h-4 w-4" />
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <div className="flex-1 overflow-hidden pr-2">
+            <p className="text-sm font-medium capitalize truncate">{stepTypeDisplay}</p>
+            <p className="text-xs text-muted-foreground truncate">
+              {(step.config?.presentation as { headline?: string | null })?.headline || `Step ${step.step_order + 1}`}
+            </p>
+          </div>
+          <div className="flex items-center gap-1">
+            <Button 
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-destructive"
+              onClick={handleDeleteClick}
+              disabled={deleteStep.isPending}
+              aria-label="Delete step"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+            <div 
+              {...attributes} 
+              {...listeners} 
+              className="p-1 cursor-grab touch-none text-muted-foreground"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <GripVertical className="h-4 w-4" />
+            </div>
           </div>
         </div>
+        
+        {/* Explicit Select Button - Always visible on mobile, visible on hover for desktop */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className={`w-full justify-between text-xs h-7 ${isActive ? 'bg-primary/20' : 'bg-secondary/50'} sm:opacity-0 sm:group-hover:opacity-100 transition-opacity`}
+          onClick={selectStep}
+        >
+          {isActive ? 'Currently Selected' : 'Select This Step'}
+          <ArrowRight className="h-3.5 w-3.5 ml-1" />
+        </Button>
       </div>
 
       {showDeleteConfirm ? (

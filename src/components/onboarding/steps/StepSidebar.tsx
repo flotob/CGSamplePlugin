@@ -20,6 +20,8 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CheckSquare } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ArrowRight } from 'lucide-react';
 
 interface StepSidebarProps {
   wizardId: string;
@@ -109,7 +111,7 @@ export const StepSidebar: React.FC<StepSidebarProps> = ({
 
   return (
     // Main container for the sidebar content, including Dnd context and static item
-    <div className="flex flex-col p-2 w-full border-r bg-muted/30 h-full overflow-y-auto">
+    <div className="flex flex-col p-2 w-full border-r bg-muted/30 h-full overflow-y-auto overflow-x-hidden">
       {/* Dnd Context for draggable items */}
       <DndContext 
         sensors={sensors}
@@ -154,18 +156,30 @@ export const StepSidebar: React.FC<StepSidebarProps> = ({
         <>
           <div className="border-t my-3 mx-[-8px]"></div> {/* Divider */} 
           <div 
-            className={`group relative border rounded-md p-3 transition-colors duration-150 ease-in-out cursor-pointer ${
+            className={`group relative border rounded-md p-3 transition-colors duration-150 ease-in-out ${
               // Add dark mode variants for active state
               isSummaryActive ? 'bg-purple-100 border-purple-300 dark:bg-purple-900/50 dark:border-purple-700' : 'bg-card hover:bg-muted/50' 
             }`}
-            onClick={() => setActiveStepId('summary-preview')}
           >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 flex-1 overflow-hidden pr-2">
-                 <CheckSquare className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                 <p className="text-sm font-medium truncate">Summary Preview</p>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 flex-1 overflow-hidden pr-2">
+                   <CheckSquare className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                   <p className="text-sm font-medium truncate">Summary Preview</p>
+                </div>
+                {/* No drag handle or delete button */}
               </div>
-              {/* No drag handle or delete button */}
+              
+              {/* Explicit Select Button - Always visible on mobile, visible on hover for desktop */}
+              <Button
+                variant="ghost"
+                size="sm"
+                className={`w-full justify-between text-xs h-7 ${isSummaryActive ? 'bg-primary/20' : 'bg-secondary/50'} sm:opacity-0 sm:group-hover:opacity-100 transition-opacity`}
+                onClick={() => setActiveStepId('summary-preview')}
+              >
+                {isSummaryActive ? 'Currently Selected' : 'View Summary'}
+                <ArrowRight className="h-3.5 w-3.5 ml-1" />
+              </Button>
             </div>
           </div>
         </>

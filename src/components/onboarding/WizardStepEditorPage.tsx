@@ -12,6 +12,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { UseMutationResult } from '@tanstack/react-query';
+import { Menu, X, Save, ArrowLeft } from 'lucide-react'; // Import menu and close icons
 
 // Define CommunityRole based on assignableRoles prop structure
 // Ensure this matches the actual structure from CommunityInfoResponsePayload
@@ -24,6 +25,7 @@ interface CommunityRole {
 interface WizardStepEditorPageProps {
   wizardId: string;
   assignableRoles: CommunityRole[] | undefined; // Use defined CommunityRole
+  onClose?: () => void; // Optional callback for closing
 }
 
 export interface CreateStepPayload {
@@ -40,12 +42,18 @@ interface SummaryData {
   potentialRoles: CommunityRole[];
 }
 
-export const WizardStepEditorPage: React.FC<WizardStepEditorPageProps> = ({ wizardId, assignableRoles }) => {
+export const WizardStepEditorPage: React.FC<WizardStepEditorPageProps> = ({ 
+  wizardId, 
+  assignableRoles,
+  onClose 
+}) => {
   const { data, isLoading, refetch: refetchSteps } = useStepsQuery(wizardId);
   const [activeStepId, setActiveStepId] = React.useState<string | null>(null);
   const createStep: UseMutationResult<{ step: Step }, Error, CreateStepPayload, unknown> = useCreateStep(wizardId);
   const { data: stepTypesData, isLoading: isLoadingStepTypes } = useStepTypesQuery();
   const [stepTypeToCreate, setStepTypeToCreate] = React.useState<StepType | null>(null);
+  // Add state for sidebar visibility (default closed on mobile)
+  const [isSidebarOpen, setSidebarOpen] = React.useState(false);
 
   React.useEffect(() => {
     if (data && data.steps.length > 0 && !activeStepId && !stepTypeToCreate) {
@@ -67,6 +75,8 @@ export const WizardStepEditorPage: React.FC<WizardStepEditorPageProps> = ({ wiza
         setStepTypeToCreate(null);
         refetchSteps();
         setActiveStepId(res.step.id);
+        // Close sidebar on mobile after adding a step
+        setSidebarOpen(false);
       }
     });
   };
@@ -77,6 +87,18 @@ export const WizardStepEditorPage: React.FC<WizardStepEditorPageProps> = ({ wiza
       setActiveStepId(data.steps[0].id);
     }
   }, [data, setActiveStepId]);
+
+  // Close sidebar after selecting a step on mobile
+  const handleStepSelect = (id: string | null) => {
+    // First set the active step ID before closing the sidebar
+    setActiveStepId(id);
+    // Only close sidebar on mobile
+    if (window.innerWidth < 640) { // sm breakpoint is 640px in Tailwind
+      setTimeout(() => {
+        setSidebarOpen(false);
+      }, 100); // Increased timeout to ensure state updates
+    }
+  };
 
   const activeStep: Step | null = !stepTypeToCreate && data?.steps.find(s => s.id === activeStepId) || null;
   const isCreating = !!stepTypeToCreate;
@@ -108,9 +130,49 @@ export const WizardStepEditorPage: React.FC<WizardStepEditorPageProps> = ({ wiza
   // --- End Calculate Summary Data --- 
 
   return (
-    <div className="flex h-[80vh] border rounded-lg overflow-hidden bg-background">
-      <div className="flex flex-col w-60 border-r bg-muted/30">
-        <div className="p-2 border-b flex items-center justify-between relative">
+    <div className="flex relative h-[80vh] border rounded-lg overflow-hidden bg-background">
+      {/* Mobile sidebar toggle button */}
+      <div className="absolute top-0 left-0 z-40 sm:hidden">
+        <Button 
+          variant="ghost" 
+          className="h-10 w-10 p-0 m-1" 
+          onClick={() => setSidebarOpen(!isSidebarOpen)}
+        >
+          {isSidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </Button>
+      </div>
+
+      {/* Mobile close button - for easy access on mobile */}
+      <div className="absolute top-0 right-0 z-40 sm:hidden">
+        <Button 
+          variant="ghost" 
+          className="h-10 w-10 p-0 m-1" 
+          onClick={onClose}
+        >
+          <X className="h-5 w-5" />
+        </Button>
+      </div>
+
+      {/* Sidebar overlay backdrop for mobile */}
+      {isSidebarOpen && (
+        <div 
+          className="absolute inset-0 bg-black/20 z-30 sm:hidden" 
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar with responsive classes */}
+      <div 
+        className={`
+          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
+          transition-transform duration-200 ease-in-out
+          absolute top-0 bottom-0 left-0 z-[35] w-[270px] h-full
+          sm:static sm:translate-x-0 sm:w-60 sm:z-auto
+          flex flex-col border-r bg-background shadow-lg sm:shadow-none
+          overflow-x-hidden
+        `}
+      >
+        <div className="p-2 border-b flex items-center justify-between relative bg-background">
           <span className="font-semibold text-sm">Steps</span>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -196,14 +258,16 @@ export const WizardStepEditorPage: React.FC<WizardStepEditorPageProps> = ({ wiza
         <StepSidebar
           wizardId={wizardId}
           activeStepId={activeStepId}
-          setActiveStepId={setActiveStepId}
+          setActiveStepId={handleStepSelect} // Use the handler that closes sidebar
           steps={data?.steps}
           isLoading={isLoading}
           isCreating={isCreating}
           stepTypeToCreate={stepTypeToCreate}
         />
       </div>
-      <div className="flex-1 min-w-0 overflow-y-auto">
+
+      {/* Main content area - adjust padding on mobile to account for toggle button */}
+      <div className="flex-1 min-w-0 overflow-y-auto pt-12 sm:pt-0 pb-16">
         <StepEditor
           key={isSummaryPreviewActive ? 'summary-preview' : (isCreating ? 'creating' : activeStep?.id || 'no-selection')}
           wizardId={wizardId}
@@ -222,6 +286,20 @@ export const WizardStepEditorPage: React.FC<WizardStepEditorPageProps> = ({ wiza
           }}
         />
       </div>
+
+      {/* Bottom fixed Done button - visible on all screen sizes */}
+      {onClose && (
+        <div className="absolute bottom-0 left-0 right-0 p-2 bg-background border-t flex justify-between items-center">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onClose}
+            className="ml-auto"
+          >
+            <ArrowLeft className="mr-1 h-4 w-4" /> Done
+          </Button>
+        </div>
+      )}
     </div>
   );
 }; 
