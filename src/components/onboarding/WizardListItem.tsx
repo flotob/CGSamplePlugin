@@ -38,6 +38,14 @@ import { useWizardPreviewImageQuery } from '@/hooks/useWizardPreviewImageQuery';
 import Image from 'next/image';
 import { Skeleton } from "@/components/ui/skeleton";
 import { ImageOff } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { MoreVertical } from 'lucide-react';
 
 // Define Role type (can be shared or imported if defined elsewhere)
 // Assuming structure from CommunityInfoResponsePayload
@@ -212,102 +220,116 @@ export const WizardListItem: React.FC<WizardListItemProps> = ({
   return (
     <Card className={`transition-all border border-border/40 hover:border-border/60 ${isMutatingAny ? 'opacity-70 pointer-events-none' : ''}`}>
       <CardHeader className="pb-3">
-        <div className="flex justify-between items-start gap-4">
-          <div className="flex-shrink-0">
-             <PreviewImage />
+        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+          <div className="flex w-full gap-4">
+            <div className="flex-shrink-0">
+               <PreviewImage />
+            </div>
+            {isInlineEditing ? (
+              <div className="flex-grow space-y-3">
+                <Input
+                  value={editedName}
+                  onChange={(e) => setEditedName(e.target.value)}
+                  className="text-lg font-semibold h-9"
+                  placeholder="Wizard Name"
+                  disabled={isMutatingAny}
+                />
+                <Textarea
+                  value={editedDescription}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setEditedDescription(e.target.value)}
+                  placeholder="Wizard description (optional)"
+                  rows={2}
+                  className="text-sm resize-none"
+                  disabled={isMutatingAny}
+                />
+                <div className="grid gap-4 sm:grid-cols-2 pt-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor={`role-req-edit-${wizard.id}`} className="text-xs font-semibold flex items-center gap-1">
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                      Required Role
+                    </Label>
+                    <Select 
+                        value={editedRequiredRoleId ?? 'none'}
+                        onValueChange={(value) => setEditedRequiredRoleId(value === 'none' ? null : value)}
+                        disabled={isMutatingAny} 
+                    >
+                      <SelectTrigger id={`role-req-edit-${wizard.id}`} className="h-8 text-xs w-full">
+                        <SelectValue placeholder="Select a role..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No Requirement</SelectItem>
+                        {assignableRoles?.map((role) => (
+                          <SelectItem key={role.id} value={role.id}>
+                            {role.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-semibold flex items-center gap-1">Role Grant Timing</Label>
+                    <RadioGroup 
+                      value={editedAssignRolesPerStep ? 'per_step' : 'at_end'}
+                      onValueChange={(value) => setEditedAssignRolesPerStep(value === 'per_step')}
+                      disabled={isMutatingAny}
+                      className="mt-1 space-y-1.5"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="at_end" id={`r1-${wizard.id}`} />
+                        <Label htmlFor={`r1-${wizard.id}`} className="text-xs font-normal cursor-pointer">Grant after wizard completion</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="per_step" id={`r2-${wizard.id}`} />
+                        <Label htmlFor={`r2-${wizard.id}`} className="text-xs font-normal cursor-pointer">Grant immediately after each step</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex-grow">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg mb-1 flex items-center gap-1.5">
+                     {wizard.name}
+                     {/* Add Hero indicator */} 
+                     {wizard.is_hero && (
+                        <TooltipProvider delayDuration={150}>
+                           <Tooltip>
+                              <TooltipTrigger>
+                                 <Star className="h-4 w-4 text-yellow-500 fill-yellow-400" />
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="text-xs">
+                                 <p>Hero Wizard</p>
+                              </TooltipContent>
+                           </Tooltip>
+                        </TooltipProvider>
+                     )}
+                  </CardTitle>
+                  <div className="flex-shrink-0 sm:hidden">
+                    <Badge 
+                       variant={wizard.is_active ? 'default' : 'secondary'} 
+                       className={wizard.is_active
+                         ? 'bg-emerald-100 text-emerald-800 border border-emerald-200 hover:bg-emerald-200 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-700/30 dark:hover:bg-emerald-950/60'
+                         : 'bg-secondary/50 hover:bg-secondary/70'
+                       }>
+                       {wizard.is_active ? 'Published' : 'Draft'}
+                    </Badge>
+                  </div>
+                </div>
+                <CardDescription className="line-clamp-2">
+                  {wizard.description || <span className="italic text-muted-foreground/70">No description</span>}
+                </CardDescription>
+                <div className="text-xs text-muted-foreground mt-2 space-y-1">
+                   <p className="flex items-center gap-1.5">
+                      <ShieldCheck className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span><strong>Required Role:</strong> {getRoleName(wizard.required_role_id)}</span>
+                   </p>
+                   <p><strong>Assignment:</strong> {wizard.assign_roles_per_step ? 'At Each Step' : 'Wizard Completion'}</p>
+                </div>
+              </div>
+            )}
           </div>
-          {isInlineEditing ? (
-            <div className="flex-grow space-y-3">
-              <Input
-                value={editedName}
-                onChange={(e) => setEditedName(e.target.value)}
-                className="text-lg font-semibold h-9"
-                placeholder="Wizard Name"
-                disabled={isMutatingAny}
-              />
-              <Textarea
-                value={editedDescription}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setEditedDescription(e.target.value)}
-                placeholder="Wizard description (optional)"
-                rows={2}
-                className="text-sm resize-none"
-                disabled={isMutatingAny}
-              />
-              <div className="grid gap-4 sm:grid-cols-2 pt-2">
-                <div className="space-y-1.5">
-                  <Label htmlFor={`role-req-edit-${wizard.id}`} className="text-xs font-semibold flex items-center gap-1">
-                    <ShieldCheck className="h-3.5 w-3.5" />
-                    Required Role
-                  </Label>
-                  <Select 
-                      value={editedRequiredRoleId ?? 'none'}
-                      onValueChange={(value) => setEditedRequiredRoleId(value === 'none' ? null : value)}
-                      disabled={isMutatingAny} 
-                  >
-                    <SelectTrigger id={`role-req-edit-${wizard.id}`} className="h-8 text-xs w-full">
-                      <SelectValue placeholder="Select a role..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">No Requirement</SelectItem>
-                      {assignableRoles?.map((role) => (
-                        <SelectItem key={role.id} value={role.id}>
-                          {role.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold flex items-center gap-1">Role Grant Timing</Label>
-                  <RadioGroup 
-                    value={editedAssignRolesPerStep ? 'per_step' : 'at_end'}
-                    onValueChange={(value) => setEditedAssignRolesPerStep(value === 'per_step')}
-                    disabled={isMutatingAny}
-                    className="mt-1 space-y-1.5"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="at_end" id={`r1-${wizard.id}`} />
-                      <Label htmlFor={`r1-${wizard.id}`} className="text-xs font-normal cursor-pointer">Grant after wizard completion</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="per_step" id={`r2-${wizard.id}`} />
-                      <Label htmlFor={`r2-${wizard.id}`} className="text-xs font-normal cursor-pointer">Grant immediately after each step</Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="flex-grow">
-              <CardTitle className="text-lg mb-1 flex items-center gap-1.5">
-                 {wizard.name}
-                 {/* Add Hero indicator */} 
-                 {wizard.is_hero && (
-                    <TooltipProvider delayDuration={150}>
-                       <Tooltip>
-                          <TooltipTrigger>
-                             <Star className="h-4 w-4 text-yellow-500 fill-yellow-400" />
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="text-xs">
-                             <p>Hero Wizard</p>
-                          </TooltipContent>
-                       </Tooltip>
-                    </TooltipProvider>
-                 )}
-              </CardTitle>
-              <CardDescription className="line-clamp-2">
-                {wizard.description || <span className="italic text-muted-foreground/70">No description</span>}
-              </CardDescription>
-              <div className="text-xs text-muted-foreground mt-2 space-y-1">
-                 <p className="flex items-center gap-1.5">
-                    <ShieldCheck className="h-3.5 w-3.5 flex-shrink-0" />
-                    <span><strong>Required Role:</strong> {getRoleName(wizard.required_role_id)}</span>
-                 </p>
-                 <p><strong>Assignment:</strong> {wizard.assign_roles_per_step ? 'At Each Step' : 'Wizard Completion'}</p>
-              </div>
-            </div>
-          )}
-          <div className="flex flex-col items-end gap-1 flex-shrink-0">
+          <div className="hidden sm:flex sm:flex-col items-end gap-1 flex-shrink-0">
              <Badge 
                variant={wizard.is_active ? 'default' : 'secondary'} 
                className={wizard.is_active
@@ -318,6 +340,7 @@ export const WizardListItem: React.FC<WizardListItemProps> = ({
              </Badge>
              <span className="text-xs text-muted-foreground mt-1">Updated {updatedAt}</span>
           </div>
+          <span className="text-xs text-muted-foreground mt-1 sm:hidden">Updated {updatedAt}</span>
         </div>
       </CardHeader>
       
@@ -344,7 +367,70 @@ export const WizardListItem: React.FC<WizardListItemProps> = ({
             </TooltipProvider>
          )}
 
-         <div className="flex items-center gap-1.5">
+         {/* Mobile Actions Menu */}
+         <div className="sm:hidden">
+           <DropdownMenu>
+             <DropdownMenuTrigger asChild>
+               <Button variant="outline" size="sm" className="h-8 px-2">
+                 <MoreVertical className="h-4 w-4" />
+               </Button>
+             </DropdownMenuTrigger>
+             <DropdownMenuContent align="end">
+               {/* Priority Action */}
+               {!wizard.is_active && (
+                 <DropdownMenuItem onClick={() => setEditingWizardId(wizard.id)} disabled={isMutatingAny}>
+                   <Settings className="mr-2 h-4 w-4" />
+                   Edit Steps
+                 </DropdownMenuItem>
+               )}
+               
+               {/* Publish/Unpublish Action */}
+               <DropdownMenuItem 
+                 onClick={handleTogglePublish} 
+                 disabled={isMutatingAny || publishMutation.isPending}
+               >
+                 {wizard.is_active ? 
+                   <Square className="mr-2 h-4 w-4"/> : 
+                   <Play className="mr-2 h-4 w-4"/>
+                 }
+                 {wizard.is_active ? 'Deactivate' : 'Publish'}
+               </DropdownMenuItem>
+               
+               {/* Duplicate Action */}
+               <DropdownMenuItem 
+                 onClick={handleDuplicate} 
+                 disabled={isMutatingAny || duplicateMutation.isPending}
+               >
+                 <Copy className="mr-2 h-4 w-4" />
+                 Duplicate
+               </DropdownMenuItem>
+               
+               {/* Hero Toggle */}
+               <DropdownMenuItem 
+                 onClick={() => setHeroMutation.mutate({ wizardId: wizard.id, targetState: !wizard.is_hero })}
+                 disabled={isMutatingAny || setHeroMutation.isPending}
+               >
+                 <Star className="mr-2 h-4 w-4" />
+                 {wizard.is_hero ? 'Remove Hero Status' : 'Set as Hero Wizard'}
+               </DropdownMenuItem>
+               
+               <DropdownMenuSeparator />
+               
+               {/* Delete Action */}
+               <DropdownMenuItem 
+                 onClick={handleDelete}
+                 disabled={isMutatingAny || deleteMutation.isPending}
+                 className="text-destructive focus:text-destructive"
+               >
+                 <Trash2 className="mr-2 h-4 w-4" />
+                 Delete
+               </DropdownMenuItem>
+             </DropdownMenuContent>
+           </DropdownMenu>
+         </div>
+
+         {/* Desktop Actions */}
+         <div className="hidden sm:flex items-center gap-1.5">
            {/* ----- Conditional Actions ----- */} 
            
            {/* Replace complex conditional with HeroToggleButton component */} 
