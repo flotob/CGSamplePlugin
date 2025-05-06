@@ -114,14 +114,14 @@ export const WizardList: React.FC<WizardListProps> = ({
   return (
     <div className="space-y-8">
       {/* Unpublished (Draft) Wizards Section */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
+      <section className="sm:rounded-xl sm:border sm:bg-card sm:shadow-sm sm:p-6 sm:transition-all">
+        <div className="flex items-center justify-between px-1 sm:px-0 pb-2 sm:pb-6">
           <h3 className="text-base font-medium text-muted-foreground/90 tracking-tight">Draft Wizards</h3>
           {unpublishedWizards.length > 0 && <span className="text-xs text-muted-foreground/70 bg-muted/40 rounded-full px-2 py-0.5">{unpublishedWizards.length}</span>}
         </div>
         
         {unpublishedWizards.length > 0 ? (
-          <div className="space-y-3">
+          <div className="space-y-3 px-1 sm:px-0 pt-2 sm:pt-0">
             {unpublishedWizards.map((wizard) => (
               <WizardListItem 
                 key={wizard.id} 
@@ -132,7 +132,7 @@ export const WizardList: React.FC<WizardListProps> = ({
             ))}
           </div>
         ) : (
-          <div className="text-sm text-muted-foreground/60 italic border border-dashed border-border/40 bg-muted/20 rounded-md py-4 px-5">
+          <div className="text-sm text-muted-foreground/60 italic border border-dashed border-border/40 bg-muted/20 rounded-md py-4 px-5 mx-1 sm:mx-0">
             No draft wizards found.
           </div>
         )}
@@ -140,18 +140,18 @@ export const WizardList: React.FC<WizardListProps> = ({
 
       {/* Separator - only show if both sections have content */}
       {publishedWizards.length > 0 && unpublishedWizards.length > 0 && (
-        <Separator className="opacity-50" />
+        <Separator className="opacity-50 mx-1 sm:mx-0" />
       )}
 
       {/* Published Wizards Section */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
+      <section className="sm:rounded-xl sm:border sm:bg-card sm:shadow-sm sm:p-6 sm:transition-all">
+        <div className="flex items-center justify-between px-1 sm:px-0 pb-2 sm:pb-6">
           <h3 className="text-base font-medium text-muted-foreground/90 tracking-tight">Published Wizards</h3>
           {publishedWizards.length > 0 && <span className="text-xs text-muted-foreground/70 bg-muted/40 rounded-full px-2 py-0.5">{publishedWizards.length}</span>}
         </div>
         
         {publishedWizards.length > 0 ? (
-          <div className="space-y-3">
+          <div className="space-y-3 px-1 sm:px-0 pt-2 sm:pt-0">
             {publishedWizards.map((wizard) => (
               <WizardListItem 
                 key={wizard.id} 
@@ -162,7 +162,7 @@ export const WizardList: React.FC<WizardListProps> = ({
             ))}
           </div>
         ) : (
-          <div className="text-sm text-muted-foreground/60 italic border border-dashed border-border/40 bg-muted/20 rounded-md py-4 px-5">
+          <div className="text-sm text-muted-foreground/60 italic border border-dashed border-border/40 bg-muted/20 rounded-md py-4 px-5 mx-1 sm:mx-0">
             No published wizards found.
           </div>
         )}
