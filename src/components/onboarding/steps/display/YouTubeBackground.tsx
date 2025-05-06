@@ -26,8 +26,8 @@ export const YouTubeBackground: React.FC<YouTubeBackgroundProps> = ({ videoUrl }
   const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1&controls=0&showinfo=0&rel=0&loop=1&playlist=${videoId}&mute=1&playsinline=1&modestbranding=1&iv_load_policy=3&disablekb=1&vq=hd1080`;
 
   return (
-    <div className="absolute inset-0 overflow-hidden z-0 bg-black">
-      <div className="video-background absolute inset-0 w-full h-full">
+    <div className="wizard-background" style={{ backgroundColor: '#000' }}>
+      <div className="w-full h-full absolute inset-0">
         {/* 
           The key to making this work is using a very large iframe (300% width/height)
           and positioning it in the center with transform.

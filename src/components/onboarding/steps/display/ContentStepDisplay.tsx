@@ -40,14 +40,14 @@ export const ContentStepDisplay: React.FC<ContentStepDisplayProps> = ({
   const markdownContent = specificConfig?.content || ''; // Default to empty string now
 
   return (
-    // Apply the container class from the CSS module
-    <div className={`${styles.markdownContainer} w-full max-w-none text-foreground px-12 py-8 md:px-16 lg:px-20`}>
-      {/* Render the markdown content - no components prop needed */}
-      <ReactMarkdown 
-        remarkPlugins={[remarkGfm]}
-      >
-        {markdownContent}
-      </ReactMarkdown>
+    // Full-height container with scrolling content - improved styles
+    <div className={`${styles.markdownContainer} w-full max-w-3xl mx-auto flex-1 flex flex-col text-foreground px-3 sm:px-6 md:px-8 py-4`} style={{minHeight: "100%"}}>
+      {/* Ensure markdown content can grow but also overflow with scroll */}
+      <div className="prose-sm sm:prose lg:prose-lg dark:prose-invert w-full flex-1 overflow-visible">
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+          {markdownContent}
+        </ReactMarkdown>
+      </div>
       
       {/* Since this step auto-completes, we don't need user interaction buttons */}
       {/* A message indicating completion might be nice, handled by parent modal state */}

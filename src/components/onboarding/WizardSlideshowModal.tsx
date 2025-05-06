@@ -329,7 +329,7 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
 
     // Render StepDisplay component, passing the completion handler
     return (
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto h-full" style={{height: '100%'}}>
            <StepDisplay 
               step={currentStep} 
               stepType={currentStepType} 
@@ -355,9 +355,9 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
         className="absolute inset-0 z-50 flex flex-col w-full h-full bg-background text-foreground overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header Area */}
-        <div className="flex items-center justify-between p-4 border-b min-h-[60px]">
-          <div>
+        {/* Header Area - Optimize for mobile */}
+        <div className="flex items-center justify-between p-3 sm:p-4 border-b min-h-[56px] sm:min-h-[60px]">
+          <div className="pr-2">
             {(() => { 
               let stepTitle: string;
               let stepSubtitle: string;
@@ -377,50 +377,60 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
 
               return (
                 <>
-                  <h2 className="text-lg font-semibold">
+                  <h2 className="text-base sm:text-lg font-semibold truncate">
                     {stepTitle}
                   </h2>
-                  <p className="text-sm text-muted-foreground">
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">
                     {stepSubtitle}
                   </p>
                 </>
               );
             })()}
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close wizard">
-            <X className="h-5 w-5" />
+          <Button variant="ghost" size="sm" className="h-8 w-8 p-0 sm:h-9 sm:w-9" onClick={onClose} aria-label="Close wizard">
+            <X className="h-4 w-4 sm:h-5 sm:w-5" />
           </Button>
         </div>
 
-        {/* Main Step Content Area */}
-        {renderContent()}
+        {/* Main Step Content Area - Fixed background */}
+        <div className="flex-grow flex flex-col overflow-hidden relative h-full" style={{flex: '1 1 auto', minHeight: 0}}>
+          {renderContent()}
+        </div>
 
-        {/* Footer Area (Navigation & Social Proof) */}
+        {/* Footer Area (Navigation & Social Proof) - Optimize for mobile */}
         {!isLoadingSteps && !isLoadingTypes && !stepsError && totalSteps > 0 && !showSummary && (
-          <div className="flex items-center justify-between p-4 border-t min-h-[60px]">
+          <div className="flex items-center justify-between p-3 sm:p-4 border-t min-h-[56px] sm:min-h-[60px]">
              {/* Left Side: Previous Button */}
-             <div className="flex-1 flex justify-start"> {/* Takes up space, pushes content left */}
-                 <Button variant="outline" onClick={handlePrevious} disabled={isPrevDisabled}>Previous</Button>
+             <div className="flex-1 flex justify-start"> 
+                 <Button 
+                   variant="outline" 
+                   onClick={handlePrevious} 
+                   disabled={isPrevDisabled}
+                   size="sm"
+                   className="h-8 px-3 sm:h-10 sm:px-4 text-xs sm:text-sm"
+                 >
+                   Previous
+                 </Button>
              </div>
              
-             {/* Center: Social Proof Widget */}
-             <div className="flex-shrink-0 mx-4"> {/* Prevent shrinking, add margin */}
+             {/* Center: Social Proof Widget - Hide on extra small screens */}
+             <div className="hidden xs:flex flex-shrink-0 mx-2 sm:mx-4"> 
                   <SocialProofWidget 
                     data={socialProofData}
                     isLoading={isLoadingSocialProof}
-                    // className="hidden sm:flex" // Allow it to be visible on mobile too if centered
                   />
              </div>
 
              {/* Right Side: Next/Summary Button */}
-             <div className="flex-1 flex justify-end"> {/* Takes up space, pushes content right */}
+             <div className="flex-1 flex justify-end"> 
                  <Button 
                     onClick={isLastStep && isCompleted ? handleViewSummary : handleNext}
                     disabled={!canProceed || completeStepMutation.isPending} 
-                    className={isCompleted ? "bg-green-600 hover:bg-green-700" : ""}
+                    className={`h-8 px-3 sm:h-10 sm:px-4 text-xs sm:text-sm ${isCompleted ? "bg-green-600 hover:bg-green-700" : ""}`}
+                    size="sm"
                  >
                     {isLastStep && isCompleted ? 'View Summary' : 'Next'}
-                    {completeStepMutation.isPending && <Loader2 className="ml-2 h-4 w-4 animate-spin" />}
+                    {completeStepMutation.isPending && <Loader2 className="ml-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />}
                  </Button>
              </div>
           </div>

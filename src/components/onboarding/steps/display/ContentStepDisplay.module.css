@@ -1,49 +1,70 @@
 /* Styles for Markdown rendered in the ContentStepDisplay slideshow */
+
+/* Base styles with responsive text sizes */
 .markdownContainer :global(h1) {
-    @apply text-7xl font-black mb-12 mt-10 first:mt-0 text-foreground;
+    @apply text-4xl sm:text-5xl lg:text-7xl font-black mb-6 sm:mb-8 lg:mb-12 mt-6 sm:mt-8 lg:mt-10 first:mt-0 text-foreground;
 }
 .markdownContainer :global(h2) {
-    @apply text-5xl font-bold mb-10 mt-16 text-foreground;
+    @apply text-3xl sm:text-4xl lg:text-5xl font-bold mb-5 sm:mb-7 lg:mb-10 mt-8 sm:mt-12 lg:mt-16 text-foreground;
 }
 .markdownContainer :global(h3) {
-    @apply text-4xl font-semibold mb-8 mt-12 text-foreground;
+    @apply text-2xl sm:text-3xl lg:text-4xl font-semibold mb-4 sm:mb-6 lg:mb-8 mt-6 sm:mt-9 lg:mt-12 text-foreground;
 }
 .markdownContainer :global(h4) {
-    @apply text-3xl font-semibold mb-6 mt-10 text-foreground;
+    @apply text-xl sm:text-2xl lg:text-3xl font-semibold mb-4 sm:mb-5 lg:mb-6 mt-6 sm:mt-8 lg:mt-10 text-foreground;
 }
 .markdownContainer :global(h5) {
-    @apply text-2xl font-semibold mb-5 mt-9 text-foreground;
+    @apply text-lg sm:text-xl lg:text-2xl font-semibold mb-3 sm:mb-4 lg:mb-5 mt-5 sm:mt-7 lg:mt-9 text-foreground;
 }
 .markdownContainer :global(h6) {
-    @apply text-xl font-semibold mb-5 mt-8 text-foreground;
+    @apply text-base sm:text-lg lg:text-xl font-semibold mb-3 sm:mb-4 lg:mb-5 mt-4 sm:mt-6 lg:mt-8 text-foreground;
 }
 .markdownContainer :global(p) {
-    @apply text-2xl leading-relaxed my-6;
+    @apply text-base sm:text-lg lg:text-2xl leading-relaxed my-4 sm:my-5 lg:my-6;
 }
 .markdownContainer :global(ul) {
-    @apply list-disc list-outside pl-10 my-8 space-y-4 marker:text-primary;
+    @apply list-disc list-outside pl-6 sm:pl-8 lg:pl-10 my-4 sm:my-6 lg:my-8 space-y-2 sm:space-y-3 lg:space-y-4 marker:text-primary;
 }
 .markdownContainer :global(ol) {
-    @apply list-decimal list-outside pl-10 my-8 space-y-4 marker:text-primary;
+    @apply list-decimal list-outside pl-6 sm:pl-8 lg:pl-10 my-4 sm:my-6 lg:my-8 space-y-2 sm:space-y-3 lg:space-y-4 marker:text-primary;
 }
 .markdownContainer :global(li) {
-    @apply text-2xl pl-4;
+    @apply text-base sm:text-lg lg:text-2xl pl-2 sm:pl-3 lg:pl-4;
 }
 .markdownContainer :global(a) {
     @apply text-primary font-medium hover:underline underline-offset-4;
 }
 .markdownContainer :global(blockquote) {
-    @apply border-l-4 border-primary bg-muted/30 p-6 pl-8 my-10 italic text-2xl;
+    @apply border-l-4 border-primary bg-muted/30 p-3 sm:p-4 lg:p-6 pl-4 sm:pl-6 lg:pl-8 my-5 sm:my-7 lg:my-10 italic text-base sm:text-xl lg:text-2xl;
 }
 .markdownContainer :global(code) {
     /* Styles for inline code */
-    @apply bg-muted text-foreground px-2 py-1 rounded font-mono text-xl mx-1;
+    @apply bg-muted text-foreground px-1.5 py-0.5 rounded font-mono text-sm sm:text-base lg:text-xl mx-1;
 }
 .markdownContainer :global(pre) {
     /* Styles for code blocks */
-    @apply bg-muted text-foreground p-6 rounded-lg text-base my-10 overflow-x-auto font-mono;
+    @apply bg-muted text-foreground p-3 sm:p-4 lg:p-6 rounded-lg text-xs sm:text-sm lg:text-base my-5 sm:my-7 lg:my-10 overflow-x-auto font-mono;
 }
 .markdownContainer :global(pre) :global(code) {
     /* Reset styles for code tags specifically inside pre tags if needed */
-    @apply bg-transparent text-inherit p-0 font-mono text-base mx-0;
+    @apply bg-transparent text-inherit p-0 font-mono text-xs sm:text-sm lg:text-base mx-0;
+}
+
+/* Add styles for proper image display on mobile */
+.markdownContainer :global(img) {
+    @apply max-w-full h-auto mx-auto my-4 sm:my-6 rounded-md;
+}
+
+/* Ensure tables are responsive */
+.markdownContainer :global(table) {
+    @apply w-full text-sm sm:text-base lg:text-lg my-4 sm:my-6 lg:my-8 border-collapse overflow-x-auto block sm:table;
+}
+
+.markdownContainer :global(th),
+.markdownContainer :global(td) {
+    @apply border border-border p-2 sm:p-3 lg:p-4;
+}
+
+.markdownContainer :global(th) {
+    @apply bg-muted font-medium;
 } 

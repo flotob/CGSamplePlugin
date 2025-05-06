@@ -253,9 +253,9 @@
   }
 }
 
-/* Ensure the modal content is scrollable but contained */
+/* Remove height restriction that might be limiting content area */
 .wizard-slideshow-modal .overflow-y-auto {
-  max-height: calc(100% - 120px); /* Account for header and footer */
+  max-height: 100%; /* Allow full height scrolling */
 }
 
 /* Ensure the modal container spans the full iframe */
@@ -279,4 +279,42 @@
   width: 100%;
   height: 100vh;
   overflow: hidden;
+}
+
+/* Step background styles to ensure full coverage */
+.wizard-background {
+  position: absolute;
+  top: -50px; /* Extend far beyond container boundaries */
+  left: -50px; 
+  right: -50px;
+  bottom: -50px; /* Extend significantly below to cover any gap */
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  z-index: 0;
+  height: calc(100% + 100px) !important; /* Force extra height */
+  width: calc(100% + 100px) !important;
+  margin-bottom: -50px !important; /* Negative margin to pull down */
+  padding-bottom: 50px !important; /* Extra padding at bottom */
+}
+
+/* Improve content container to fill available space */
+.wizard-content-wrapper {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  height: 100%;
+  flex: 1 1 auto;
+}
+
+.wizard-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 100%;
+  height: 100%;
+  padding: 1rem;
 }

@@ -38,38 +38,47 @@ export const StepDisplay: React.FC<StepDisplayProps> = ({
   const backgroundType = presentationConfig?.backgroundType;
   const backgroundValue = presentationConfig?.backgroundValue;
 
-  const backgroundStyle: React.CSSProperties = {};
-  // Background container classes - remove overflow-y-auto since scrolling will be handled by parent
-  let backgroundClasses = "w-full h-full flex-grow flex flex-col relative"; 
+  // Determine background style based on type
+  let bgStyle = {};
   let renderYoutubeBackground = false;
   let youtubeUrl = '';
-
+  
   if (backgroundType === 'image' && typeof backgroundValue === 'string') {
-    backgroundStyle.backgroundImage = `url("${backgroundValue}")`;
-    backgroundClasses = cn(backgroundClasses, "bg-cover bg-center");
+    bgStyle = {
+      background: `url("${backgroundValue}")`,
+    };
   } else if (backgroundType === 'color' && typeof backgroundValue === 'string') {
-    backgroundStyle.backgroundColor = backgroundValue;
+    bgStyle = {
+      backgroundColor: backgroundValue,
+    };
   } else if (backgroundType === 'gradient' && typeof backgroundValue === 'object' && backgroundValue !== null) {
     const grad = backgroundValue as GradientValue; 
     if (grad.color1 && grad.color2 && grad.direction) {
-      backgroundStyle.background = `linear-gradient(${grad.direction}, ${grad.color1}, ${grad.color2})`;
+      bgStyle = {
+        background: `linear-gradient(${grad.direction}, ${grad.color1}, ${grad.color2})`,
+      };
     }
   } else if (backgroundType === 'youtube' && typeof backgroundValue === 'string') {
      renderYoutubeBackground = true;
      youtubeUrl = backgroundValue;
-     backgroundStyle.backgroundColor = '#000000'; // Fallback color while video loads
+     bgStyle = {
+       backgroundColor: '#000000', // Fallback color while video loads
+     };
   }
-
-  // --- Log calculated styles --- 
-  console.log('[StepDisplay] Calculated Style:', backgroundStyle);
-  console.log('[StepDisplay] Calculated Classes:', backgroundClasses);
 
   // --- Handle case where stepType is missing --- 
   if (!stepType) {
     return (
-        <div style={backgroundStyle} className={cn(backgroundClasses, "p-4 text-destructive")}>
-           Error: Unknown step type ID: {step.step_type_id}
+      <div className="flex flex-col w-full h-full">
+        <div className="wizard-background" style={{ backgroundColor: '#000' }} />
+        <div className="flex-1 overflow-y-auto z-10 relative h-full flex flex-col">
+          <div className="flex-1 flex flex-col items-center p-4">
+            <div className="p-4 text-destructive">
+              Error: Unknown step type ID: {step.step_type_id}
+            </div>
+          </div>
         </div>
+      </div>
     );
   }
 
@@ -96,21 +105,28 @@ export const StepDisplay: React.FC<StepDisplayProps> = ({
       break;
   }
 
-  // --- Render the final component --- 
+  // --- Render the final component with fixed height issues --- 
   return (
-    <div style={backgroundStyle} className={cn(backgroundClasses)}>
-       {/* Overlay for image backgrounds */}
-       {(backgroundType === 'image' || backgroundType === 'youtube') && (
-          <div className="absolute inset-0 bg-black/40 z-0"></div> 
-       )}
-       {/* YouTube background player */}
-       {renderYoutubeBackground && youtubeUrl && (
-          <YouTubeBackground videoUrl={youtubeUrl} />
-       )}
-       {/* Content wrapper with padding */}
-       <div className="relative z-10 w-full h-full flex-grow flex flex-col items-center justify-center p-6"> 
-           {stepContentElement}
-       </div>
+    <div className="flex flex-col w-full h-full absolute inset-0">
+      {/* Background using CSS class for full coverage */}
+      <div className="wizard-background" style={bgStyle} />
+      
+      {/* Overlay for image/video backgrounds */}
+      {(backgroundType === 'image' || backgroundType === 'youtube') && (
+        <div className="wizard-background bg-black/40" />
+      )}
+      
+      {/* YouTube background if needed */}
+      {renderYoutubeBackground && youtubeUrl && (
+        <YouTubeBackground videoUrl={youtubeUrl} />
+      )}
+      
+      {/* Content container - improved styles for better height and scrolling */}
+      <div className="absolute inset-0 overflow-y-auto z-10 flex flex-col" style={{height: "100%"}}>
+        <div className="flex-1 flex flex-col items-center py-4 px-4 md:py-6 md:px-6 min-h-[100%]">
+          {stepContentElement}
+        </div>
+      </div>
     </div>
   );
 }; 
