@@ -102,6 +102,14 @@ export const ImageLibraryModal: React.FC<ImageLibraryModalProps> = ({
         // Optionally show a toast message to the user
         return;
     }
+    
+    // Add validation for subject, style, and mood
+    if (!subject.trim() || !style.trim() || !mood.trim()) {
+        console.error('Subject, style, and mood are all required for image generation.');
+        // Optionally show a toast message to the user
+        return;
+    }
+    
     setLastGeneratedImageUrl(null); // Clear previous preview
     generateMutation.mutate(
       { 
@@ -153,7 +161,7 @@ export const ImageLibraryModal: React.FC<ImageLibraryModalProps> = ({
                 <Input id="mood" value={mood} onChange={(e) => setMood(e.target.value)} placeholder="e.g., vibrant, dark blue" />
               </div>
             </div>
-            <Button onClick={handleGenerate} disabled={generateMutation.isPending || !wizardId || !stepId}>
+            <Button onClick={handleGenerate} disabled={generateMutation.isPending || !wizardId || !stepId || !subject.trim() || !style.trim() || !mood.trim()}>
               {generateMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} 
               Generate Image
             </Button>
