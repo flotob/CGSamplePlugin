@@ -44,6 +44,9 @@ interface CommunityLogoResponse {
   logo_url: string | null;
 }
 
+// Define the name for the Broadcast Channel
+const STRIPE_BROADCAST_CHANNEL_NAME = 'stripe_payment_results';
+
 const PluginContainer = () => {
   const { isInitializing, initError, iframeUid } = useCgLib();
   const { isAdmin, isLoading: isLoadingAdminStatus, error: adminStatusError } = useAdminStatus();
@@ -267,71 +270,31 @@ const PluginContainer = () => {
   const isCoreLoading = isInitializing || isLoadingAdminStatus || !activeSection || (isAuthenticating && !jwt) || isLoadingUserWizards || isLoadingCompletions;
   const coreError = initError || adminStatusError || authError || userInfoError || communityInfoError || userWizardsError; // Include userWizardsError
 
-  // --- Effect for Stripe Callback Listener ---
+  // --- Effect for Stripe Callback Listener (Updated for BroadcastChannel) ---
   useEffect(() => {
-    // ========================== STRIPE CALLBACK LISTENER ===========================
-    // PURPOSE:
-    // This listener is designed to receive messages from the parent application
-    // (`app.cg`) after the user is redirected back from Stripe Checkout or the
-    // Stripe Billing Portal. The parent application is expected to detect the
-    // `?stripe_status=` query parameter in its URL, identify this plugin iframe,
-    // and use `postMessage` to send the status back to this listener.
-    //
-    // INTENDED EFFECT:
-    // Upon receiving a `stripeCallback` message, this listener should:
-    // 1. Invalidate the `communityBillingInfo` query. This triggers a refetch of
-    //    the user's current plan status from the backend (which should have
-    //    already been updated by Stripe webhooks).
-    // 2. Show a relevant toast notification (Success, Cancelled, Portal Closed).
-    // 3. This provides *immediate UI feedback* to the user reflecting the outcome
-    //    of their Stripe interaction, without requiring a manual page refresh.
-    //
-    // *** CURRENT STATUS (IMPORTANT!) ***
-    // As of the current implementation date, the corresponding logic in the parent
-    // application (`app.cg`) to *send* this `postMessage` callback after a Stripe
-    // redirect is NOT YET IMPLEMENTED.
-    //
-    // REASON:
-    // The parent page (`app.cg/c/{communityId}/`) needs to be updated to:
-    //   a) Reliably detect the `?stripe_status=` parameter upon load.
-    //   b) Reliably identify *this specific* plugin iframe instance among potentially others.
-    //   c) Dispatch the `postMessage` call to this iframe's origin.
-    //
-    // CONSEQUENCE:
-    // This listener code is **currently INACTIVE** in practice. It will not receive
-    // any messages, and UI updates after returning from Stripe will only occur
-    // when the user manually navigates back to this plugin view, causing the
-    // `useCommunityBillingInfo` hook to refetch data naturally.
-    //
-    // FUTURE ACTIVATION:
-    // This listener will start working as intended once the necessary callback logic
-    // is implemented in the `app.cg` parent application.
-    // ============================================================================
-
-    const parentAppOrigin = process.env.NEXT_PUBLIC_PARENT_APP_URL;
-    if (!parentAppOrigin) {
-        console.warn("NEXT_PUBLIC_PARENT_APP_URL is not set. Cannot verify messages from parent.");
-        // Decide if you want to proceed without origin check or stop here
-        // return;
+    // Ensure communityId is available before setting up listener
+    if (!communityId) {
+      // console.log('Stripe Listener: Waiting for communityId');
+      return;
     }
 
-    const handleMessage = (event: MessageEvent) => {
-      // 1. Verify origin (important for security)
-      if (parentAppOrigin && event.origin !== parentAppOrigin) {
-        // console.log('Message ignored from origin:', event.origin); // Optional: debug logging
-        return;
-      }
+    console.log(`Setting up BroadcastChannel listener for '${STRIPE_BROADCAST_CHANNEL_NAME}'`);
+    const bc = new BroadcastChannel(STRIPE_BROADCAST_CHANNEL_NAME);
 
-      // 2. Check message structure
+    const handleBroadcastMessage = (event: MessageEvent) => {
+      // No origin check needed for same-origin BroadcastChannel
+
+      // Check message structure (same as before)
       if (event.data && event.data.type === 'stripeCallback') {
-        console.log('Received Stripe callback message:', event.data);
-        const { status } = event.data; // sessionId might also be present
+        console.log('Received Stripe callback message via BroadcastChannel:', event.data);
+        // Extract status and potentially data (like sessionId)
+        const { status, data, error } = event.data; 
 
-        // 3. Invalidate query to refresh billing status
-        // We invalidate regardless of status to fetch the latest state
+        // Invalidate query to refresh billing status (use communityId from outer scope)
+        console.log(`Invalidating communityBillingInfo query for community: ${communityId}`);
         queryClient.invalidateQueries({ queryKey: ['communityBillingInfo', communityId] });
 
-        // 4. Show appropriate toast message
+        // Show appropriate toast message based on status
         if (status === 'success') {
           toast({
             title: "Payment Successful!",
@@ -346,23 +309,29 @@ const PluginContainer = () => {
           toast({
             title: "Checkout Cancelled",
             description: "Your checkout process was cancelled.",
-            variant: "default", // Use default variant for cancellation
+            variant: "default",
           });
+        } else if (status === 'error') {
+           toast({
+             title: "Stripe Error",
+             description: error || "An issue occurred during the Stripe process.",
+             variant: "destructive",
+           });
         }
-        // TODO: Potentially navigate the user within the iframe if needed?
-        // For example, if they were viewing a specific billing error modal.
+        // TODO: Add any other necessary UI updates or navigation based on status?
       }
     };
 
-    console.log('Setting up Stripe callback listener for origin:', parentAppOrigin);
-    window.addEventListener('message', handleMessage);
+    bc.onmessage = handleBroadcastMessage;
 
-    // Cleanup function to remove listener when component unmounts
+    // Cleanup function to close the BroadcastChannel
     return () => {
-      console.log('Removing Stripe callback listener');
-      window.removeEventListener('message', handleMessage);
+      console.log(`Removing BroadcastChannel listener for '${STRIPE_BROADCAST_CHANNEL_NAME}'`);
+      bc.close();
     };
-  }, [queryClient, communityId, toast]); // Dependencies: re-run if these change
+  // Dependencies: re-run if queryClient or communityId changes.
+  // toast function likely stable, but include if needed.
+  }, [queryClient, communityId, toast]);
 
   // Display loading indicator
   if (isCoreLoading) {
