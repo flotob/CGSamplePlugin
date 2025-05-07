@@ -117,18 +117,20 @@ New files/modules to be created:
 ### Task 3: Update Client-Side Hooks for Stripe Interaction
 
 *   **Sub-task 3.1: Refactor `useCreateCheckoutSession.ts`**
-    *   This hook will no longer need to fetch `communityInfo.url` or `pluginContextData.id` itself, nor send them in the request body to its backend API. The backend will obtain these from the JWT.
+    *   This hook will no longer need to fetch `communityInfo.url` or `pluginContextData.id` itself, nor send them in the request body to its backend API. The backend will obtain these from the JWT (populated during login - Task 0).
     *   When the mutation is called:
         *   It should now expect `sessionUrl` (and optionally `sessionId`) from the backend response.
-        *   Construct the interstitial URL: `const interstitialUrl = \`\${process.env.NEXT_PUBLIC_PLUGIN_URL}/stripe-handler?stripeTargetUrl=\${encodeURIComponent(sessionUrl)}\`;`
+        *   It will need `communityShortId` and `pluginId` to construct the interstitial URL. These will be sourced from the decoded JWT payload exposed by `useAuth()` (e.g., `auth.decodedPayload.communityShortId`, `auth.decodedPayload.pluginId`).
+        *   Construct the interstitial URL: `const interstitialUrl = \`\${process.env.PARENT_APP_URL}/c/\${communityShortIdFromJwt}/plugin/\${pluginIdFromJwt}/stripe-handler?stripeTargetUrl=\${encodeURIComponent(sessionUrl)}\`;`
         *   Call `cglibinstance.navigate(interstitialUrl)`.
         *   Remove the direct call to `stripe.redirectToCheckout()`.
 
 *   **Sub-task 3.2: Refactor `useCreatePortalSession.ts`**
     *   This hook will no longer need to fetch `communityInfo.url` or `pluginContextData.id` itself, nor send them in the request body to its backend API. The backend will obtain these from the JWT.
     *   When the mutation is called:
-        *   It receives `portalUrl` from the backend (this part is likely unchanged).
-        *   Construct the interstitial URL: `const interstitialUrl = \`\${process.env.NEXT_PUBLIC_PLUGIN_URL}/stripe-handler?stripeTargetUrl=\${encodeURIComponent(portalUrl)}\`;`
+        *   It receives `portalUrl` from the backend.
+        *   It will need `communityShortId` and `pluginId` to construct the interstitial URL, sourced from the decoded JWT payload exposed by `useAuth()` (similar to Sub-task 3.1).
+        *   Construct the interstitial URL: `const interstitialUrl = \`\${process.env.PARENT_APP_URL}/c/\${communityShortIdFromJwt}/plugin/\${pluginIdFromJwt}/stripe-handler?stripeTargetUrl=\${encodeURIComponent(portalUrl)}\`;`
         *   Call `cglibinstance.navigate(interstitialUrl)`.
         *   Remove the direct call to `window.top.location.href`.
 
