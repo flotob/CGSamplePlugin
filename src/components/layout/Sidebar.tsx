@@ -1,10 +1,8 @@
 'use client';
 
 import React from 'react';
-import Image from 'next/image';
 import { Button } from "@/components/ui/button";
-import { BookOpen, Loader2, Eye, Undo } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { BookOpen, Eye, Undo } from 'lucide-react';
 import { Dispatch, SetStateAction } from 'react';
 
 // Define expected link structure
@@ -12,11 +10,6 @@ interface SidebarLink {
   id: string;
   label: string;
   icon?: React.ElementType; // Optional icon component
-}
-
-// Define expected API response structure for logo
-interface CommunityLogoResponse {
-  logo_url: string | null;
 }
 
 // Define props for the Sidebar component
@@ -40,49 +33,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setIsPreviewingAsUser,
 }) => {
 
-  // --- Fetch Community Logo from Cache --- 
-  const { data: logoData, isLoading: isLoadingLogo } = useQuery<CommunityLogoResponse, Error>({
-    queryKey: ['communityLogo', communityId],
-    queryFn: async () => {
-      if (!communityId) return { logo_url: null };
-      const res = await fetch(`/api/community/settings?communityId=${communityId}`);
-      if (!res.ok) {
-        if (res.status === 404) return { logo_url: null };
-        console.error('Sidebar: Failed to fetch community logo');
-        return { logo_url: null }; 
-      }
-      return res.json();
-    },
-    enabled: !!communityId,
-    staleTime: 15 * 60 * 1000,
-    retry: 1,
-    refetchOnWindowFocus: false,
-    refetchInterval: false,
-  });
-
   return (
     <div className="flex h-full max-h-screen flex-col">
       {/* Header with enhanced styling */}
       <div className="flex h-14 items-center border-b border-border px-4 lg:h-[60px] lg:px-6">
-        <div className="flex items-center gap-2 font-semibold text-foreground">
-          <div 
-             className="relative flex items-center justify-center w-8 h-8 rounded-md bg-primary text-primary-foreground font-bold shadow-sm transition-all duration-200 overflow-hidden" 
-             style={{ backgroundColor: logoData?.logo_url ? 'transparent' : undefined }}
-           >
-            {isLoadingLogo ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : logoData?.logo_url ? (
-              <Image 
-                src={logoData.logo_url} 
-                alt="Logo" 
-                fill={true}
-                className="object-cover"
-              />
-            ) : (
-              'OW'
-            )}
-          </div>
-          <span className="transition-colors duration-200">Onboarding Wizard</span>
+        <div className="flex items-center font-semibold text-foreground">
+          <span className="transition-colors duration-200">Welcome OnBoard</span>
         </div>
       </div>
 
