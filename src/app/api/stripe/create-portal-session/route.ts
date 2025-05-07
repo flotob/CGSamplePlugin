@@ -8,10 +8,12 @@ import { query } from '@/lib/db';
 export const POST = withAuth(async (req: AuthenticatedRequest) => {
   // Initialize Stripe client INSIDE the handler
   const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-  const parentAppUrl = process.env.PARENT_APP_URL;
+  // Use the new environment variable for the plugin's base URL
+  const pluginBaseUrl = process.env.NEXT_PUBLIC_PLUGIN_BASE_URL;
 
-  if (!stripeSecretKey || !parentAppUrl) {
-      console.error('Stripe secret key or PARENT_APP_URL is not set.');
+  // Check both Stripe key and the plugin base URL
+  if (!stripeSecretKey || !pluginBaseUrl) {
+      console.error('Stripe secret key or NEXT_PUBLIC_PLUGIN_BASE_URL is not set.');
       return NextResponse.json({ error: 'Stripe/App configuration error.' }, { status: 500 });
   }
   const stripe = new Stripe(stripeSecretKey, {
@@ -26,13 +28,10 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
   if (!communityId) {
     return NextResponse.json({ error: 'Community ID not found in token' }, { status: 400 });
   }
-  // Add checks for the new required IDs from JWT for constructing URLs
   if (!communityShortId || !pluginId) {
     console.error('Missing communityShortId or pluginId in JWT claims for create-portal-session.', { communityId, user: req.user });
     return NextResponse.json({ error: 'Essential routing information missing in token.' }, { status: 400 });
   }
-
-  // Logic to parse body for these IDs is removed.
 
   try {
     // 1. Get the community's Stripe Customer ID (using LONG ID)
@@ -47,11 +46,8 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       return NextResponse.json({ error: 'Billing is not set up for this community.' }, { status: 400 });
     }
 
-    // 2. Construct the return URL using JWT data and pointing to plugin callback page
-    const baseUrl = `${parentAppUrl.replace(/\/$/, '')}/c/${communityShortId}/plugin/${pluginId}/`; // Use IDs from JWT
-    const returnUrl = `${baseUrl}stripe-callback?stripe_status=portal_return`;
-
-    // Conditional logic for URL based on body parameters removed.
+    // 2. Construct the return URL using plugin base URL and JWT data
+    const returnUrl = `${pluginBaseUrl}/stripe-callback?stripe_status=portal_return&communityShortId=${communityShortId}&pluginId=${pluginId}`;
 
     // 3. Create a Billing Portal session
     const portalSession = await stripe.billingPortal.sessions.create({

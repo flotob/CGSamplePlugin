@@ -28,7 +28,7 @@ export function useCreateCheckoutSession() {
     mutationFn,
     onSuccess: async (data) => {
       const { sessionUrl } = data;
-      const parentAppUrl = process.env.NEXT_PUBLIC_PARENT_APP_URL;
+      const pluginBaseUrl = process.env.NEXT_PUBLIC_PLUGIN_BASE_URL;
 
       if (!cgInstance) {
         console.error('Cannot navigate: CgPluginLib instance not available.');
@@ -45,23 +45,14 @@ export function useCreateCheckoutSession() {
         toast({ title: "Checkout Error", description: "Could not retrieve checkout URL.", variant: "destructive" });
         return;
       }
-      if (!parentAppUrl) {
-        console.error('Cannot navigate: PARENT_APP_URL environment variable is not set.');
-        toast({ title: "Configuration Error", description: "Application base URL is not configured.", variant: "destructive" });
+      if (!pluginBaseUrl) {
+        console.error('Cannot navigate: NEXT_PUBLIC_PLUGIN_BASE_URL environment variable is not set.');
+        toast({ title: "Configuration Error", description: "Plugin base URL is not configured.", variant: "destructive" });
         return;
       }
 
-      const communityShortId = decodedPayload.communityShortId;
-      const pluginId = decodedPayload.pluginId;
-
-      if (!communityShortId || !pluginId) {
-          console.error('Cannot navigate: communityShortId or pluginId missing from JWT payload.', decodedPayload);
-          toast({ title: "Navigation Error", description: "Essential routing information missing.", variant: "destructive" });
-          return;
-      }
-
       try {
-        const interstitialUrl = `${parentAppUrl.replace(/\/$/, '')}/c/${communityShortId}/plugin/${pluginId}/stripe-handler?stripeTargetUrl=${encodeURIComponent(sessionUrl)}`;
+        const interstitialUrl = `${pluginBaseUrl}/stripe-handler?stripeTargetUrl=${encodeURIComponent(sessionUrl)}`;
         
         console.log('Navigating to interstitial URL:', interstitialUrl);
         

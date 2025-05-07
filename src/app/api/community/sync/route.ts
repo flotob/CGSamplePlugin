@@ -4,9 +4,8 @@ import { withAuth } from '@/lib/withAuth';
 import type { JwtPayload } from '@/app/api/auth/session/route';
 
 // POST handler - Authenticated users
-// Ensures the community exists in the DB and updates its title if changed.
+// Ensures the community exists in the DB, sets default plan (ID=1) if new, and updates title.
 export const POST = withAuth(async (req) => {
-  // Type guard: ensure req.user exists and has the expected shape
   const user = req.user as JwtPayload | undefined;
   if (!user || !user.cid) {
     return NextResponse.json({ error: 'Missing community ID in token' }, { status: 400 });
@@ -27,19 +26,21 @@ export const POST = withAuth(async (req) => {
   }
 
   try {
+    // Assume 'free' plan ID is 1
+    const freePlanId = 1;
+
+    // Removed the query to fetch freePlanId from the database.
+
+    // Perform the UPSERT, including hardcoded freePlanId for current_plan_id on INSERT
     await query(
-      `INSERT INTO communities (id, title, created_at, updated_at)
-       VALUES ($1, $2, NOW(), NOW())
+      `INSERT INTO communities (id, title, created_at, updated_at, current_plan_id)
+       VALUES ($1, $2, NOW(), NOW(), $3) -- Added current_plan_id = 1 for new records
        ON CONFLICT (id) DO UPDATE SET
          title = EXCLUDED.title,
          updated_at = NOW()
-       WHERE communities.title IS DISTINCT FROM EXCLUDED.title;`,
-      [communityId, communityTitle.trim()]
+       WHERE communities.title IS DISTINCT FROM EXCLUDED.title;`, 
+      [communityId, communityTitle.trim(), freePlanId] // Pass 1 (freePlanId) as the 3rd parameter
     );
-
-    // result.rowCount will be 1 for an insert OR an update that actually changed the row.
-    // It will be 0 if the ON CONFLICT happened but the WHERE clause prevented the update (title was the same).
-    // console.log('Community sync result rowCount:', result.rowCount); 
 
     return new NextResponse(null, { status: 204 }); // Success, No Content
 

@@ -82,19 +82,17 @@ New files/modules to be created:
 ### Task 1: Backend API Modifications (Stripe Routes)
 
 *   **Sub-task 1.1: Modify `create-checkout-session` API (`src/app/api/stripe/create-checkout-session/route.ts`)**
-    *   The API handler will now access `communityUrlIdentifier` and `pluginIdentifier` from the JWT claims (e.g., `req.user.curl`, `req.user.pid`) instead of the direct request body.
-    *   Change the response to return the full `session.url` from the Stripe session object instead of (or in addition to) `session.id`.
-        *   Current: `return NextResponse.json({ sessionId: session.id });`
-        *   New: `return NextResponse.json({ sessionId: session.id, sessionUrl: session.url });`
-    *   Update the `success_url` and `cancel_url` parameters passed to `stripe.checkout.sessions.create`. They must now point to the new plugin-hosted callback page and include the identifiers sourced from the JWT.
-        *   Requires an environment variable `NEXT_PUBLIC_PLUGIN_URL` (e.g., `http://localhost:5000` in dev, actual plugin deployment URL in prod).
-        *   Example new `success_url`: `${process.env.NEXT_PUBLIC_PLUGIN_URL}/stripe-callback?status=success&session_id={CHECKOUT_SESSION_ID}&community_identifier=${req.user.curl}&plugin_identifier=${req.user.pid}`
-        *   Example new `cancel_url`: `${process.env.NEXT_PUBLIC_PLUGIN_URL}/stripe-callback?status=cancel&community_identifier=${req.user.curl}&plugin_identifier=${req.user.pid}`
+    *   The API handler will access `communityShortId` and `pluginId` from the JWT claims (e.g., `req.user.communityShortId`, `req.user.pluginId`).
+    *   Change the response to return the full `session.url` from the Stripe session object.
+    *   Update the `success_url` and `cancel_url` parameters passed to `stripe.checkout.sessions.create`. They must now point to the plugin-hosted callback page using the plugin's base URL.
+        *   Requires the `NEXT_PUBLIC_PLUGIN_BASE_URL` environment variable.
+        *   Example new `success_url`: `${process.env.NEXT_PUBLIC_PLUGIN_BASE_URL}/stripe-callback?stripe_status=success&session_id={CHECKOUT_SESSION_ID}&communityShortId=${req.user.communityShortId}&pluginId=${req.user.pluginId}`
+        *   Example new `cancel_url`: `${process.env.NEXT_PUBLIC_PLUGIN_BASE_URL}/stripe-callback?stripe_status=cancel&communityShortId=${req.user.communityShortId}&pluginId=${req.user.pluginId}`
 
 *   **Sub-task 1.2: Modify `create-portal-session` API (`src/app/api/stripe/create-portal-session/route.ts`)**
-    *   The API handler will now access `communityUrlIdentifier` and `pluginIdentifier` from the JWT claims (e.g., `req.user.curl`, `req.user.pid`) instead of the direct request body.
-    *   Update the `return_url` parameter passed to `stripe.billingPortal.sessions.create`. It must now point to the new plugin-hosted callback page and include the identifiers sourced from the JWT.
-        *   Example new `return_url`: `${process.env.NEXT_PUBLIC_PLUGIN_URL}/stripe-callback?status=portal_return&community_identifier=${req.user.curl}&plugin_identifier=${req.user.pid}`
+    *   The API handler will access `communityShortId` and `pluginId` from the JWT claims.
+    *   Update the `return_url` parameter passed to `stripe.billingPortal.sessions.create` to point to the plugin-hosted callback page.
+        *   Example new `return_url`: `${process.env.NEXT_PUBLIC_PLUGIN_BASE_URL}/stripe-callback?stripe_status=portal_return&communityShortId=${req.user.communityShortId}&pluginId=${req.user.pluginId}`
 
 ### Task 2: Create New Frontend Pages
 
@@ -119,9 +117,9 @@ New files/modules to be created:
 *   **Sub-task 3.1: Refactor `useCreateCheckoutSession.ts`**
     *   This hook will no longer need to fetch `communityInfo.url` or `pluginContextData.id` itself, nor send them in the request body to its backend API. The backend will obtain these from the JWT (populated during login - Task 0).
     *   When the mutation is called:
-        *   It should now expect `sessionUrl` (and optionally `sessionId`) from the backend response.
-        *   It will need `communityShortId` and `pluginId` to construct the interstitial URL. These will be sourced from the decoded JWT payload exposed by `useAuth()` (e.g., `auth.decodedPayload.communityShortId`, `auth.decodedPayload.pluginId`).
-        *   Construct the interstitial URL: `const interstitialUrl = \`\${process.env.PARENT_APP_URL}/c/\${communityShortIdFromJwt}/plugin/\${pluginIdFromJwt}/stripe-handler?stripeTargetUrl=\${encodeURIComponent(sessionUrl)}\`;`
+        *   It expects `sessionUrl` from the backend response.
+        *   It gets `communityShortId` and `pluginId` from the decoded JWT payload via `useAuth()`.
+        *   Construct the interstitial URL using the plugin's base URL: `const interstitialUrl = \`\${process.env.NEXT_PUBLIC_PLUGIN_BASE_URL}/stripe-handler?stripeTargetUrl=\${encodeURIComponent(sessionUrl)}\`;`
         *   Call `cglibinstance.navigate(interstitialUrl)`.
         *   Remove the direct call to `stripe.redirectToCheckout()`.
 
@@ -129,8 +127,8 @@ New files/modules to be created:
     *   This hook will no longer need to fetch `communityInfo.url` or `pluginContextData.id` itself, nor send them in the request body to its backend API. The backend will obtain these from the JWT.
     *   When the mutation is called:
         *   It receives `portalUrl` from the backend.
-        *   It will need `communityShortId` and `pluginId` to construct the interstitial URL, sourced from the decoded JWT payload exposed by `useAuth()` (similar to Sub-task 3.1).
-        *   Construct the interstitial URL: `const interstitialUrl = \`\${process.env.PARENT_APP_URL}/c/\${communityShortIdFromJwt}/plugin/\${pluginIdFromJwt}/stripe-handler?stripeTargetUrl=\${encodeURIComponent(portalUrl)}\`;`
+        *   It gets `communityShortId` and `pluginId` from the decoded JWT payload via `useAuth()`.
+        *   Construct the interstitial URL using the plugin's base URL: `const interstitialUrl = \`\${process.env.NEXT_PUBLIC_PLUGIN_BASE_URL}/stripe-handler?stripeTargetUrl=\${encodeURIComponent(portalUrl)}\`;`
         *   Call `cglibinstance.navigate(interstitialUrl)`.
         *   Remove the direct call to `window.top.location.href`.
 
@@ -148,9 +146,7 @@ New files/modules to be created:
 
 ### Task 5: Environment Variables
 
-*   **Sub-task 5.1: Add and Configure `NEXT_PUBLIC_PLUGIN_URL`**
-    *   Define this environment variable in `.env.example` and ensure it's set in local `.env` files (e.g., `NEXT_PUBLIC_PLUGIN_URL=http://localhost:5000`).
-    *   Ensure this variable is correctly configured in all deployment environments (Vercel, etc.) to the plugin's actual public URL.
+*   Ensure `NEXT_PUBLIC_PLUGIN_BASE_URL` is defined in `.env.example`, set in local `.env`, and configured in all deployment environments to the plugin's actual public base URL (with no trailing slash).
 
 ### Task 6: Testing
 
@@ -176,7 +172,7 @@ New files/modules to be created:
 *   **Primary Method:** `BroadcastChannel` API.
     *   **Channel Name:** `stripe_payment_results` (or similar, to be finalized).
     *   This is suitable as both the plugin iframe and the `/stripe-callback` page are served from the same origin. It's a modern API designed for this kind of same-origin, cross-tab communication.
-*   **Fallback Method (If Needed):** `window.opener.postMessage()`. While `BroadcastChannel` is preferred, `postMessage` could be a fallback. If used, the `/stripe-callback` page would use `window.opener.postMessage(message, process.env.NEXT_PUBLIC_PLUGIN_URL)`. The `PluginContainer.tsx` would need its `message` listener adjusted to accept messages from its own origin for this specific message type.
+*   **Fallback Method (If Needed):** `window.opener.postMessage()`. While `BroadcastChannel` is preferred, `postMessage` could be a fallback. If used, the `/stripe-callback` page would use `window.opener.postMessage(message, process.env.NEXT_PUBLIC_PLUGIN_BASE_URL)`. The `PluginContainer.tsx` would need its `message` listener adjusted to accept messages from its own origin for this specific message type.
 
 ## 7. Open Questions & Considerations
 
