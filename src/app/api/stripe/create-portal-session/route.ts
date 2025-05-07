@@ -3,11 +3,7 @@ import { NextResponse } from 'next/server';
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth'; // Import auth HOC and type
 import { query } from '@/lib/db';
 
-// Define structure for optional request body
-interface RequestBody {
-  communityShortId?: string;
-  pluginId?: string;
-}
+// RequestBody interface removed as communityShortId and pluginId come from JWT
 
 export const POST = withAuth(async (req: AuthenticatedRequest) => {
   // Initialize Stripe client INSIDE the handler
@@ -22,25 +18,21 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       typescript: true,
   });
 
-  const communityId = req.user?.cid; // This is the LONG community ID from JWT
+  // Get IDs from JWT claims via req.user
+  const communityId = req.user?.cid; // Long ID
+  const communityShortId = req.user?.communityShortId;
+  const pluginId = req.user?.pluginId;
+
   if (!communityId) {
     return NextResponse.json({ error: 'Community ID not found in token' }, { status: 400 });
   }
-
-  let communityShortId: string | undefined;
-  let pluginId: string | undefined;
-  try {
-    // Try to parse the body for optional IDs
-    const body: RequestBody | null = await req.json().catch(() => null);
-    if (body?.communityShortId) {
-        communityShortId = body.communityShortId;
-    }
-     if (body?.pluginId) {
-        pluginId = body.pluginId;
-    }
-  } catch (error) {
-    console.warn('Could not parse request body for optional IDs:', error);
+  // Add checks for the new required IDs from JWT for constructing URLs
+  if (!communityShortId || !pluginId) {
+    console.error('Missing communityShortId or pluginId in JWT claims for create-portal-session.', { communityId, user: req.user });
+    return NextResponse.json({ error: 'Essential routing information missing in token.' }, { status: 400 });
   }
+
+  // Logic to parse body for these IDs is removed.
 
   try {
     // 1. Get the community's Stripe Customer ID (using LONG ID)
@@ -55,24 +47,16 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       return NextResponse.json({ error: 'Billing is not set up for this community.' }, { status: 400 });
     }
 
-    // 2. Construct the return URL conditionally
-    let returnUrl: string;
-    // Use local parentAppUrl variable
-    const baseParentUrl = parentAppUrl.endsWith('/') ? parentAppUrl.slice(0, -1) : parentAppUrl;
+    // 2. Construct the return URL using JWT data and pointing to plugin callback page
+    const baseUrl = `${parentAppUrl.replace(/\/$/, '')}/c/${communityShortId}/plugin/${pluginId}/`; // Use IDs from JWT
+    const returnUrl = `${baseUrl}stripe-callback?stripe_status=portal_return`;
 
-    if (communityShortId && pluginId) {
-      // Ideal future URL
-      const baseUrl = `${parentAppUrl}/c/${communityShortId}/plugin/${pluginId}/`;
-      returnUrl = `${baseUrl}?stripe_status=portal_return`;
-    } else {
-      // Current fallback URL (base parent URL + status)
-      returnUrl = `${baseParentUrl}?stripe_status=portal_return`;
-    }
+    // Conditional logic for URL based on body parameters removed.
 
     // 3. Create a Billing Portal session
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: stripeCustomerId,
-      return_url: returnUrl,
+      return_url: returnUrl, // Updated URL
     });
 
     return NextResponse.json({ portalUrl: portalSession.url });

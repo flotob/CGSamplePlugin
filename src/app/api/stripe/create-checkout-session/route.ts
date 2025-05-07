@@ -18,16 +18,12 @@ interface PlanRow {
   stripe_price_id: string | null;
 }
 
-// Define structure for optional request body
-interface RequestBody {
-  communityShortId?: string;
-  pluginId?: string;
-}
+// RequestBody interface removed as communityShortId and pluginId come from JWT
 
 export const POST = withAuth(async (req: AuthenticatedRequest) => {
   // Initialize Stripe client INSIDE the handler
   const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-  const parentAppUrl = process.env.PARENT_APP_URL; // Get parent URL here too
+  const parentAppUrl = process.env.PARENT_APP_URL;
 
   if (!stripeSecretKey || !parentAppUrl) {
       console.error('Stripe secret key or PARENT_APP_URL is not set.');
@@ -37,25 +33,21 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       typescript: true,
   });
 
-  const communityId = req.user?.cid; // This is the LONG community ID from JWT
+  // Get IDs from JWT claims via req.user (added by withAuth)
+  const communityId = req.user?.cid; // Long ID
+  const communityShortId = req.user?.communityShortId; // Short ID for URL
+  const pluginId = req.user?.pluginId; // Plugin definition ID
+
   if (!communityId) {
     return NextResponse.json({ error: 'Community ID not found in token' }, { status: 400 });
   }
-
-  let communityShortId: string | undefined;
-  let pluginId: string | undefined;
-  try {
-    // Try to parse the body for optional IDs
-    const body: RequestBody | null = await req.json().catch(() => null);
-    if (body?.communityShortId) {
-        communityShortId = body.communityShortId;
-    }
-     if (body?.pluginId) {
-        pluginId = body.pluginId;
-    }
-  } catch (error) {
-    console.warn('Could not parse request body for optional IDs:', error);
+  // Add checks for the new required IDs from JWT for constructing URLs
+  if (!communityShortId || !pluginId) {
+    console.error('Missing communityShortId or pluginId in JWT claims for create-checkout-session.', { communityId, user: req.user });
+    return NextResponse.json({ error: 'Essential routing information missing in token.' }, { status: 400 });
   }
+
+  // Logic to parse body for these IDs is removed.
 
   try {
     // 1. Get community info (using LONG ID)
@@ -89,20 +81,12 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       }
     }
 
-    // 4. Construct Redirect URLs conditionally
-    let successUrl: string;
-    let cancelUrl: string;
-    // Use local parentAppUrl variable
-    const baseParentUrl = parentAppUrl.endsWith('/') ? parentAppUrl.slice(0, -1) : parentAppUrl;
+    // 4. Construct Redirect URLs using JWT data and pointing to plugin callback page
+    const baseUrl = `${parentAppUrl.replace(/\/$/, '')}/c/${communityShortId}/plugin/${pluginId}/`; // Use IDs from JWT
+    const successUrl = `${baseUrl}stripe-callback?stripe_status=success&session_id={CHECKOUT_SESSION_ID}`;
+    const cancelUrl = `${baseUrl}stripe-callback?stripe_status=cancel`;
 
-    if (communityShortId && pluginId) {
-      const baseUrl = `${parentAppUrl}/c/${communityShortId}/plugin/${pluginId}/`;
-      successUrl = `${baseUrl}?stripe_status=success&session_id={CHECKOUT_SESSION_ID}`;
-      cancelUrl = `${baseUrl}?stripe_status=cancel`;
-    } else {
-      successUrl = `${baseParentUrl}?stripe_status=success&session_id={CHECKOUT_SESSION_ID}`;
-      cancelUrl = `${baseParentUrl}?stripe_status=cancel`;
-    }
+    // Conditional logic for URLs based on body parameters removed.
 
     // 5. Create Stripe Checkout Session
     const session = await stripe.checkout.sessions.create({
@@ -110,14 +94,17 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       payment_method_types: ['card'],
       customer: stripeCustomerId,
       line_items: [{ price: proPlanPriceId, quantity: 1 }],
-      success_url: successUrl,
-      cancel_url: cancelUrl,
+      success_url: successUrl, // Updated URL
+      cancel_url: cancelUrl,   // Updated URL
       client_reference_id: communityId, // Use LONG ID for reference
     });
 
-    if (!session.id) throw new Error("Stripe session creation failed, no ID returned.");
+    if (!session.id || !session.url) { // Check for URL as well
+        throw new Error("Stripe session creation failed, no ID or URL returned.");
+    }
 
-    return NextResponse.json({ sessionId: session.id });
+    // Return both sessionId and sessionUrl
+    return NextResponse.json({ sessionId: session.id, sessionUrl: session.url });
   
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
