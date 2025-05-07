@@ -3,7 +3,7 @@
 import React from 'react';
 import Image from 'next/image'; // Re-add Image import
 import { Button } from "@/components/ui/button";
-import { BookOpen, Eye, Undo, Loader2 } from 'lucide-react'; // Re-add Loader2 if needed for loading state
+import { BookOpen, Eye, Undo } from 'lucide-react'; // Removed Loader2 import
 import { useQuery } from '@tanstack/react-query'; // Re-add useQuery import
 
 // Define expected link structure
