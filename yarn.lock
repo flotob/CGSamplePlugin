@@ -584,16 +584,16 @@
     preact "^10.24.2"
 
 "@common-ground-dao/cg-plugin-lib-host@^0.9.6":
-  version "0.9.6"
-  resolved "https://registry.npmjs.org/@common-ground-dao/cg-plugin-lib-host/-/cg-plugin-lib-host-0.9.6.tgz"
-  integrity sha512-PrZvgjBYt8LxXTudV6aTt+9hdIQVanlklsB7tcGiYO4VzqntKSAaN4iTWEUdVmIHdQLdlGIB42iI29jkQsz3pA==
+  version "0.9.8"
+  resolved "https://registry.npmjs.org/@common-ground-dao/cg-plugin-lib-host/-/cg-plugin-lib-host-0.9.8.tgz"
+  integrity sha512-RqFFgtmZZ4VkOu586qO+WIq8yxUR+WxSPFlkqvHSpcccFDtrmYU6Mb8rON16M0q9bMMzaWAAKsSPXUiImsLU4A==
   dependencies:
     "@types/node" "^22.13.4"
 
 "@common-ground-dao/cg-plugin-lib@^0.9.6":
-  version "0.9.6"
-  resolved "https://registry.npmjs.org/@common-ground-dao/cg-plugin-lib/-/cg-plugin-lib-0.9.6.tgz"
-  integrity sha512-cqbPIBFY8muQlM3YtLJfDJ2lHW+asa3yHWYAAgZQNY98SNnEYIOKU30Oyd++q7OBQUOAGBraH/z8zyxanNyI0w==
+  version "0.9.9"
+  resolved "https://registry.npmjs.org/@common-ground-dao/cg-plugin-lib/-/cg-plugin-lib-0.9.9.tgz"
+  integrity sha512-1EO5Bk80WOYq3DUWAgqpHYPqRYA+KRgfgNFtHtMIFWiAEkJ97QLgIBhXdGa4FbAYgInDygKfcHDSarOVy810CA==
 
 "@dnd-kit/accessibility@^3.1.1":
   version "3.1.1"

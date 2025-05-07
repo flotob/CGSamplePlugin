@@ -6,6 +6,9 @@ import { useAdminStatus } from '../hooks/useAdminStatus';
 import { useCgQuery } from '../hooks/useCgQuery';
 import type { CommunityInfoResponsePayload, UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
 
+// Removing local PluginContextData interface to avoid type conflicts
+// We will access properties directly after runtime checks.
+
 interface AuthContextType {
     jwt: string | null;
     isAuthenticating: boolean;
@@ -16,32 +19,45 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Local type definition based on CG dev team feedback
+interface PluginContextDataStaging {
+    id: string;    // This is the plugin's definition ID
+    // userId: string; // User's ID - This property is private and not exposed
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [jwt, setJwt] = useState<string | null>(null);
     const [isAuthenticating, setIsAuthenticating] = useState<boolean>(false);
     const [authError, setAuthError] = useState<Error | null>(null);
 
-    const { iframeUid } = useCgLib();
-    const { isAdmin } = useAdminStatus(); // We need isAdmin status for the token payload
+    const { cgInstance, iframeUid } = useCgLib();
+    const { isAdmin } = useAdminStatus();
 
-    // Fetch user and community info needed for the JWT claims
     const { data: userInfo } = useCgQuery<UserInfoResponsePayload, Error>(
-        ['userInfo', iframeUid], // Use existing query key
+        ['userInfo', iframeUid],
         async (instance) => (await instance.getUserInfo()).data,
         { enabled: !!iframeUid }
     );
     const { data: communityInfo } = useCgQuery<CommunityInfoResponsePayload, Error>(
-        ['communityInfo', iframeUid], // Use existing query key
+        ['communityInfo', iframeUid],
         async (instance) => (await instance.getCommunityInfo()).data,
         { enabled: !!iframeUid }
     );
 
+    // Get the raw context data and memoize it.
+    // We will perform runtime checks on its properties before use.
+    const rawPluginContext: any = useMemo(() => {
+        if (cgInstance) {
+            return cgInstance.getContextData(); 
+        }
+        return null;
+    }, [cgInstance]);
+
     const login = useCallback(async () => {
-        // Prevent login if already authenticated or missing necessary info
-        if (jwt || isAuthenticating || !iframeUid || !userInfo || !communityInfo) {
-            // console.log('Skipping login:', { jwt: !!jwt, isAuthenticating, iframeUid: !!iframeUid, userInfo: !!userInfo, communityInfo: !!communityInfo });
-            if (!iframeUid || !userInfo || !communityInfo) {
-                setAuthError(new Error('Cannot log in: Missing user, community, or iframe info.'));
+        // Check for all necessary data, including rawPluginContext
+        if (jwt || isAuthenticating || !iframeUid || !userInfo || !communityInfo || !rawPluginContext) {
+            if (!iframeUid || !userInfo || !communityInfo || !rawPluginContext) {
+                setAuthError(new Error('Cannot log in: Missing user, community, plugin context, or iframe info.'));
             }
             return;
         }
@@ -50,6 +66,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAuthError(null);
 
         try {
+            // Runtime checks for required properties before sending
+            if (!communityInfo.url || typeof communityInfo.url !== 'string') {
+                console.error('Login aborted: Community URL (communityShortId) is missing or invalid from communityInfo.', communityInfo);
+                throw new Error('Community URL (shortId) is missing or invalid.');
+            }
+            // Check the structure of rawPluginContext before accessing .pluginId
+            // As per dev feedback, it should have a 'pluginId' (string)
+            if (
+                !rawPluginContext || 
+                typeof rawPluginContext !== 'object' || 
+                typeof rawPluginContext.pluginId !== 'string'
+            ) {
+                console.error('Login aborted: Plugin context data is missing, not an object, or missing pluginId property.', rawPluginContext);
+                throw new Error('Plugin context data is invalid or missing pluginId property.');
+            }
+            const pluginDefId = rawPluginContext.pluginId;
+
             const response = await fetch('/api/auth/session', {
                 method: 'POST',
                 headers: {
@@ -58,11 +91,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 body: JSON.stringify({
                     iframeUid,
                     userId: userInfo.id,
-                    communityId: communityInfo.id,
+                    communityId: communityInfo.id,         // Long Community ID
                     isAdmin,
                     username: userInfo.name ?? null,
                     pictureUrl: userInfo.imageUrl ?? null,
                     roles: userInfo.roles ?? [],
+                    communityShortId: communityInfo.url,   // Value from communityInfo.url
+                    pluginId: pluginDefId,                 // Value from rawPluginContext.pluginId
                 }),
             });
 
@@ -81,11 +116,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch (error) {
             console.error('Failed to establish JWT session:', error);
             setAuthError(error instanceof Error ? error : new Error('Unknown authentication error'));
-            setJwt(null); // Ensure token is cleared on error
+            setJwt(null);
         } finally {
             setIsAuthenticating(false);
         }
-    }, [jwt, isAuthenticating, iframeUid, userInfo, communityInfo, isAdmin]);
+    }, [jwt, isAuthenticating, iframeUid, userInfo, communityInfo, rawPluginContext, isAdmin, cgInstance]); // Added rawPluginContext and cgInstance
 
     const logout = useCallback(() => {
         setJwt(null);
