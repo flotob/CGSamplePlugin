@@ -1,9 +1,11 @@
 'use client';
 
 import React from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCommunityBillingInfo } from '@/hooks/useCommunityBillingInfo';
 import { useCreateCheckoutSession } from '@/hooks/useCreateCheckoutSession';
 import { useCreatePortalSession } from '@/hooks/useCreatePortalSession';
+import { useToast } from "@/hooks/use-toast";
 // Removed useAuth import as communityId comes from props
 
 // Shadcn UI components
@@ -12,7 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { AlertCircle, ExternalLink, Loader2, CreditCard, CalendarClock, CheckCircle } from 'lucide-react';
+import { AlertCircle, ExternalLink, Loader2, CreditCard, CalendarClock, CheckCircle, RefreshCw } from 'lucide-react';
 
 // Helper function to format Unix timestamp to readable date
 const formatDate = (timestamp: number | null | undefined): string => {
@@ -43,13 +45,29 @@ interface BillingManagementSectionProps {
 }
 
 export const BillingManagementSection: React.FC<BillingManagementSectionProps> = ({ communityId }) => {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   // Fetch billing information using the provided communityId
-  const { data: billingInfo, isLoading: isLoadingBillingInfo, error: billingInfoError } = useCommunityBillingInfo(communityId);
+  const { data: billingInfo, isLoading: isLoadingBillingInfo, error: billingInfoError, refetch } = useCommunityBillingInfo(communityId);
 
   // Get mutation functions and states
   const { mutate: createCheckoutSession, isPending: isCreatingCheckout } = useCreateCheckoutSession();
   const { mutate: createPortalSession, isPending: isCreatingPortal } = useCreatePortalSession();
+
+  const handleRefresh = () => {
+      if (!communityId) return;
+      console.log('Manual refresh triggered for communityBillingInfo');
+      // Invalidate the query to trigger a refetch
+      queryClient.invalidateQueries({ queryKey: ['communityBillingInfo', communityId] });
+      // Use the refetch function returned by useQuery for immediate action if preferred,
+      // but invalidateQueries is often sufficient and simpler.
+      // refetch(); 
+      toast({
+          title: "Refreshing billing info...",
+          duration: 2000, // Show toast briefly
+      });
+  };
 
   const renderContent = () => {
     if (!communityId) {
@@ -66,31 +84,34 @@ export const BillingManagementSection: React.FC<BillingManagementSectionProps> =
     }
     
     if (isLoadingBillingInfo) {
-      // Revert back to using Skeleton components
+      // Show skeletons while loading
       return (
-        <div className="space-y-3">
-          <Skeleton className="h-5 w-3/5" />
-          <Skeleton className="h-10 w-2/5" />
-          <Skeleton className="h-4 w-4/5" />
-          <Skeleton className="h-4 w-3/5" />
-          <Separator className="my-4" />
-          <Skeleton className="h-6 w-1/3" />
-          <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-full" />
-        </div>
-      );
+         <div className="space-y-3">
+           <Skeleton className="h-5 w-3/5" />
+           <Skeleton className="h-10 w-2/5" />
+           <Skeleton className="h-4 w-4/5" />
+           <Skeleton className="h-4 w-3/5" />
+           <Separator className="my-4" />
+           <Skeleton className="h-6 w-1/3" />
+           <Skeleton className="h-4 w-full" />
+           <Skeleton className="h-4 w-full" />
+         </div>
+       );
     }
 
     if (billingInfoError) {
-      return (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>
-            Failed to load billing information: {billingInfoError.message}
-          </AlertDescription>
-        </Alert>
-      );
+       return (
+         <Alert variant="destructive">
+           <AlertCircle className="h-4 w-4" />
+           <AlertTitle>Error Loading Billing Info</AlertTitle>
+           <AlertDescription>
+             {billingInfoError.message}
+             <Button variant="ghost" size="sm" onClick={handleRefresh} className="ml-2 h-auto px-2 py-1">
+                 <RefreshCw className="h-3 w-3 mr-1"/> Retry
+             </Button>
+           </AlertDescription>
+         </Alert>
+       );
     }
 
     if (!billingInfo?.currentPlan) {
@@ -100,6 +121,9 @@ export const BillingManagementSection: React.FC<BillingManagementSectionProps> =
                 <AlertTitle>Information</AlertTitle>
                 <AlertDescription>
                     Could not determine current plan information.
+                     <Button variant="ghost" size="sm" onClick={handleRefresh} className="ml-2 h-auto px-2 py-1">
+                         <RefreshCw className="h-3 w-3 mr-1"/> Refresh
+                     </Button>
                 </AlertDescription>
             </Alert>
         );
@@ -120,7 +144,12 @@ export const BillingManagementSection: React.FC<BillingManagementSectionProps> =
     return (
       <div className="space-y-4">
         <div>
-          <p className="text-sm font-medium text-muted-foreground">Current Plan</p>
+          <div className="flex justify-between items-center mb-1">
+             <p className="text-sm font-medium text-muted-foreground">Current Plan</p>
+             <Button variant="ghost" size="icon" onClick={handleRefresh} title="Refresh Billing Info" className="h-7 w-7">
+                <RefreshCw className="h-4 w-4" />
+             </Button>
+          </div>
           <p className="text-lg font-semibold">{billingInfo.currentPlan.name}</p>
         </div>
 
@@ -213,48 +242,38 @@ export const BillingManagementSection: React.FC<BillingManagementSectionProps> =
         )}
 
         {/* Action Buttons */}
-        {showManageButton ? (
-          <Button 
-            onClick={() => createPortalSession()}
-            disabled={isCreatingPortal}
-          >
-            {isCreatingPortal ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Redirecting...
-              </>
-            ) : (
-              <>
-                Manage Subscription <ExternalLink className="ml-2 h-4 w-4" />
-              </>
+        <div className="flex flex-col sm:flex-row gap-2 mt-4">
+            {!isProPlan && (
+                <Button 
+                    onClick={() => createCheckoutSession()} 
+                    disabled={isCreatingCheckout}
+                    className="w-full sm:w-auto"
+                >
+                    {isCreatingCheckout && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} 
+                    Upgrade to Pro
+                </Button>
             )}
-          </Button>
-        ) : !isProPlan ? (
-          <Button 
-            onClick={() => createCheckoutSession()}
-            disabled={isCreatingCheckout}
-          >
-            {isCreatingCheckout ? (
-               <>
-                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                 Redirecting...
-               </>
-            ) : (
-              'Upgrade to Pro'
+            {showManageButton && (
+                <Button 
+                    variant="outline"
+                    onClick={() => createPortalSession()} 
+                    disabled={isCreatingPortal}
+                    className="w-full sm:w-auto"
+                >
+                    {isCreatingPortal && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} 
+                    Manage Subscription
+                </Button>
             )}
-          </Button>
-        ) : null /* Handle case where it's Pro but no customer ID (should be rare) */}
+        </div>
       </div>
     );
   };
 
   return (
-    <Card>
+    <Card className="md:col-span-1">
       <CardHeader>
         <CardTitle>Plan & Billing</CardTitle>
-        <CardDescription>
-          Manage your subscription plan and billing details.
-        </CardDescription>
+        <CardDescription>View your current plan and manage billing details.</CardDescription>
       </CardHeader>
       <CardContent>
         {renderContent()}

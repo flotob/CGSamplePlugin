@@ -6,6 +6,7 @@ import type { UserFriendsResponsePayload } from '@common-ground-dao/cg-plugin-li
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useCgLib } from '../context/CgLibContext';
 import { useAuth } from '../context/AuthContext';
+import { StripeWaitProvider, useStripeWaitContext } from '../context/StripeWaitContext';
 import { useCgQuery } from '../hooks/useCgQuery';
 import { useCgMutation } from '../hooks/useCgMutation';
 import { useAuthFetch } from '@/lib/authFetch';
@@ -20,6 +21,7 @@ import { LayoutDashboard, Settings, Plug, User, Wand2, Building, Loader2 } from 
 import { Toaster } from "@/components/ui/toaster";
 import { useWizardSlideshow } from '../context/WizardSlideshowContext';
 import { WizardSlideshowModal } from '../components/onboarding/WizardSlideshowModal';
+import { StripeWaitingModal } from '../components/billing/StripeWaitingModal';
 import { useToast } from "@/hooks/use-toast";
 import { useUserWizardCompletionsQuery } from '@/hooks/useUserWizardCompletionsQuery';
 import { useUserWizardsQuery } from '@/hooks/useUserWizardsQuery';
@@ -47,7 +49,8 @@ interface CommunityLogoResponse {
 // Define the name for the Broadcast Channel
 const STRIPE_BROADCAST_CHANNEL_NAME = 'stripe_payment_results';
 
-const PluginContainer = () => {
+// Inner component to access StripeWaitContext after provider
+const PluginContent = () => {
   const { isInitializing, initError, iframeUid } = useCgLib();
   const { isAdmin, isLoading: isLoadingAdminStatus, error: adminStatusError } = useAdminStatus();
   const { jwt, login, isAuthenticating, authError } = useAuth();
@@ -56,6 +59,7 @@ const PluginContainer = () => {
   const [isPending, startTransition] = useTransition();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { isWaitingModalOpen } = useStripeWaitContext();
 
   // State for current active section
   const [activeSection, setActiveSection] = useState<string | null>(null);
@@ -270,69 +274,6 @@ const PluginContainer = () => {
   const isCoreLoading = isInitializing || isLoadingAdminStatus || !activeSection || (isAuthenticating && !jwt) || isLoadingUserWizards || isLoadingCompletions;
   const coreError = initError || adminStatusError || authError || userInfoError || communityInfoError || userWizardsError; // Include userWizardsError
 
-  // --- Effect for Stripe Callback Listener (Updated for BroadcastChannel) ---
-  useEffect(() => {
-    // Ensure communityId is available before setting up listener
-    if (!communityId) {
-      // console.log('Stripe Listener: Waiting for communityId');
-      return;
-    }
-
-    console.log(`Setting up BroadcastChannel listener for '${STRIPE_BROADCAST_CHANNEL_NAME}'`);
-    const bc = new BroadcastChannel(STRIPE_BROADCAST_CHANNEL_NAME);
-
-    const handleBroadcastMessage = (event: MessageEvent) => {
-      // No origin check needed for same-origin BroadcastChannel
-
-      // Check message structure (same as before)
-      if (event.data && event.data.type === 'stripeCallback') {
-        console.log('Received Stripe callback message via BroadcastChannel:', event.data);
-        // Extract status and potentially data (like sessionId)
-        const { status, data, error } = event.data; 
-
-        // Invalidate query to refresh billing status (use communityId from outer scope)
-        console.log(`Invalidating communityBillingInfo query for community: ${communityId}`);
-        queryClient.invalidateQueries({ queryKey: ['communityBillingInfo', communityId] });
-
-        // Show appropriate toast message based on status
-        if (status === 'success') {
-          toast({
-            title: "Payment Successful!",
-            description: "Your plan has been upgraded.",
-          });
-        } else if (status === 'portal_return') {
-           toast({
-             title: "Billing Portal Closed",
-             description: "Your billing information may have been updated.",
-           });
-        } else if (status === 'cancel') {
-          toast({
-            title: "Checkout Cancelled",
-            description: "Your checkout process was cancelled.",
-            variant: "default",
-          });
-        } else if (status === 'error') {
-           toast({
-             title: "Stripe Error",
-             description: error || "An issue occurred during the Stripe process.",
-             variant: "destructive",
-           });
-        }
-        // TODO: Add any other necessary UI updates or navigation based on status?
-      }
-    };
-
-    bc.onmessage = handleBroadcastMessage;
-
-    // Cleanup function to close the BroadcastChannel
-    return () => {
-      console.log(`Removing BroadcastChannel listener for '${STRIPE_BROADCAST_CHANNEL_NAME}'`);
-      bc.close();
-    };
-  // Dependencies: re-run if queryClient or communityId changes.
-  // toast function likely stable, but include if needed.
-  }, [queryClient, communityId, toast]);
-
   // Display loading indicator
   if (isCoreLoading) {
     return (
@@ -437,7 +378,7 @@ const PluginContainer = () => {
   };
 
   return (
-    <div className="plugin-root relative h-screen w-screen overflow-hidden">
+    <>
       <AppLayout
         sidebar={(
           <Sidebar 
@@ -464,8 +405,20 @@ const PluginContainer = () => {
           onClose={() => setActiveSlideshowWizardId(null)} 
         />
       )}
-    </div>
+
+      {/* Conditionally render the Stripe waiting modal */}
+      {isWaitingModalOpen && (
+         <StripeWaitingModal communityId={communityId} />
+      )}
+    </>
   );
 }
 
-export default PluginContainer; 
+// Main export wraps the content in the provider
+export default function PluginContainer() {
+  return (
+    <StripeWaitProvider>
+       <PluginContent />
+    </StripeWaitProvider>
+  );
+} 

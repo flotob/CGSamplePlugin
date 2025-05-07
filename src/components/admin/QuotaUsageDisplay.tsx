@@ -114,16 +114,6 @@ export const QuotaUsageDisplay: React.FC<QuotaUsageDisplayProps> = ({ className 
               </div>
               <Progress value={progressPercentage} aria-label={`${currentUsage} out of ${currentLimit} active wizards used`} />
             </div>
-
-            {/* Conditionally render Upgrade Button */} 
-            {upgradeAvailable && (
-              <div className="flex justify-end pt-2">
-                <Button variant="default">
-                  Upgrade Plan
-                  {/* TODO: Add onClick handler - likely opens Stripe portal/checkout */}
-                </Button>
-              </div>
-            )}
           </>
         )}
 

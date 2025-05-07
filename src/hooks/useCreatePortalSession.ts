@@ -5,6 +5,7 @@ import { useAuthFetch } from '@/lib/authFetch';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/AuthContext';
 import { useCgLib } from '@/context/CgLibContext';
+import { useStripeWaitContext } from '@/context/StripeWaitContext';
 
 // Define the expected response from the backend API
 interface CreatePortalSessionResponse {
@@ -16,6 +17,7 @@ export function useCreatePortalSession() {
   const { toast } = useToast();
   const { decodedPayload } = useAuth();
   const { cgInstance } = useCgLib();
+  const { setExpectingFocusLoss } = useStripeWaitContext();
 
   const mutationFn = async (): Promise<CreatePortalSessionResponse> => {
     // No variables needed as primary identifiers come from JWT
@@ -61,10 +63,14 @@ export function useCreatePortalSession() {
         console.log('Navigating to portal interstitial URL:', interstitialUrl);
 
         await cgInstance.navigate(interstitialUrl);
+        
+        setExpectingFocusLoss(true);
+        console.log('Set expecting focus loss flag to true after navigation attempt.');
 
       } catch (error) {
         console.error('Error constructing or navigating to portal interstitial URL:', error);
         toast({ title: "Navigation Failed", description: error instanceof Error ? error.message : "An unexpected error occurred.", variant: "destructive" });
+        setExpectingFocusLoss(false);
       }
     },
     onError: (error) => {
@@ -74,6 +80,7 @@ export function useCreatePortalSession() {
         description: error.message || "An error occurred while trying to access the billing portal.",
         variant: "destructive",
       });
+      setExpectingFocusLoss(false);
     },
   });
 } 
