@@ -1,18 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useWizardsQuery } from '@/hooks/useWizardsQuery'; // Assuming this hook exists
-import { WizardListItem } from './WizardListItem'; // Import the new item component
+import { useWizardsQuery } from '@/hooks/useWizardsQuery';
+import { WizardListItem } from './WizardListItem';
 import { Separator } from "@/components/ui/separator";
-import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { FileTextIcon, Loader2, PlusIcon } from 'lucide-react';
-import { useCommunityInfoQuery } from '@/hooks/useCommunityInfoQuery';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAuthFetch } from '@/lib/authFetch';
-import type { CommunityInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib'; // Add missing import
+import { FileTextIcon, Loader2 } from 'lucide-react';
+import { NewWizardButton } from './NewWizardButton';
+import type { CommunityInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
 
 // Define Role type (can be shared or imported if defined elsewhere)
 // Assuming structure from CommunityInfoResponsePayload
@@ -30,50 +24,6 @@ export const WizardList: React.FC<WizardListProps> = ({
   assignableRoles // Destructure roles
 }) => {
   const { data, isLoading, error } = useWizardsQuery();
-  const { data: communityInfo } = useCommunityInfoQuery();
-  
-  // State for new wizard dialog
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [formError, setFormError] = useState<string | null>(null);
-  
-  const queryClient = useQueryClient();
-  const { authFetch } = useAuthFetch();
-
-  const newWizardMutation = useMutation({
-    mutationFn: async () => {
-      const res = await authFetch<{ wizard: unknown }>('/api/wizards', {
-        method: 'POST',
-        body: JSON.stringify({
-          name,
-          description,
-          is_active: false, // Always create as draft
-          communityTitle: communityInfo?.title || 'Untitled Community',
-        }),
-      });
-      return res;
-    },
-    onSuccess: () => {
-      setDialogOpen(false);
-      setName('');
-      setDescription('');
-      setFormError(null);
-      queryClient.invalidateQueries({ queryKey: ['wizards'] });
-    },
-    onError: (err: Error) => {
-      setFormError(err.message);
-    },
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) {
-      setFormError('Name is required');
-      return;
-    }
-    newWizardMutation.mutate();
-  };
   
   if (isLoading) {
     return (
@@ -100,9 +50,9 @@ export const WizardList: React.FC<WizardListProps> = ({
           <p className="text-base">No onboarding wizards found</p>
           <p className="text-sm mt-1">Create one to get started!</p>
         </div>
-        <Button variant="default" size="sm" className="mt-4" onClick={() => setDialogOpen(true)}>
-          <PlusIcon className="h-4 w-4 mr-1" /> New Wizard
-        </Button>
+        <div className="mt-4">
+          <NewWizardButton assignableRoles={assignableRoles} />
+        </div>
       </div>
     );
   }
@@ -167,51 +117,6 @@ export const WizardList: React.FC<WizardListProps> = ({
           </div>
         )}
       </section>
-      
-      {/* New Wizard Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Create New Wizard</DialogTitle>
-            <DialogDescription>Enter details for your new onboarding wizard.</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4 mt-2">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Name</label>
-              <Input
-                value={name}
-                onChange={e => setName(e.target.value)}
-                placeholder="Enter wizard name"
-                required
-                autoFocus
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Description</label>
-              <Textarea
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-                placeholder="Optional description"
-                rows={3}
-                className="resize-none"
-              />
-            </div>
-            {formError && (
-              <div className="text-destructive text-sm bg-destructive/10 rounded-md p-2.5 border border-destructive/20">
-                {formError}
-              </div>
-            )}
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="secondary" onClick={() => setDialogOpen(false)} disabled={newWizardMutation.isPending}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={newWizardMutation.isPending}>
-                {newWizardMutation.isPending ? 'Creating...' : 'Create Wizard'}
-              </Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }; 
