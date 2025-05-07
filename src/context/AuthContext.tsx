@@ -1,16 +1,19 @@
 'use client';
 
-import React, { createContext, useContext, useState, useMemo, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useMemo, useCallback, ReactNode, useEffect } from 'react';
+import { jwtDecode } from "jwt-decode";
 import { useCgLib } from './CgLibContext';
 import { useAdminStatus } from '../hooks/useAdminStatus';
 import { useCgQuery } from '../hooks/useCgQuery';
 import type { CommunityInfoResponsePayload, UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
+import type { JwtPayload } from '@/app/api/auth/session/route';
 
 // Removing local PluginContextData interface to avoid type conflicts
 // We will access properties directly after runtime checks.
 
 interface AuthContextType {
     jwt: string | null;
+    decodedPayload: JwtPayload | null;
     isAuthenticating: boolean;
     authError: Error | null;
     login: () => Promise<void>;
@@ -27,6 +30,7 @@ interface PluginContextDataStaging {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [jwt, setJwt] = useState<string | null>(null);
+    const [decodedPayload, setDecodedPayload] = useState<JwtPayload | null>(null);
     const [isAuthenticating, setIsAuthenticating] = useState<boolean>(false);
     const [authError, setAuthError] = useState<Error | null>(null);
 
@@ -52,6 +56,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         return null;
     }, [cgInstance]);
+
+    // Effect to decode JWT when it changes
+    useEffect(() => {
+        if (jwt) {
+            try {
+                const decoded = jwtDecode<JwtPayload>(jwt);
+                setDecodedPayload(decoded);
+                console.log('JWT Decoded:', decoded);
+            } catch (error) {
+                console.error("Failed to decode JWT:", error);
+                setAuthError(new Error('Failed to process session token.'));
+                setJwt(null); // Clear invalid JWT
+                setDecodedPayload(null);
+            }
+        } else {
+            setDecodedPayload(null); // Clear decoded payload if JWT is null
+        }
+    }, [jwt]);
 
     const login = useCallback(async () => {
         // Check for all necessary data, including rawPluginContext
@@ -124,6 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const logout = useCallback(() => {
         setJwt(null);
+        setDecodedPayload(null);
         setAuthError(null);
         setIsAuthenticating(false);
         console.log('JWT session cleared.');
@@ -131,11 +154,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const value = useMemo(() => ({
         jwt,
+        decodedPayload,
         isAuthenticating,
         authError,
         login,
         logout,
-    }), [jwt, isAuthenticating, authError, login, logout]);
+    }), [jwt, decodedPayload, isAuthenticating, authError, login, logout]);
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
