@@ -1,9 +1,10 @@
 'use client';
 
 import React from 'react';
-// import Image from 'next/image'; // Removed unused Image import
+import Image from 'next/image'; // Re-add Image import
 import { Button } from "@/components/ui/button";
-import { BookOpen, Eye, Undo } from 'lucide-react';
+import { BookOpen, Eye, Undo, Loader2 } from 'lucide-react'; // Re-add Loader2 if needed for loading state
+import { useQuery } from '@tanstack/react-query'; // Re-add useQuery import
 
 // Define expected link structure
 interface SidebarLink {
@@ -12,11 +13,17 @@ interface SidebarLink {
   icon?: React.ElementType; // Optional icon component
 }
 
+// Re-add CommunityLogoResponse interface
+interface CommunityLogoResponse {
+  logo_url: string | null;
+}
+
 // Define props for the Sidebar component
 interface SidebarProps {
   links: SidebarLink[];
   activeSection: string;
   setActiveSection: (section: string) => void;
+  communityId?: string; // Add communityId prop back (optional)
   isAdmin: boolean;
   isPreviewingAsUser: boolean;
   setIsPreviewingAsUser: (isPreviewing: boolean) => void;
@@ -26,16 +33,48 @@ export const Sidebar: React.FC<SidebarProps> = ({
   links,
   activeSection,
   setActiveSection,
+  communityId, // Add back to destructuring
   isAdmin,
   isPreviewingAsUser,
   setIsPreviewingAsUser,
 }) => {
 
+  // --- Re-add Logo Fetching Logic --- 
+  const { data: logoData, isLoading: isLoadingLogo } = useQuery<CommunityLogoResponse, Error>({
+    queryKey: ['communityLogo', communityId],
+    queryFn: async () => {
+      if (!communityId) return { logo_url: null }; // Don't fetch if no ID
+      const res = await fetch(`/api/community/settings?communityId=${communityId}`);
+      if (!res.ok) {
+        if (res.status === 404) return { logo_url: null }; 
+        console.error('Sidebar: Failed to fetch community logo');
+        return { logo_url: null }; 
+      }
+      return res.json();
+    },
+    enabled: !!communityId, // Only run query if communityId exists
+    staleTime: 15 * 60 * 1000, // Cache for 15 mins
+    retry: 1,
+    refetchOnWindowFocus: false,
+  });
+
   return (
     <div className="flex h-full max-h-screen flex-col">
       {/* Header with enhanced styling */}
       <div className="flex h-14 items-center border-b border-border px-4 lg:h-[60px] lg:px-6">
-        <div className="flex items-center font-semibold text-foreground">
+        <div className="flex items-center gap-2 font-semibold text-foreground">
+          <div 
+             className="relative flex items-center justify-center w-8 h-8 rounded-md bg-background shadow-sm overflow-hidden"
+           >
+            {!isLoadingLogo && logoData?.logo_url && (
+                 <Image 
+                    src={logoData.logo_url} 
+                    alt="Community Logo" 
+                    fill={true}
+                    className="object-contain p-1"
+                 />
+            )}
+          </div>
           <span className="transition-colors duration-200">Welcome OnBoard</span>
         </div>
       </div>

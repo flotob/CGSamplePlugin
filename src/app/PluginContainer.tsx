@@ -379,6 +379,7 @@ const PluginContent = () => {
             links={linksToShow}
             activeSection={activeSection ?? ''}
             setActiveSection={handleSetActiveSection} 
+            communityId={communityId}
             isAdmin={isAdmin ?? false}
             isPreviewingAsUser={isPreviewingAsUser}
             setIsPreviewingAsUser={setIsPreviewingAsUser}
