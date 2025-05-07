@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useWizardsQuery } from '@/hooks/useWizardsQuery';
 import { WizardListItem } from './WizardListItem';
 import { Separator } from "@/components/ui/separator";

@@ -376,11 +376,9 @@ const PluginContent = () => {
       <AppLayout
         sidebar={(
           <Sidebar 
-            links={linksToShow} // Use dynamically determined links
+            links={linksToShow}
             activeSection={activeSection ?? ''}
             setActiveSection={handleSetActiveSection} 
-            communityId={communityId}
-            // Pass down preview state and admin status
             isAdmin={isAdmin ?? false}
             isPreviewingAsUser={isPreviewingAsUser}
             setIsPreviewingAsUser={setIsPreviewingAsUser}

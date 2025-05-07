@@ -1,9 +1,9 @@
 'use client';
 
 import React from 'react';
+// import Image from 'next/image'; // Removed unused Image import
 import { Button } from "@/components/ui/button";
 import { BookOpen, Eye, Undo } from 'lucide-react';
-import { Dispatch, SetStateAction } from 'react';
 
 // Define expected link structure
 interface SidebarLink {
@@ -17,17 +17,15 @@ interface SidebarProps {
   links: SidebarLink[];
   activeSection: string;
   setActiveSection: (section: string) => void;
-  communityId?: string;
   isAdmin: boolean;
   isPreviewingAsUser: boolean;
-  setIsPreviewingAsUser: Dispatch<SetStateAction<boolean>>;
+  setIsPreviewingAsUser: (isPreviewing: boolean) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ 
   links,
   activeSection,
   setActiveSection,
-  communityId,
   isAdmin,
   isPreviewingAsUser,
   setIsPreviewingAsUser,
