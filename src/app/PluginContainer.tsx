@@ -3,7 +3,7 @@ import React, { useState, useTransition, useEffect } from 'react';
 import Image from 'next/image';
 import type { CommunityInfoResponsePayload, UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
 import type { UserFriendsResponsePayload } from '@common-ground-dao/cg-plugin-lib-host';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { useCgLib } from '../context/CgLibContext';
 import { useAuth } from '../context/AuthContext';
 import { StripeWaitProvider, useStripeWaitContext } from '../context/StripeWaitContext';
@@ -22,7 +22,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { useWizardSlideshow } from '../context/WizardSlideshowContext';
 import { WizardSlideshowModal } from '../components/onboarding/WizardSlideshowModal';
 import { StripeWaitingModal } from '../components/billing/StripeWaitingModal';
-import { useToast } from "@/hooks/use-toast";
 import { useUserWizardCompletionsQuery } from '@/hooks/useUserWizardCompletionsQuery';
 import { useUserWizardsQuery } from '@/hooks/useUserWizardsQuery';
 
@@ -46,9 +45,6 @@ interface CommunityLogoResponse {
   logo_url: string | null;
 }
 
-// Define the name for the Broadcast Channel
-const STRIPE_BROADCAST_CHANNEL_NAME = 'stripe_payment_results';
-
 // Inner component to access StripeWaitContext after provider
 const PluginContent = () => {
   const { isInitializing, initError, iframeUid } = useCgLib();
@@ -57,8 +53,6 @@ const PluginContent = () => {
   const { authFetch } = useAuthFetch();
   const { activeSlideshowWizardId, setActiveSlideshowWizardId } = useWizardSlideshow();
   const [isPending, startTransition] = useTransition();
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
   const { isWaitingModalOpen } = useStripeWaitContext();
 
   // State for current active section

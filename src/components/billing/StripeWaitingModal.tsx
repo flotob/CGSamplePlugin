@@ -62,7 +62,7 @@ export const StripeWaitingModal: React.FC<StripeWaitingModalProps> = ({ communit
       hideWaitingModal(); // Close the modal via context
     }
     // Depend on isRefreshing flag and the fetching status
-  }, [isRefreshing, isBillingInfoFetching, hideWaitingModal]);
+  }, [isRefreshing, isBillingInfoFetching, hideWaitingModal, toast]);
 
   return (
     <Dialog open={true} modal={true}> 

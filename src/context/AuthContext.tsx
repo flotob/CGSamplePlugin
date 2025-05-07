@@ -23,10 +23,10 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Local type definition based on CG dev team feedback
-interface PluginContextDataStaging {
-    id: string;    // This is the plugin's definition ID
-    // userId: string; // User's ID - This property is private and not exposed
-}
+// interface PluginContextDataStaging {
+//     id: string;    
+//     // userId: string; 
+// }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [jwt, setJwt] = useState<string | null>(null);
@@ -48,8 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         { enabled: !!iframeUid }
     );
 
-    // Get the raw context data and memoize it.
-    // We will perform runtime checks on its properties before use.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rawPluginContext: any = useMemo(() => {
         if (cgInstance) {
             return cgInstance.getContextData(); 
@@ -142,7 +141,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } finally {
             setIsAuthenticating(false);
         }
-    }, [jwt, isAuthenticating, iframeUid, userInfo, communityInfo, rawPluginContext, isAdmin, cgInstance]); // Added rawPluginContext and cgInstance
+    }, [jwt, isAuthenticating, iframeUid, userInfo, communityInfo, rawPluginContext, isAdmin]); // Removed cgInstance
 
     const logout = useCallback(() => {
         setJwt(null);

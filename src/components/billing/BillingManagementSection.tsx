@@ -48,8 +48,8 @@ export const BillingManagementSection: React.FC<BillingManagementSectionProps> =
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  // Fetch billing information using the provided communityId
-  const { data: billingInfo, isLoading: isLoadingBillingInfo, error: billingInfoError, refetch } = useCommunityBillingInfo(communityId);
+  // Remove unused refetch destructuring
+  const { data: billingInfo, isLoading: isLoadingBillingInfo, error: billingInfoError } = useCommunityBillingInfo(communityId);
 
   // Get mutation functions and states
   const { mutate: createCheckoutSession, isPending: isCreatingCheckout } = useCreateCheckoutSession();

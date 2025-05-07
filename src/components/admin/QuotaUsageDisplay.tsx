@@ -12,7 +12,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Button } from "@/components/ui/button";
 import { AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
@@ -37,17 +36,6 @@ export const QuotaUsageDisplay: React.FC<QuotaUsageDisplayProps> = ({ className 
   const progressPercentage = (currentLimit > 0) 
     ? Math.round((currentUsage / currentLimit) * 100) 
     : 0;
-
-  // Determine if an upgrade is possible (assuming plans are ordered by price/tier)
-  let upgradeAvailable = false;
-  if (data && currentPlan) {
-    const currentPlanIndex = data.plans.findIndex(p => p.id === currentPlan.id);
-    // Check if there's any plan *after* the current one in the ordered list
-    upgradeAvailable = currentPlanIndex !== -1 && currentPlanIndex < data.plans.length - 1;
-  } else if (data && !currentPlan) {
-     // If currentPlan is null (e.g., on Free tier implicitly), upgrade is always possible if paid plans exist
-     upgradeAvailable = data.plans.length > 0; 
-  }
 
   return (
     <Card className={cn("", className)}>

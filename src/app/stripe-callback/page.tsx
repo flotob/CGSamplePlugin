@@ -4,6 +4,17 @@ import { useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 
+// Add an interface for the postMessage payload
+interface StripeCallbackMessage {
+  type: 'stripeCallback';
+  status: 'success' | 'cancel' | 'portal_return' | 'error';
+  data?: { 
+    sessionId?: string;
+    // Add other potential data fields if needed
+  };
+  error?: string;
+}
+
 function StripeCallbackContent() {
   const searchParams = useSearchParams();
 
@@ -14,7 +25,7 @@ function StripeCallbackContent() {
 
     console.log('Stripe Callback Page Loaded - Status:', status, 'Session ID:', sessionId);
 
-    let messagePayload: Record<string, any> | null = null;
+    let messagePayload: StripeCallbackMessage | null = null; // Use specific type
 
     if (status === 'success' && sessionId) {
       messagePayload = { type: 'stripeCallback', status: 'success', data: { sessionId: sessionId } };
