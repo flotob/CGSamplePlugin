@@ -7,6 +7,8 @@ import { CreateStepPayload } from '../WizardStepEditorPage';
 import { CommonStepPresentationSettings, PresentationConfig } from './CommonStepPresentationSettings';
 import { EnsStepConfig, EnsSpecificConfig } from './EnsStepConfig';
 import { ContentStepConfig, ContentSpecificConfigType } from './ContentStepConfig';
+import QuizmasterBasicConfig from './QuizmasterBasicConfig';
+import type { QuizmasterBasicSpecificConfig } from '@/types/onboarding-steps';
 import {
   Accordion,
   AccordionContent,
@@ -147,7 +149,7 @@ export const StepEditor: React.FC<StepEditorProps> = ({
     });
   }
 
-  const handleSpecificConfigChange = useCallback((newSpecificConfig: Record<string, unknown> | ContentSpecificConfigType) => {
+  const handleSpecificConfigChange = useCallback((newSpecificConfig: Record<string, unknown> | ContentSpecificConfigType | EnsSpecificConfig | QuizmasterBasicSpecificConfig) => {
     setStepConfig(prev => ({ ...prev, specific: newSpecificConfig as Record<string, unknown> }));
   }, []);
 
@@ -563,6 +565,20 @@ export const StepEditor: React.FC<StepEditorProps> = ({
             <AccordionContent className="pt-1">
               <ContentStepConfig 
                 value={stepConfig.specific as ContentSpecificConfigType}
+                onChange={handleSpecificConfigChange}
+              />
+            </AccordionContent>
+          </AccordionItem>
+        )}
+
+        {stepTypeInfo?.name === 'quizmaster_basic' && (
+          <AccordionItem value="specific-config-quizmaster-basic">
+            <AccordionTrigger className="text-sm font-medium text-muted-foreground uppercase tracking-wide hover:no-underline py-2">
+               Basic Quiz Configuration
+            </AccordionTrigger>
+            <AccordionContent className="pt-1">
+              <QuizmasterBasicConfig 
+                initialData={stepConfig.specific as Partial<QuizmasterBasicSpecificConfig>} 
                 onChange={handleSpecificConfigChange}
               />
             </AccordionContent>
