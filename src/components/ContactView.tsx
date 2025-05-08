@@ -2,11 +2,8 @@
 
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Mail, ExternalLink, MessageSquare, Loader2 } from 'lucide-react';
+import { Mail, ExternalLink, MessageSquare } from 'lucide-react';
 import { useCgLib } from '@/context/CgLibContext';
 import { useToast } from "@/hooks/use-toast";
 
@@ -22,26 +19,6 @@ const COMMUNITY_EVENTS_URL = process.env.NEXT_PUBLIC_COMMUNITY_EVENTS_URL;
 export const ContactView: React.FC = () => {
   const { cgInstance } = useCgLib();
   const { toast } = useToast();
-
-  // Add state for form fields if needed (assuming basic contact form)
-  const [subject, setSubject] = React.useState('');
-  const [message, setMessage] = React.useState('');
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
-
-  const handleSubmit = (e: React.FormEvent) => {
-     e.preventDefault();
-     // TODO: Implement actual submission logic (e.g., API call, email service)
-     setIsSubmitting(true);
-     console.log('Submitting contact form:', { subject, message });
-     // Simulate submission
-     setTimeout(() => {
-         setIsSubmitting(false);
-         toast({ title: "Message Sent (Simulation)", description: "Your support request has been received." });
-         setSubject('');
-         setMessage('');
-         // Optionally close this view or navigate elsewhere
-     }, 1500);
-  };
 
   // Function to navigate to a Common Ground channel or other URL
   const navigateToChannel = async (url: string, channelName: string) => {
@@ -234,48 +211,6 @@ export const ContactView: React.FC = () => {
                 </div>
               )}
             </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="mt-12 w-full max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-5 duration-500">
-        <Card>
-          <CardHeader>
-            <CardTitle>Contact Support</CardTitle>
-            <CardDescription>Have questions or need assistance? Send us a message.</CardDescription>
-          </CardHeader>
-          <CardContent>
-             <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-1.5">
-                   <Label htmlFor="subject">Subject</Label>
-                   <Input 
-                      id="subject"
-                      placeholder="e.g., Question about wizard configuration"
-                      value={subject}
-                      onChange={(e) => setSubject(e.target.value)}
-                      required
-                      disabled={isSubmitting}
-                   />
-                </div>
-                <div className="space-y-1.5">
-                   <Label htmlFor="message">Message</Label>
-                   <Textarea 
-                      id="message"
-                      placeholder="Please describe your issue or question..."
-                      rows={6}
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      required
-                      disabled={isSubmitting}
-                   />
-                </div>
-                <div className="flex justify-end">
-                   <Button type="submit" disabled={isSubmitting}>
-                      {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} 
-                      {isSubmitting ? 'Sending...' : 'Send Message'}
-                   </Button>
-                </div>
-             </form>
           </CardContent>
         </Card>
       </div>
