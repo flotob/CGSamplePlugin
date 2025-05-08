@@ -3,8 +3,7 @@
 import React from 'react';
 import { UserAvatar } from "@/components/UserAvatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { BadgeCheck } from 'lucide-react';
-import { ChevronRight } from 'lucide-react';
+import { BadgeCheck, ChevronRight } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
 interface SidebarUserProfileProps {
@@ -41,7 +40,7 @@ export const SidebarUserProfile: React.FC<SidebarUserProfileProps> = ({
                     <button 
                         onClick={onClick}
                         className={cn(
-                            "w-full text-left mt-auto py-2.5 px-3 flex items-center gap-3",
+                            "w-full text-left mt-auto py-3.5 px-3 flex items-center gap-3",
                             "border-t border-border bg-background/60 backdrop-blur-sm",
                             "transition-all duration-200 hover:bg-accent/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/20",
                             "dark:hover:bg-muted"
@@ -51,10 +50,13 @@ export const SidebarUserProfile: React.FC<SidebarUserProfileProps> = ({
                             imageUrl={imageUrl} 
                             name={name} 
                             userId={userId} 
-                            size={32}
+                            size={36}
+                            noRing={true}
                             className={cn(
-                                "transition-all", 
-                                showAdminBadge ? "ring-primary/70" : "ring-border/70"
+                                "transition-all duration-300", 
+                                showAdminBadge 
+                                    ? "shadow-[0_0_14px_rgba(124,58,237,0.6)] hover:shadow-[0_0_16px_rgba(124,58,237,0.7)] hover:scale-105" // Enhanced purple glow for admin
+                                    : "shadow-[0_0_10px_rgba(255,255,255,0.2)] hover:shadow-[0_0_12px_rgba(255,255,255,0.3)] hover:scale-105" // Enhanced white glow for users
                             )}
                         />
                         

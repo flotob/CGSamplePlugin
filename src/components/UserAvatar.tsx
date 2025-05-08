@@ -10,6 +10,7 @@ interface UserAvatarProps {
   userId?: string | null; // Seed for the gradient
   size?: number; // Size in pixels
   className?: string; // Additional classes
+  noRing?: boolean; // Option to disable the default ring
 }
 
 // Simple hash function to get a number from a string
@@ -47,6 +48,7 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
   userId = 'defaultSeed',
   size = 36,
   className,
+  noRing = false,
 }) => {
   const [imageError, setImageError] = useState(false);
 
@@ -77,7 +79,7 @@ export const UserAvatar: React.FC<UserAvatarProps> = ({
     <div
       className={cn(
         "relative rounded-full overflow-hidden flex items-center justify-center",
-        "ring-1 ring-border ring-offset-1 ring-offset-background", // Subtle ring
+        !noRing && "ring-1 ring-border ring-offset-1 ring-offset-background", // Only add ring if noRing is false
         className
       )}
       style={{ width: size, height: size }}
