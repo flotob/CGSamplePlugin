@@ -7,9 +7,11 @@ import { Mail, ExternalLink, MessageSquare } from 'lucide-react';
 import { useCgLib } from '@/context/CgLibContext';
 import { useToast } from "@/hooks/use-toast";
 
-// Links to the Common Ground channels
-const HELP_CHANNEL_URL = 'app.cg/c/gF4j5uWriu/channel/help/';
-const FEATURE_IDEAS_CHANNEL_URL = 'app.cg/c/gF4j5uWriu/channel/feature-ideas/';
+// Get URLs from environment variables with fallbacks
+const HELP_CHANNEL_URL = process.env.NEXT_PUBLIC_HELP_CHANNEL_URL || 'app.cg/c/gF4j5uWriu/channel/help/';
+const FEATURE_IDEAS_CHANNEL_URL = process.env.NEXT_PUBLIC_FEATURE_IDEAS_CHANNEL_URL || 'app.cg/c/gF4j5uWriu/channel/feature-ideas/';
+const SUPPORT_EMAIL_URL = process.env.NEXT_PUBLIC_SUPPORT_EMAIL_URL;
+const COMMUNITY_EVENTS_URL = process.env.NEXT_PUBLIC_COMMUNITY_EVENTS_URL;
 
 interface ContactViewProps {
   isAdmin?: boolean;
@@ -19,8 +21,17 @@ export const ContactView: React.FC<ContactViewProps> = ({ isAdmin }) => {
   const { cgInstance } = useCgLib();
   const { toast } = useToast();
 
-  // Function to navigate to a Common Ground channel
+  // Function to navigate to a Common Ground channel or other URL
   const navigateToChannel = async (url: string, channelName: string) => {
+    if (!url) {
+      toast({
+        title: "Navigation Error",
+        description: `The ${channelName} URL is not configured.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (!cgInstance) {
       console.error('Cannot navigate: CgPluginLib instance not available');
       toast({
@@ -32,14 +43,15 @@ export const ContactView: React.FC<ContactViewProps> = ({ isAdmin }) => {
     }
 
     try {
-      // Ensure the URL has the proper protocol
-      const fullUrl = url.startsWith('http') ? url : `https://${url}`;
-      console.log(`Navigating to ${channelName} channel:`, fullUrl);
+      // Check if URL has any protocol (not just http/https)
+      const hasProtocol = /^[a-z]+:\/\/|^mailto:|^tel:/i.test(url);
+      const fullUrl = hasProtocol ? url : `https://${url}`;
+      console.log(`Navigating to ${channelName}:`, fullUrl);
       
       // Use the navigate function from the CG Plugin instance
       await cgInstance.navigate(fullUrl);
     } catch (error) {
-      console.error(`Error navigating to ${channelName} channel:`, error);
+      console.error(`Error navigating to ${channelName}:`, error);
       toast({
         title: "Navigation Failed",
         description: error instanceof Error ? error.message : "An unexpected error occurred.",
@@ -164,31 +176,41 @@ export const ContactView: React.FC<ContactViewProps> = ({ isAdmin }) => {
             </p>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex items-start gap-3 p-3 rounded-lg border border-border">
-                <div className="p-2 rounded-full bg-primary/10 text-primary">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                    <polyline points="22,6 12,13 2,6"></polyline>
-                  </svg>
+              {SUPPORT_EMAIL_URL && (
+                <div 
+                  onClick={() => navigateToChannel(SUPPORT_EMAIL_URL, 'Email Support')}
+                  className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-accent/50 cursor-pointer transition-colors"
+                >
+                  <div className="p-2 rounded-full bg-primary/10 text-primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                      <polyline points="22,6 12,13 2,6"></polyline>
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium">Email Support</h3>
+                    <p className="text-xs text-muted-foreground mt-1">For private inquiries or sensitive issues</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-sm font-medium">Email Support</h3>
-                  <p className="text-xs text-muted-foreground mt-1">For private inquiries or sensitive issues</p>
-                </div>
-              </div>
+              )}
               
-              <div className="flex items-start gap-3 p-3 rounded-lg border border-border">
-                <div className="p-2 rounded-full bg-primary/10 text-primary">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
-                    <line x1="12" y1="18" x2="12.01" y2="18"></line>
-                  </svg>
+              {COMMUNITY_EVENTS_URL && (
+                <div 
+                  onClick={() => navigateToChannel(COMMUNITY_EVENTS_URL, 'Community Events')}
+                  className="flex items-start gap-3 p-3 rounded-lg border border-border hover:bg-accent/50 cursor-pointer transition-colors"
+                >
+                  <div className="p-2 rounded-full bg-primary/10 text-primary">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+                      <line x1="12" y1="18" x2="12.01" y2="18"></line>
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium">Community Events</h3>
+                    <p className="text-xs text-muted-foreground mt-1">Join our regular town halls and community calls</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-sm font-medium">Community Events</h3>
-                  <p className="text-xs text-muted-foreground mt-1">Join our regular town halls and community calls</p>
-                </div>
-              </div>
+              )}
             </div>
           </CardContent>
         </Card>
