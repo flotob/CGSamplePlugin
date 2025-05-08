@@ -11,6 +11,7 @@ interface KpiStats {
   totalUsersCompleted: number;
   totalCredentialsLinked: number;
   totalImagesGenerated: number;
+  totalStepsCompleted: number;
 }
 
 interface CompletionDataPoint {

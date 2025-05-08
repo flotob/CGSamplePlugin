@@ -10,6 +10,7 @@ interface KpiStats {
   totalUsersCompleted: number;
   totalCredentialsLinked: number;
   totalImagesGenerated: number;
+  totalStepsCompleted: number;
 }
 
 interface CompletionDataPoint {
@@ -88,6 +89,14 @@ export const GET = withAuth(async (req: AuthenticatedRequest): Promise<NextRespo
        [communityId]
     );
 
+    // New query for total step completions
+    const totalStepsCompletedQuery = query<{ count: string | number }>(
+      `SELECT COUNT(*) 
+       FROM user_wizard_progress 
+       WHERE wizard_id IN (SELECT id FROM onboarding_wizards WHERE community_id = $1)`,
+       [communityId]
+    );
+
     // --- Execute Queries in Parallel --- 
     const [
         totalWizardsResult,
@@ -95,14 +104,16 @@ export const GET = withAuth(async (req: AuthenticatedRequest): Promise<NextRespo
         completedUsersResult,
         linkedCredentialsResult,
         generatedImagesResult,
-        completionsTimeSeriesResult
+        completionsTimeSeriesResult,
+        totalStepsCompletedResult
     ] = await Promise.all([
         totalWizardsQuery,
         activeWizardsQuery,
         completedUsersQuery,
         linkedCredentialsQuery,
         generatedImagesQuery,
-        completionsTimeSeriesQuery
+        completionsTimeSeriesQuery,
+        totalStepsCompletedQuery
     ]);
 
     // --- Process Results --- 
@@ -112,6 +123,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest): Promise<NextRespo
         totalUsersCompleted: getCountFromResult(completedUsersResult),
         totalCredentialsLinked: getCountFromResult(linkedCredentialsResult),
         totalImagesGenerated: getCountFromResult(generatedImagesResult),
+        totalStepsCompleted: getCountFromResult(totalStepsCompletedResult),
     };
 
     const completionsLast30Days: CompletionDataPoint[] = (completionsTimeSeriesResult?.rows ?? []).map(row => ({

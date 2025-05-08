@@ -7,7 +7,7 @@ import { CompletionsChart } from './CompletionsChart';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { AlertCircle, BarChart, CheckSquare, FileText, Image as ImageIcon, Link as LinkIcon, Loader2, Users } from 'lucide-react';
+import { AlertCircle, BarChart, CheckSquare, FileText, Image as ImageIcon, Link as LinkIcon, Loader2, ListChecks, Users } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
 interface DashboardStatsSectionProps {
@@ -23,9 +23,9 @@ export const DashboardStatsSection: React.FC<DashboardStatsSectionProps> = ({ cl
     // Render loading state
     if (isLoading) {
         return (
-            <div className={cn("grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5", className)}>
-                {/* Render 5 skeleton cards for KPIs */} 
-                {Array.from({ length: 5 }).map((_, index) => (
+            <div className={cn("grid gap-4 md:grid-cols-2 lg:grid-cols-3", className)}>
+                {/* Render 6 skeleton cards for KPIs */} 
+                {Array.from({ length: 6 }).map((_, index) => (
                     <Card key={index}>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <Skeleton className="h-4 w-2/3" /> 
@@ -38,7 +38,7 @@ export const DashboardStatsSection: React.FC<DashboardStatsSectionProps> = ({ cl
                     </Card>
                 ))}
                  {/* Render skeleton for chart */}
-                <Card className="md:col-span-2 lg:col-span-3 xl:col-span-5">
+                <Card className="md:col-span-2 lg:col-span-3">
                     <CardHeader>
                         <Skeleton className="h-5 w-1/3" /> 
                         <Skeleton className="h-4 w-1/2" /> 
@@ -77,7 +77,7 @@ export const DashboardStatsSection: React.FC<DashboardStatsSectionProps> = ({ cl
     const { kpis, completionsLast30Days } = data;
 
     return (
-        <div className={cn("grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5", className)}>
+        <div className={cn("grid gap-4 md:grid-cols-2 lg:grid-cols-3", className)}>
             {/* KPI Stat Cards */}
             <StatCard 
                 title="Total Wizards" 
@@ -104,6 +104,12 @@ export const DashboardStatsSection: React.FC<DashboardStatsSectionProps> = ({ cl
                 description="Across all users (who completed)"
             />
             <StatCard 
+                title="Steps Completed" 
+                value={kpis.totalStepsCompleted}
+                icon={ListChecks}
+                description="Total steps finished across all users"
+            />
+            <StatCard 
                 title="Images Generated" 
                 value={kpis.totalImagesGenerated}
                 icon={ImageIcon}
@@ -111,7 +117,7 @@ export const DashboardStatsSection: React.FC<DashboardStatsSectionProps> = ({ cl
             />
 
             {/* Chart Section */}
-            <div className="md:col-span-2 lg:col-span-3 xl:col-span-5">
+            <div className="md:col-span-2 lg:col-span-3">
                 <CompletionsChart data={completionsLast30Days} />
             </div>
         </div>
