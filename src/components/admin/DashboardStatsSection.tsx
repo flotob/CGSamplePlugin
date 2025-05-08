@@ -7,7 +7,7 @@ import { CompletionsChart } from './CompletionsChart';
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { AlertCircle, BarChart, CheckSquare, FileText, Image as ImageIcon, Link as LinkIcon, Loader2, ListChecks, Users } from 'lucide-react';
+import { AlertCircle, CheckSquare, FileText, Image as ImageIcon, Link as LinkIcon, ListChecks, Users } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
 interface DashboardStatsSectionProps {

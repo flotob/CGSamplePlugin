@@ -3,7 +3,8 @@
 import React from 'react';
 import { UserAvatar } from "@/components/UserAvatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { BadgeCheck, ChevronRight, LogOut } from 'lucide-react';
+import { BadgeCheck } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
 interface SidebarUserProfileProps {

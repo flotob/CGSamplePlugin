@@ -348,21 +348,20 @@ const PluginContent = () => {
     
     let view;
     if (activeSection === 'help') {
-      view = <HelpView isAdmin={isAdmin && !isPreviewingAsUser} />; // Pass effective admin status
+      view = <HelpView isAdmin={isAdmin && !isPreviewingAsUser} />;
     } else if (activeSection === 'contact') {
-      view = <ContactView isAdmin={isAdmin && !isPreviewingAsUser} />; // Render contact view
-    } else if (isAdmin && !isPreviewingAsUser) { // Render AdminView only if admin and NOT previewing
-      view = <AdminView {...viewProps} activeSection={activeSection} />; // Pass activeSection
-    } else { // Render User views if non-admin OR if admin IS previewing
+      view = <ContactView />;
+    } else if (isAdmin && !isPreviewingAsUser) {
+      view = <AdminView {...viewProps} activeSection={activeSection} />;
+    } else {
       switch (activeSection) {
         case 'wizards':
-          view = <WizardView />; // Pass only necessary props if any
+          view = <WizardView />;
           break;
         case 'profile':
           view = <UserView {...viewProps} />; 
           break;
         default:
-          // Default to wizards view for users/preview
           view = <WizardView />; 
       }
     }

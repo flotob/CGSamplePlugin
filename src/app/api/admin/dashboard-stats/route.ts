@@ -140,11 +140,13 @@ export const GET = withAuth(async (req: AuthenticatedRequest): Promise<NextRespo
 
     return NextResponse.json(responseData);
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error fetching admin dashboard stats:', error);
-    // Log specific SQL errors if possible
-    if (error.code) { // Check if it looks like a Postgres error object
+    // Log specific SQL errors if possible after checking type
+    if (error && typeof error === 'object' && 'code' in error && 'detail' in error) {
         console.error(`Database Error Code: ${error.code}, Detail: ${error.detail}`);
+    } else if (error instanceof Error) {
+        console.error('Error message:', error.message);
     }
     return NextResponse.json({ error: 'Internal server error fetching dashboard data' }, { status: 500 });
   }

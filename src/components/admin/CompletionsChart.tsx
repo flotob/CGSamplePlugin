@@ -9,8 +9,9 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
 } from 'recharts';
+import type { TooltipProps } from 'recharts';
+import type { ValueType, NameType } from 'recharts/types/component/DefaultTooltipContent';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { format } from 'date-fns'; // For formatting dates on the X-axis
 
@@ -24,16 +25,27 @@ interface CompletionsChartProps {
   data: ChartDataPoint[];
 }
 
-// Custom Tooltip for better display
-const CustomTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    const formattedDate = format(new Date(label + 'T00:00:00'), 'MMM d'); // Add time part for correct parsing
-    return (
-      <div className="p-2 text-sm bg-background border border-border rounded-md shadow-sm">
-        <p className="font-medium">{formattedDate}</p>
-        <p className="text-muted-foreground">Completions: {payload[0].value}</p>
-      </div>
-    );
+// Use specific types for tooltip props
+const CustomTooltip = ({ active, payload, label }: TooltipProps<ValueType, NameType>) => {
+  if (active && payload && payload.length && label !== undefined) {
+    try {
+       // Ensure label is treated safely, add fallback if needed
+       const dateString = String(label);
+       const formattedDate = format(new Date(dateString + 'T00:00:00'), 'MMM d');
+       return (
+         <div className="p-2 text-sm bg-background border border-border rounded-md shadow-sm">
+           <p className="font-medium">{formattedDate}</p>
+           <p className="text-muted-foreground">Completions: {payload[0].value}</p>
+         </div>
+       );
+    } catch (e) {
+        console.error("Error formatting tooltip date:", label, e);
+        return (
+            <div className="p-2 text-sm bg-background border border-border rounded-md shadow-sm text-destructive">
+                Error
+            </div>
+        );
+    }
   }
   return null;
 };
