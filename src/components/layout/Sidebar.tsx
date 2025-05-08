@@ -3,8 +3,9 @@
 import React from 'react';
 import Image from 'next/image'; // Re-add Image import
 import { Button } from "@/components/ui/button";
-import { BookOpen, Eye, Undo } from 'lucide-react'; // Removed Loader2 import
+import { BookOpen, Eye, Undo, Mail } from 'lucide-react'; // Removed Loader2 import
 import { useQuery } from '@tanstack/react-query'; // Re-add useQuery import
+import { SidebarUserProfile } from './SidebarUserProfile';
 
 // Define expected link structure
 interface SidebarLink {
@@ -27,6 +28,11 @@ interface SidebarProps {
   isAdmin: boolean;
   isPreviewingAsUser: boolean;
   setIsPreviewingAsUser: (isPreviewing: boolean) => void;
+  // Add user profile data
+  userName?: string | null;
+  userImageUrl?: string | null;
+  userId?: string | null;
+  onProfileClick?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ 
@@ -37,6 +43,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isAdmin,
   isPreviewingAsUser,
   setIsPreviewingAsUser,
+  // User profile props
+  userName,
+  userImageUrl,
+  userId,
+  onProfileClick,
 }) => {
 
   // --- Re-add Logo Fetching Logic --- 
@@ -124,10 +135,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
             ))}
           </nav>
         </div>
-        
-        {/* Footer section with help and version */}
-        <div className="mt-auto pt-4 border-t border-border">
-          <p className="text-xs text-muted-foreground px-4 pb-2">v1.0.0</p>
+      </div>
+      
+      {/* Help & Documentation Section */}
+      <div className="py-2 px-3 border-t border-border">
+        <p className="text-xs font-medium text-muted-foreground px-2 mb-2">SUPPORT</p>
+        <div className="space-y-1.5">
           <Button 
             variant="ghost" 
             className="w-full justify-start text-muted-foreground hover:text-foreground transition-all duration-200 hover:bg-secondary/40"
@@ -136,8 +149,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <BookOpen className="w-4 h-4 mr-2" />
             Help & Documentation
           </Button>
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start text-muted-foreground hover:text-foreground transition-all duration-200 hover:bg-secondary/40"
+            onClick={() => setActiveSection('contact')}
+          >
+            <Mail className="w-4 h-4 mr-2" />
+            Contact Support
+          </Button>
         </div>
       </div>
+
+      {/* User Profile Section at the bottom */}
+      <SidebarUserProfile
+        name={userName}
+        imageUrl={userImageUrl}
+        userId={userId}
+        isAdmin={isAdmin}
+        isPreviewingAsUser={isPreviewingAsUser}
+        onClick={onProfileClick}
+      />
     </div>
   );
 }; 

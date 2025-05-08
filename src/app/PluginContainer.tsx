@@ -17,6 +17,7 @@ import { AdminView } from '../components/AdminView';
 import { UserView } from '../components/UserView';
 import { HelpView } from '../components/HelpView';
 import { WizardView } from '../components/WizardView';
+import { ContactView } from '../components/ContactView';
 import { LayoutDashboard, Settings, Plug, User, Wand2, Building, Loader2 } from 'lucide-react';
 import { Toaster } from "@/components/ui/toaster";
 import { useWizardSlideshow } from '../context/WizardSlideshowContext';
@@ -348,6 +349,8 @@ const PluginContent = () => {
     let view;
     if (activeSection === 'help') {
       view = <HelpView isAdmin={isAdmin && !isPreviewingAsUser} />; // Pass effective admin status
+    } else if (activeSection === 'contact') {
+      view = <ContactView isAdmin={isAdmin && !isPreviewingAsUser} />; // Render contact view
     } else if (isAdmin && !isPreviewingAsUser) { // Render AdminView only if admin and NOT previewing
       view = <AdminView {...viewProps} activeSection={activeSection} />; // Pass activeSection
     } else { // Render User views if non-admin OR if admin IS previewing
@@ -383,6 +386,13 @@ const PluginContent = () => {
             isAdmin={isAdmin ?? false}
             isPreviewingAsUser={isPreviewingAsUser}
             setIsPreviewingAsUser={setIsPreviewingAsUser}
+            userName={userInfo?.name}
+            userImageUrl={userInfo?.imageUrl}
+            userId={userInfo?.id}
+            onProfileClick={() => {
+              const targetSection = (isAdmin && !isPreviewingAsUser) ? 'account' : 'profile';
+              handleSetActiveSection(targetSection);
+            }}
           />
         )}
       >
