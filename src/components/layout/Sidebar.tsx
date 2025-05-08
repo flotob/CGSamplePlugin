@@ -75,14 +75,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="flex h-14 items-center border-b border-border px-4 lg:h-[60px] lg:px-6">
         <div className="flex items-center gap-2 font-semibold text-foreground">
           <div 
-             className="relative flex items-center justify-center w-8 h-8 rounded-md bg-background shadow-sm overflow-hidden"
+             className="relative flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-background to-background/80 shadow-md overflow-hidden"
            >
-            {!isLoadingLogo && logoData?.logo_url && (
+            {!isLoadingLogo && (
                  <Image 
-                    src={logoData.logo_url} 
-                    alt="Community Logo" 
+                    src={logoData?.logo_url || '/icon.webp'} 
+                    alt={logoData?.logo_url ? "Community Logo" : "App Logo"}
                     fill={true}
-                    className="object-contain p-1"
+                    className="object-cover hover:scale-110 transition-transform duration-300"
+                    unoptimized
                  />
             )}
           </div>
