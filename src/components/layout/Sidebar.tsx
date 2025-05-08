@@ -161,14 +161,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* User Profile Section at the bottom */}
-      <SidebarUserProfile
-        name={userName}
-        imageUrl={userImageUrl}
-        userId={userId}
-        isAdmin={isAdmin}
-        isPreviewingAsUser={isPreviewingAsUser}
-        onClick={onProfileClick}
-      />
+      <div className="border-t border-border mt-auto">
+        <SidebarUserProfile
+          name={userName}
+          imageUrl={userImageUrl}
+          userId={userId}
+          isAdmin={isAdmin}
+          isPreviewingAsUser={isPreviewingAsUser}
+          onClick={onProfileClick}
+        />
+      </div>
     </div>
   );
 }; 
