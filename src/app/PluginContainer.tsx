@@ -36,12 +36,14 @@ const adminLinks = [
   { id: 'config', label: 'Wizard Config', icon: Settings },
   { id: 'connections', label: 'Connections', icon: Plug },
   { id: 'account', label: 'Account', icon: Building },
-  { id: 'debug', label: 'Debug Settings', icon: Terminal },
+  // { id: 'debug', label: 'Debug Settings', icon: Terminal }, // Removed from here
 ];
 const userLinks = [
   { id: 'wizards', label: 'Wizards', icon: Wand2 },
   { id: 'profile', label: 'Profile', icon: User },
 ];
+
+const debugLink = { id: 'debug', label: 'Debug Settings', icon: Terminal };
 
 // Define the expected shape of the settings API response -- THIS CAN BE REMOVED
 // interface CommunityLogoResponse {
@@ -76,7 +78,14 @@ const PluginContent = () => {
   };
 
   // Determine sidebar links based on admin status AND preview mode
-  const linksToShow = !isLoadingAdminStatus ? ((isAdmin && !isPreviewingAsUser) ? adminLinks : userLinks) : [];
+  const linksToShow = React.useMemo(() => {
+    if (isAdmin && !isPreviewingAsUser) {
+      return adminLinks; // Admin mode shows only admin links
+    } else {
+      return userLinks; // User mode (or admin previewing as user) shows only user links
+    }
+    // Debug link is passed separately to Sidebar and rendered in its own section
+  }, [isAdmin, isPreviewingAsUser]);
 
   // Effect to set initial active section once admin status is known
   React.useEffect(() => {
@@ -397,12 +406,11 @@ const PluginContent = () => {
       view = <HelpView isAdmin={isAdmin && !isPreviewingAsUser} />;
     } else if (activeSection === 'contact') {
       view = <ContactView />;
+    } else if (activeSection === 'debug') { // Moved debug view rendering outside admin check
+      view = <DebugSettingsView />;
     } else if (isAdmin && !isPreviewingAsUser) {
-      if (activeSection === 'debug') {
-        view = <DebugSettingsView />;
-      } else {
-        view = <AdminView {...viewProps} activeSection={activeSection} />;
-      }
+      // Admin views (excluding debug, which is handled above)
+      view = <AdminView {...viewProps} activeSection={activeSection} />;
     } else {
       switch (activeSection) {
         case 'wizards':
@@ -429,6 +437,7 @@ const PluginContent = () => {
         sidebar={(
           <Sidebar 
             links={linksToShow}
+            debugLink={debugLink} // Pass the debugLink here
             activeSection={activeSection ?? ''}
             setActiveSection={handleSetActiveSection} 
             isAdmin={isAdmin ?? false}

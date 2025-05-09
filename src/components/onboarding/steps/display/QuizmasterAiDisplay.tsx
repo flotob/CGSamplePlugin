@@ -190,11 +190,10 @@ const QuizmasterAiDisplay: React.FC<QuizmasterAiDisplayProps> = ({ step, onCompl
       <div className="flex flex-col h-full w-full items-center justify-center pt-8 pb-4 px-2">
         <div className="relative max-w-lg w-full text-center animate-in fade-in-0 duration-300">
           <div 
-            className="absolute inset-0 -z-10 bg-background/60 dark:bg-background/50 backdrop-blur-lg rounded-2xl shadow-sm"
+            className="absolute inset-0 -z-10 bg-background/60 dark:bg-background/50 backdrop-blur-lg rounded-2xl shadow-sm border border-border/40 dark:border-border/20"
             style={{
               WebkitBackdropFilter: 'blur(16px)',
               transform: 'translateZ(0)',
-              background: 'linear-gradient(to bottom, var(--card-foreground-rgb-light, rgba(255, 255, 255, 0.9)), var(--card-foreground-rgb-dark, rgba(240, 240, 240, 0.85)))',
             }}
           ></div>
           
@@ -206,7 +205,7 @@ const QuizmasterAiDisplay: React.FC<QuizmasterAiDisplayProps> = ({ step, onCompl
             </div>
             
             <div className="space-y-2">
-              <h2 className="text-2xl font-bold">Quiz Complete!</h2>
+              <h2 className="text-2xl font-bold text-foreground">Quiz Complete!</h2>
               <p className="text-muted-foreground max-w-md mx-auto">
                 Great job! You've demonstrated your knowledge and completed this AI-powered quiz successfully.
               </p>
@@ -283,8 +282,11 @@ const QuizmasterAiDisplay: React.FC<QuizmasterAiDisplayProps> = ({ step, onCompl
                   content = (message.content as Array<{ type: string; text: string }>)
                     .filter(part => part.type === 'text')
                     .map(part => part.text)
-                    .join(' ');
+                    .join('\n'); // Use newline instead of space to preserve line breaks
                 }
+
+                // Remove our previous custom transformations that were breaking markdown
+                // Let ReactMarkdown handle the formatting properly
                 
                 return (
                   <div
@@ -309,7 +311,16 @@ const QuizmasterAiDisplay: React.FC<QuizmasterAiDisplayProps> = ({ step, onCompl
                         <p className="whitespace-pre-wrap break-words leading-relaxed">{content}</p>
                       ) : (
                         <div className="prose prose-sm dark:prose-invert max-w-none break-words leading-relaxed">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          <ReactMarkdown 
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                              // Configure components to handle line breaks and lists properly
+                              p: ({/*node,*/ ...props}) => <p className="mb-2 whitespace-pre-line" {...props} />,
+                              ul: ({/*node,*/ ...props}) => <ul className="list-disc pl-5 mb-2 space-y-1" {...props} />,
+                              ol: ({/*node,*/ ...props}) => <ol className="list-decimal pl-5 mb-2 space-y-1" {...props} />,
+                              li: ({/*node,*/ ...props}) => <li className="my-1" {...props} />
+                            }}
+                          >
                             {content}
                           </ReactMarkdown>
                         </div>

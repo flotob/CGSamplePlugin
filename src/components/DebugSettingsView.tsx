@@ -4,7 +4,8 @@
 import React, { useEffect, useState } from 'react';
 import { useCgLib } from '@/context/CgLibContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, AlertCircle, Terminal } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Loader2, AlertCircle, Terminal, ClipboardCopy } from 'lucide-react';
 // import type { UserFriendsResponsePayload } from '@common-ground-dao/cg-plugin-lib-host'; // Removed unused import
 
 interface KeyValuePairs {
@@ -17,21 +18,43 @@ const DataDisplayCard: React.FC<{
   isLoading: boolean;
   error: string | null;
 }> = ({ title, data, isLoading, error }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    if (data) {
+      navigator.clipboard.writeText(JSON.stringify(data, null, 2))
+        .then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000); // Reset after 2 seconds
+        })
+        .catch(err => console.error('Failed to copy: ', err));
+    }
+  };
+
   let content;
+  let copyButton = null;
+
   if (isLoading) {
     content = <div className="flex items-center"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Loading...</div>;
   } else if (error) {
     content = <div className="flex items-center text-destructive"><AlertCircle className="mr-2 h-4 w-4" />Error: {error}</div>;
   } else if (data) {
     content = <pre className="text-sm bg-muted p-4 rounded-md overflow-auto whitespace-pre-wrap break-all">{JSON.stringify(data, null, 2)}</pre>;
+    copyButton = (
+      <Button variant="ghost" size="icon" onClick={handleCopy} className="ml-auto h-8 w-8">
+        <ClipboardCopy className={`h-4 w-4 ${copied ? 'text-green-500' : ''}`} />
+        <span className="sr-only">{copied ? 'Copied!' : 'Copy'}</span>
+      </Button>
+    );
   } else {
     content = <p className="text-sm text-muted-foreground">No data available.</p>;
   }
 
   return (
     <Card className="w-full">
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center">
         <CardTitle>{title}</CardTitle>
+        {copyButton}
       </CardHeader>
       <CardContent>
         {content}

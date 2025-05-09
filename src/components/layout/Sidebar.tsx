@@ -34,6 +34,7 @@ interface SidebarProps {
   userId?: string | null;
   onProfileClick?: () => void;
   logoUrl?: string | null; // Added logoUrl prop
+  debugLink?: SidebarLink; // Added debugLink prop
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ 
@@ -50,6 +51,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   userId,
   onProfileClick,
   logoUrl, // Destructure new prop
+  debugLink, // Destructure debugLink
 }) => {
 
   // --- REMOVE Logo Fetching Logic ---
@@ -152,6 +154,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <BookOpen className="w-4 h-4 mr-2" />
             Help & Documentation
           </Button>
+          {/* Render Debug Settings Link if provided - MOVED HERE */}
+          {debugLink && (
+            <Button
+              variant={activeSection === debugLink.id ? "secondary" : "ghost"}
+              className={`justify-start w-full transition-all duration-200 ${
+                activeSection === debugLink.id
+                  ? "bg-secondary text-secondary-foreground font-medium shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"
+              }`}
+              onClick={() => setActiveSection(debugLink.id)}
+            >
+              {debugLink.icon && <debugLink.icon className={`h-4 w-4 mr-2 transition-transform duration-200 ${activeSection === debugLink.id ? 'text-primary' : ''}`} />}
+              {debugLink.label}
+            </Button>
+          )}
           <Button 
             variant="ghost" 
             className="w-full justify-start text-muted-foreground hover:text-foreground transition-all duration-200 hover:bg-secondary/40"
