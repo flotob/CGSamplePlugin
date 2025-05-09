@@ -359,35 +359,56 @@ export const QuotaUsageDisplay: React.FC<QuotaUsageDisplayProps> = ({ className 
         return '';
     };
 
+    const sectionHeaderImageUrl = communityInfo?.headerImageUrl;
+
+    const sectionWrapperClasses = cn(
+      "p-4 rounded-lg shadow-md border relative overflow-hidden mt-6", // Added mt-6 for consistent spacing with the plan card
+      sectionHeaderImageUrl 
+        ? "border-white/20 backdrop-blur-lg" // Stronger backdrop blur if image is present
+        : "bg-slate-100/60 dark:bg-slate-900/40 backdrop-blur-sm border-white/10" // Fallback frosted glass
+    );
+
     return (
-        <div className="pt-6 bg-slate-100/60 dark:bg-slate-900/40 backdrop-blur-sm p-4 rounded-lg shadow-md border border-white/10">
-            <h4 className="text-lg font-semibold mb-3">Current Period Usage</h4>
-            <div className="mb-4">
-                <div className="flex justify-between items-center mb-1">
-                <span className="text-sm font-medium">Active Wizards</span>
-                <span className="text-sm text-muted-foreground">
-                    {wizardUsage} / {wizardLimit}
-                </span>
+        <div className={sectionWrapperClasses}>
+            {sectionHeaderImageUrl && (
+                <Image
+                    src={sectionHeaderImageUrl}
+                    alt="Usage Stats Background"
+                    layout="fill"
+                    objectFit="cover"
+                    className="absolute inset-0 z-0 blur-xl opacity-30 dark:opacity-20 scale-110"
+                />
+            )}
+            {/* Content wrapper to ensure it's above the background image */}
+            <div className="relative z-10">
+                <h4 className="text-lg font-semibold mb-3">Current Period Usage</h4>
+                <div className="mb-4">
+                    <div className="flex justify-between items-center mb-1">
+                    <span className="text-sm font-medium">Active Wizards</span>
+                    <span className="text-sm text-muted-foreground">
+                        {wizardUsage} / {wizardLimit}
+                    </span>
+                    </div>
+                    <Progress value={wizardProgress} aria-label={`${wizardUsage} out of ${wizardLimit} active wizards used`} className="mt-1" />
                 </div>
-                <Progress value={wizardProgress} aria-label={`${wizardUsage} out of ${wizardLimit} active wizards used`} className="mt-1" />
-            </div>
-            <div className="mb-4">
-                <div className="flex justify-between items-center mb-1">
-                <span className="text-sm font-medium">Image Generations Used</span>
-                <span className="text-sm text-muted-foreground">
-                    {imageGenUsage} / {imageGenLimit} {getUsageTimeWindowText(currentPlanFromQuota, 'imageGenerationLimit')}
-                </span>
+                <div className="mb-4">
+                    <div className="flex justify-between items-center mb-1">
+                    <span className="text-sm font-medium">Image Generations Used</span>
+                    <span className="text-sm text-muted-foreground">
+                        {imageGenUsage} / {imageGenLimit} {getUsageTimeWindowText(currentPlanFromQuota, 'imageGenerationLimit')}
+                    </span>
+                    </div>
+                    <Progress value={imageGenProgress} aria-label={`${imageGenUsage} out of ${imageGenLimit} image generations used`} className="mt-1" />
                 </div>
-                <Progress value={imageGenProgress} aria-label={`${imageGenUsage} out of ${imageGenLimit} image generations used`} className="mt-1" />
-            </div>
-            <div>
-                <div className="flex justify-between items-center mb-1">
-                <span className="text-sm font-medium">AI Chat Messages Used</span>
-                <span className="text-sm text-muted-foreground">
-                    {chatUsage} / {chatLimit} {getUsageTimeWindowText(currentPlanFromQuota, 'aiChatMessageLimit')}
-                </span>
+                <div>
+                    <div className="flex justify-between items-center mb-1">
+                    <span className="text-sm font-medium">AI Chat Messages Used</span>
+                    <span className="text-sm text-muted-foreground">
+                        {chatUsage} / {chatLimit} {getUsageTimeWindowText(currentPlanFromQuota, 'aiChatMessageLimit')}
+                    </span>
+                    </div>
+                    <Progress value={chatProgress} aria-label={`${chatUsage} out of ${chatLimit} AI chat messages used`} className="mt-1" />
                 </div>
-                <Progress value={chatProgress} aria-label={`${chatUsage} out of ${chatLimit} AI chat messages used`} className="mt-1" />
             </div>
         </div>
     );
