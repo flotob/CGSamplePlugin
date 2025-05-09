@@ -2,7 +2,6 @@ import { useAuth } from '../context/AuthContext';
 import { useCallback } from 'react';
 
 // Define a generic type for fetch options
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface AuthFetchOptions extends RequestInit {
     parseJson?: boolean; // New option to control JSON parsing
 }

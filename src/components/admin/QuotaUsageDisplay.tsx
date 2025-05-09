@@ -20,9 +20,20 @@ interface QuotaUsageDisplayProps {
   className?: string;
 }
 
+// Define a more specific type for the timeWindow parameter
+interface PgInterval {
+  years?: number;
+  months?: number;
+  days?: number;
+  hours?: number;
+  minutes?: number;
+  seconds?: number;
+  milliseconds?: number;
+}
+
 // Helper function to format the time window string for display
-const formatTimeWindow = (timeWindow: any): string => {
-  if (!timeWindow) { // Handles null, undefined
+const formatTimeWindow = (timeWindow: string | PgInterval | null | undefined): string => {
+  if (timeWindow === null || timeWindow === undefined) { // Handles null, undefined
     return ''; 
   }
 
@@ -60,13 +71,13 @@ export const QuotaUsageDisplay: React.FC<QuotaUsageDisplayProps> = ({ className 
   // Determine the current plan details for progress bar and description
   const currentPlan = data?.plans.find(p => p.id === data.currentPlanId);
   const currentPlanName = currentPlan?.name ?? (data?.currentPlanId ? `Plan ID ${data.currentPlanId}` : 'Free');
-  const currentLimit = currentPlan?.wizardLimit ?? 0; // Default to 0 if no plan or limit found
-  const currentUsage = data?.currentWizardUsage ?? 0;
+  // const currentLimit = currentPlan?.wizardLimit ?? 0; // Default to 0 if no plan or limit found - Unused
+  // const currentUsage = data?.currentWizardUsage ?? 0; // Unused
 
-  // Calculate progress percentage for the current plan
-  const progressPercentage = (currentLimit > 0) 
-    ? Math.round((currentUsage / currentLimit) * 100) 
-    : 0;
+  // Calculate progress percentage for the current plan - This variable is unused.
+  // const progressPercentage = (currentLimit > 0) 
+  //   ? Math.round((currentUsage / currentLimit) * 100) 
+  //   : 0;
 
   // Wizard Usage
   const wizardLimit = currentPlan?.wizardLimit ?? 0;

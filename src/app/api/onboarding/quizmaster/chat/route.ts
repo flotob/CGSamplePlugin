@@ -96,10 +96,11 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
               await markStepAsCompletedInDB(userId, wizardId, stepId, verifiedData);
               console.log(`DB update successful for step completion: user ${userId}, wizard ${wizardId}, step ${stepId}`);
               return { success: true, messageForAI: "The user has passed and the step has been marked complete in the system." }; 
-            } catch (dbError: any) {
+            } catch (dbError: unknown) {
               console.error(`Database error completing step ${stepId} for user ${userId}:`, dbError);
               // Inform the AI that the backend action failed
-              return { success: false, errorForAI: `An internal error occurred while trying to mark the step as complete: ${dbError.message}` };
+              const errorMessage = dbError instanceof Error ? dbError.message : 'Unknown database error';
+              return { success: false, errorForAI: `An internal error occurred while trying to mark the step as complete: ${errorMessage}` };
             }
           }
         }

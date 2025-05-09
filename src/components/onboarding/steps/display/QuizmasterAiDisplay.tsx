@@ -13,27 +13,36 @@ import { useAuthFetch } from '@/lib/authFetch'; // Import useAuthFetch
 // Import shadcn/ui components (add as needed)
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, CheckCircle2, SendHorizonal, Bot, User, RefreshCcw } from 'lucide-react';
-import { Separator } from "@/components/ui/separator";
 
 interface QuizmasterAiDisplayProps {
   step: UserStepProgress; // Ensure this type includes id, wizard_id, config.specific, completed_at
   onComplete: () => void;
 }
 
-// Type guard to check if specific config is QuizmasterAiSpecificConfig
-function isQuizmasterAiConfig(config: any): config is QuizmasterAiSpecificConfig {
+// Improved Type Guard
+function isQuizmasterAiConfig(config: unknown): config is QuizmasterAiSpecificConfig {
   return (
-    config &&
     typeof config === 'object' &&
-    typeof config.knowledgeBase === 'string' &&
-    typeof config.agentPersonality === 'string' &&
-    typeof config.taskChallenge === 'string'
+    config !== null &&
+    'knowledgeBase' in config && typeof (config as { knowledgeBase: unknown }).knowledgeBase === 'string' &&
+    'agentPersonality' in config && typeof (config as { agentPersonality: unknown }).agentPersonality === 'string' &&
+    'taskChallenge' in config && typeof (config as { taskChallenge: unknown }).taskChallenge === 'string'
   );
 }
+
+// Unused interface
+// interface VercelAIMessageWithPotentialToolId extends VercelAIMessage {
+//   toolCallId?: string;
+// }
+
+// Unused interface
+// interface MarkTestPassedToolResult {
+//   success?: boolean;
+//   errorForAI?: string;
+//   messageForAI?: string;
+// }
 
 const QuizmasterAiDisplay: React.FC<QuizmasterAiDisplayProps> = ({ step, onComplete }) => {
   const [quizPassed, setQuizPassed] = useState<boolean>(!!step.completed_at);
@@ -101,26 +110,21 @@ const QuizmasterAiDisplay: React.FC<QuizmasterAiDisplayProps> = ({ step, onCompl
     }
   }, [messages]);
 
-  // Effect: monitor messages for the tool result indicating quiz passed
+  // Improved useEffect to detect successful tool call based on research AI's guidance
   useEffect(() => {
-    if (!quizPassed && !step.completed_at) { // Only run if not already marked passed
-      const lastAssistantMsg = [...messages].reverse().find(m => m.role === 'assistant');
-      if (lastAssistantMsg && lastAssistantMsg.toolInvocations && lastAssistantMsg.toolInvocations.length > 0) {
-        for (const toolInvocation of lastAssistantMsg.toolInvocations) {
-          // Try checking state === 'result' as per the ai-chat-guidance.md document.
-          // The Vercel AI SDK ToolInvocation type typically has state as 'tool-result' when a result is present.
-          // If this still causes issues, we may need to inspect the exact type of toolInvocation at runtime.
-          if (toolInvocation.toolName === 'markTestPassed' && (toolInvocation as any).state === 'result') {
-            // Accessing toolInvocation.result. The result type is unknown from the SDK side.
-            const executionResult = (toolInvocation as any).result as { success?: boolean; errorForAI?: string; messageForAI?: string };
-            if (executionResult && executionResult.success === true) {
-              console.log('QuizmasterAI: markTestPassed tool call successful, marking quiz as passed.');
-              setQuizPassed(true);
-              if (onComplete) onComplete();
-              break; // Exit loop once handled
-            }
-          }
-        }
+    if (!quizPassed && !step.completed_at) {  // only run if we haven't already marked the quiz as passed
+      const toolResultFound = messages.some(message =>
+        message.role === 'assistant' &&
+        message.parts?.some(part =>
+          part.type === 'tool-invocation' &&
+          part.toolInvocation.toolName === 'markTestPassed' &&
+          part.toolInvocation.state === 'result' // Check for the 'result' state
+        )
+      );
+      if (toolResultFound) {
+        console.log('QuizmasterAI: markTestPassed tool invocation resulted, marking quiz as passed.');
+        setQuizPassed(true);
+        if (onComplete) onComplete();
       }
     }
   }, [messages, quizPassed, onComplete, step.completed_at]);
@@ -128,7 +132,7 @@ const QuizmasterAiDisplay: React.FC<QuizmasterAiDisplayProps> = ({ step, onCompl
   // Effect to handle if the step is already completed when mounted (e.g. user re-visits)
   useEffect(() => {
     if (step.completed_at && !quizPassed) {
-      console.log('QuizmasterAI: Step already completed on mount.');
+      console.log('QuizmasterAI: Step already completed on mount or after revalidation.');
       setQuizPassed(true);
       // onComplete should ideally not be called again if it was for the initial completion.
       // This effect primarily sets the UI state.

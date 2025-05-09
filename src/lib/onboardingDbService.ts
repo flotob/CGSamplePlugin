@@ -4,7 +4,7 @@ import type { QuizmasterAiVerifiedData } from '@/types/onboarding-steps'; // For
 // A more generic type for verified_data if not specific to AI Quizmaster
 // For now, we can make it flexible or use a base type if you have one.
 interface GenericStepVerifiedData {
-  [key: string]: any; 
+  [key: string]: unknown; 
 }
 
 /**

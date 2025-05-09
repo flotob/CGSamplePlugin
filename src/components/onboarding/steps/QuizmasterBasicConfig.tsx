@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   QuizmasterBasicSpecificConfig,
   QuizQuestion,
-  QuizQuestionOption 
+  // QuizQuestionOption // Removed as it's not directly used as a type annotation
 } from '@/types/onboarding-steps'; // Adjust path if necessary
 
 import { Input } from "@/components/ui/input";

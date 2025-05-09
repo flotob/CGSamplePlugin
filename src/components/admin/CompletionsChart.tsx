@@ -31,7 +31,9 @@ const CustomTooltip = ({ active, payload, label }: TooltipProps<ValueType, NameT
     try {
        // Ensure label is treated safely, add fallback if needed
        const dateString = String(label);
-       const formattedDate = format(new Date(dateString + 'T00:00:00'), 'MMM d');
+       // The 'label' is already the formatted 'displayDate' (e.g., "May 7")
+       // No need to re-parse and re-format it.
+       const formattedDate = dateString; 
        return (
          <div className="p-2 text-sm bg-background border border-border rounded-md shadow-sm">
            <p className="font-medium">{formattedDate}</p>

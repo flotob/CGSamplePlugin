@@ -79,15 +79,6 @@ const QuizmasterAiConfig: React.FC<QuizmasterAiConfigProps> = ({ initialData, on
     triggerOnChange({ taskChallenge: newValue });
   };
 
-  const handleModelSettingChange = <K extends keyof AIModelSettings>(
-    key: K,
-    value: AIModelSettings[K]
-  ) => {
-    const newModelSettings = { ...modelSettings, [key]: value };
-    setModelSettings(newModelSettings);
-    triggerOnChange({ aiModelSettings: newModelSettings });
-  };
-
   const handleModelTemperatureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const tempStr = e.target.value;
     if (tempStr === '') {
