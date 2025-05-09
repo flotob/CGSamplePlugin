@@ -134,13 +134,9 @@ export const QuotaUsageDisplay: React.FC<QuotaUsageDisplayProps> = ({ className 
                         )}
                       </TableCell>
                       <TableCell>{plan.name}</TableCell>
-                      <TableCell className="text-right">{plan.wizardLimit} {formatTimeWindow(plan.wizardLimit === 0 && !plan.name.toLowerCase().includes('free') ? null : '00:00:00')}</TableCell> {/* Static limits for non-free or zero limit plans */}
-                      <TableCell className="text-right">
-                        {plan.imageGenerationLimit} {formatTimeWindow(plan.imageGenerationTimeWindow)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {plan.aiChatMessageLimit} {formatTimeWindow(plan.aiChatMessageTimeWindow)}
-                      </TableCell>
+                      <TableCell className="text-right">{`${plan.wizardLimit}${formatTimeWindow(plan.wizardLimit === 0 && !plan.name.toLowerCase().includes('free') ? null : '00:00:00')}`}</TableCell>
+                      <TableCell className="text-right">{`${plan.imageGenerationLimit}${formatTimeWindow(plan.imageGenerationTimeWindow)}`}</TableCell>
+                      <TableCell className="text-right">{`${plan.aiChatMessageLimit}${formatTimeWindow(plan.aiChatMessageTimeWindow)}`}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
