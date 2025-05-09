@@ -9,6 +9,8 @@ import { EnsStepConfig, EnsSpecificConfig } from './EnsStepConfig';
 import { ContentStepConfig, ContentSpecificConfigType } from './ContentStepConfig';
 import QuizmasterBasicConfig from './QuizmasterBasicConfig';
 import type { QuizmasterBasicSpecificConfig } from '@/types/onboarding-steps';
+import QuizmasterAiConfig from './QuizmasterAiConfig';
+import type { QuizmasterAiSpecificConfig } from '@/types/onboarding-steps';
 import {
   Accordion,
   AccordionContent,
@@ -149,7 +151,7 @@ export const StepEditor: React.FC<StepEditorProps> = ({
     });
   }
 
-  const handleSpecificConfigChange = useCallback((newSpecificConfig: Record<string, unknown> | ContentSpecificConfigType | EnsSpecificConfig | QuizmasterBasicSpecificConfig) => {
+  const handleSpecificConfigChange = useCallback((newSpecificConfig: Record<string, unknown> | ContentSpecificConfigType | EnsSpecificConfig | QuizmasterBasicSpecificConfig | QuizmasterAiSpecificConfig) => {
     setStepConfig(prev => ({ ...prev, specific: newSpecificConfig as Record<string, unknown> }));
   }, []);
 
@@ -579,6 +581,20 @@ export const StepEditor: React.FC<StepEditorProps> = ({
             <AccordionContent className="pt-1">
               <QuizmasterBasicConfig 
                 initialData={stepConfig.specific as Partial<QuizmasterBasicSpecificConfig>} 
+                onChange={handleSpecificConfigChange}
+              />
+            </AccordionContent>
+          </AccordionItem>
+        )}
+
+        {stepTypeInfo?.name === 'quizmaster_ai' && (
+          <AccordionItem value="specific-config-quizmaster-ai">
+            <AccordionTrigger className="text-sm font-medium text-muted-foreground uppercase tracking-wide hover:no-underline py-2">
+               AI Quizmaster Configuration
+            </AccordionTrigger>
+            <AccordionContent className="pt-1">
+              <QuizmasterAiConfig 
+                initialData={stepConfig.specific as Partial<QuizmasterAiSpecificConfig>} 
                 onChange={handleSpecificConfigChange}
               />
             </AccordionContent>
