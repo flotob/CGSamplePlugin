@@ -219,7 +219,7 @@ const QuizmasterBasicDisplay: React.FC<QuizmasterBasicDisplayProps> = ({ step, o
               
               if (feedbackStatus && isSelected) {
                 feedbackIcon = feedbackStatus === 'correct' 
-                  ? <CheckCircle2 className="h-5 w-5 text-green-600 ml-2 flex-shrink-0" /> 
+                  ? <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 ml-2 flex-shrink-0" /> 
                   : <XCircle className="h-5 w-5 text-destructive ml-2 flex-shrink-0" />;
               }
 
@@ -229,8 +229,8 @@ const QuizmasterBasicDisplay: React.FC<QuizmasterBasicDisplayProps> = ({ step, o
                   htmlFor={option.id} 
                   className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all
                     ${isSelected ? 'ring-2 ring-primary/50' : 'hover:bg-accent/50'}
-                    ${isSelected && feedbackStatus === 'correct' ? 'border-green-500 bg-green-50 animate-pulse' : ''}
-                    ${isSelected && feedbackStatus === 'incorrect' ? 'border-destructive bg-red-50 animate-pulse' : ''}
+                    ${isSelected && feedbackStatus === 'correct' ? 'border-green-600 dark:border-green-500 bg-green-50/80 dark:bg-green-900/20 animate-pulse' : ''}
+                    ${isSelected && feedbackStatus === 'incorrect' ? 'border-destructive bg-destructive/10 animate-pulse' : ''}
                     ${isSelected && !feedbackStatus ? 'border-primary bg-primary/5' : 'border-muted'}
                     ${feedbackStatus ? 'opacity-90' : 'hover:opacity-100'}
                   `}
@@ -248,12 +248,12 @@ const QuizmasterBasicDisplay: React.FC<QuizmasterBasicDisplayProps> = ({ step, o
             })}
           </RadioGroup>
 
-          {/* Display Feedback Text */}
+          {/* Display Feedback Text - update for dark mode */}
           {feedbackStatus && (
             <div className={`mt-4 p-3 rounded-md flex items-center text-sm font-medium
               ${feedbackStatus === 'correct' 
-                ? 'bg-green-50 text-green-700 border border-green-200' 
-                : 'bg-red-50 text-red-700 border border-red-200'}`
+                ? 'bg-green-100/50 dark:bg-green-900/20 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-900/30' 
+                : 'bg-destructive/10 text-destructive border border-destructive/20'}`
               }
             >
               {feedbackStatus === 'correct' 
