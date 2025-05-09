@@ -112,6 +112,13 @@ const QuizmasterAiDisplay: React.FC<QuizmasterAiDisplayProps> = ({ step, onCompl
     }
   }, [messages]);
 
+  // Add a useEffect to ensure initial scroll position is at the bottom when first rendered
+  useEffect(() => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
+  }, []);
+
   // Improved useEffect to detect successful tool call based on research AI's guidance
   useEffect(() => {
     if (!quizPassed && !step.completed_at) {  // only run if we haven't already marked the quiz as passed
@@ -237,14 +244,15 @@ const QuizmasterAiDisplay: React.FC<QuizmasterAiDisplayProps> = ({ step, onCompl
         {/* Messages container - flex-grow to take available space */}
         <div 
           ref={messagesContainerRef}
-          className="flex-grow overflow-y-auto mb-3 pr-1 custom-scrollbar"
+          className="flex-grow overflow-y-auto mb-3 pr-1 custom-scrollbar flex flex-col"
           style={{ 
             overscrollBehavior: 'contain',
             scrollbarWidth: 'thin',
-            scrollbarColor: 'rgba(155, 155, 155, 0.5) transparent' 
+            scrollbarColor: 'rgba(155, 155, 155, 0.5) transparent',
+            justifyContent: 'flex-end', // Push messages to the bottom
           }}
         >
-          <div className="flex flex-col space-y-4 pb-2">
+          <div className="flex flex-col space-y-4 w-full">
             {/* Welcome message when there are no messages */}
             {messages.filter(message => message.role !== 'system').length === 0 && (
               <div className="flex justify-start">

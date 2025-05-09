@@ -33,9 +33,6 @@ interface AdminViewProps {
   isLoadingCommunityInfo: boolean;
   communityInfoError: Error | null;
   authError: Error | null;
-  handleAssignRoleClick: (roleId: string | undefined) => void;
-  isAssigningRole: boolean;
-  assignRoleError: Error | null;
 }
 
 export const AdminView: React.FC<AdminViewProps> = ({
@@ -48,30 +45,11 @@ export const AdminView: React.FC<AdminViewProps> = ({
   isLoadingCommunityInfo,
   communityInfoError,
   authError,
-  handleAssignRoleClick,
-  isAssigningRole,
-  assignRoleError,
 }) => {
   const { toast } = useToast();
   const [editingWizardId, setEditingWizardId] = React.useState<string | null>(null);
 
   const assignRoleMutation = useAssignRoleAndRefresh();
-
-  // Define the click handler locally using the new mutation hook
-  const handleAssignRoleClickLocal = (roleId: string | undefined) => {
-    if (!roleId) {
-        console.error("Cannot assign undefined role ID");
-        toast({ title: "Error", description: "Invalid role selected.", variant: "destructive" });
-        return;
-    }
-    if (!userInfo?.id) {
-        console.error("Cannot assign role, user ID not found");
-        toast({ title: "Error", description: "User information not available.", variant: "destructive" });
-        return;
-    }
-    // Call the mutate function from the centralized hook
-    assignRoleMutation.mutate({ roleId, userId: userInfo.id }); 
-  };
 
   // Display JWT auth errors if they occur
   if (authError) {
@@ -130,7 +108,17 @@ export const AdminView: React.FC<AdminViewProps> = ({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => handleAssignRoleClickLocal(role.id)}
+            onClick={() => {
+              if (userInfo && userInfo.id) {
+                assignRoleMutation.mutate({ roleId: role.id, userId: userInfo.id });
+              } else {
+                toast({
+                  title: "Error",
+                  description: "User information not available to assign role.",
+                  variant: "destructive",
+                });
+              }
+            }}
             disabled={buttonDisabled}
             className="transition-all duration-200"
           >

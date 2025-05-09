@@ -143,10 +143,8 @@ export const WizardView: React.FC<WizardViewProps> = () => {
     if (!userWizardsData) return null;
     
     // First check if there's an admin-designated hero wizard
-    // Use type assertion since 'is_hero' might not be in the UserWizard type definition
     const adminHeroWizard = userWizardsData.wizards.find(w => {
-      const wizard = w as any;
-      return wizard.is_hero === true;
+      return w.is_hero === true;
     });
     
     // Get step count for the wizard if available

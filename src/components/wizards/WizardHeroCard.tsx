@@ -3,7 +3,6 @@
 import React from 'react';
 import Image from 'next/image';
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { CheckCircle, Award, Star, PlayCircle, Wand2, ListChecks } from 'lucide-react';
 import { useUserWizardPreviewImageQuery } from '@/hooks/useUserWizardPreviewImageQuery';
 import { Skeleton } from "@/components/ui/skeleton";
@@ -30,11 +29,11 @@ export function WizardHeroCard({
   communityInfo, 
   onLaunchWizard 
 }: WizardHeroCardProps) {
+  // Get the preview image for the wizard
+  const { data: previewData, isLoading: isLoadingPreview } = useUserWizardPreviewImageQuery(heroWizard?.id);
+
   // Skip rendering if no hero wizard
   if (!heroWizard) return null;
-
-  // Get the preview image for the wizard
-  const { data: previewData, isLoading: isLoadingPreview } = useUserWizardPreviewImageQuery(heroWizard.id);
 
   // Premium badge styling based on tier
   const getPremiumBadge = (status: string = 'BASIC') => {

@@ -9,6 +9,7 @@ export interface UserWizard {
   description: string | null;
   required_role_id: string | null;
   progressStatus: 'not-started' | 'in-progress' | 'completed'; 
+  is_hero?: boolean;
 }
 
 // Update the response type to include heroWizardId
