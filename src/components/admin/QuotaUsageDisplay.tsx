@@ -185,9 +185,9 @@ export const QuotaUsageDisplay: React.FC<QuotaUsageDisplayProps> = ({ className 
               <ShadcnTableHeader>
                 <ShadcnTableRow>
                   <ShadcnTableHead className="w-[200px]">Feature</ShadcnTableHead>
-                  <ShadcnTableHead className={cn("text-center px-2 py-3", currentPlanCode === staticPlanDetails.free.code && "font-bold text-primary bg-primary/10")}>{staticPlanDetails.free.name}</ShadcnTableHead>
-                  <ShadcnTableHead className={cn("text-center px-2 py-3", currentPlanCode === staticPlanDetails.pro.code && "font-bold text-primary bg-primary/10")}>{staticPlanDetails.pro.name}</ShadcnTableHead>
-                  <ShadcnTableHead className={cn("text-center px-2 py-3", currentPlanCode === staticPlanDetails.premium.code && "font-bold text-primary bg-primary/10")}>{staticPlanDetails.premium.name}</ShadcnTableHead>
+                  <ShadcnTableHead className={cn("text-center px-2 py-3", currentPlanCode === staticPlanDetails.free.code && "font-bold text-primary bg-primary/10 rounded-t-lg")}>{staticPlanDetails.free.name}</ShadcnTableHead>
+                  <ShadcnTableHead className={cn("text-center px-2 py-3", currentPlanCode === staticPlanDetails.pro.code && "font-bold text-primary bg-primary/10 rounded-t-lg")}>{staticPlanDetails.pro.name}</ShadcnTableHead>
+                  <ShadcnTableHead className={cn("text-center px-2 py-3", currentPlanCode === staticPlanDetails.premium.code && "font-bold text-primary bg-primary/10 rounded-t-lg")}>{staticPlanDetails.premium.name}</ShadcnTableHead>
                 </ShadcnTableRow>
               </ShadcnTableHeader>
               <ShadcnTableBody>
@@ -207,14 +207,14 @@ export const QuotaUsageDisplay: React.FC<QuotaUsageDisplayProps> = ({ className 
                 ))}
                 <ShadcnTableRow>
                   <ShadcnTableHead></ShadcnTableHead>
-                  <ShadcnTableCell className={cn("text-center", currentPlanCode === staticPlanDetails.free.code && "bg-primary/10")}>
+                  <ShadcnTableCell className={cn("text-center", currentPlanCode === staticPlanDetails.free.code && "bg-primary/10 rounded-b-lg")}>
                     {currentPlanCode === 'free' && 
                       <Button variant="outline" size="sm" className="border-primary text-primary hover:bg-primary/10 w-full cursor-default opacity-100" disabled>
                         Current Plan <ShieldCheck className="ml-2 h-4 w-4" />
                       </Button>
                     }
                   </ShadcnTableCell>
-                  <ShadcnTableCell className={cn("text-center", currentPlanCode === staticPlanDetails.pro.code && "bg-primary/10")}>
+                  <ShadcnTableCell className={cn("text-center", currentPlanCode === staticPlanDetails.pro.code && "bg-primary/10 rounded-b-lg")}>
                     {currentPlanCode === 'pro' ? (
                       <Button variant="outline" size="sm" className="border-primary text-primary hover:bg-primary/10 w-full cursor-default opacity-100" disabled>
                         Current Plan <ShieldCheck className="ml-2 h-4 w-4" />
@@ -225,7 +225,7 @@ export const QuotaUsageDisplay: React.FC<QuotaUsageDisplayProps> = ({ className 
                       </Button>
                     ) : null}
                   </ShadcnTableCell>
-                  <ShadcnTableCell className={cn("text-center", currentPlanCode === staticPlanDetails.premium.code && "bg-primary/10")}>
+                  <ShadcnTableCell className={cn("text-center", currentPlanCode === staticPlanDetails.premium.code && "bg-primary/10 rounded-b-lg")}>
                     {currentPlanCode === 'premium' ? (
                       <Button variant="outline" size="sm" className="border-primary text-primary hover:bg-primary/10 w-full cursor-default opacity-100" disabled>
                         Current Plan <ShieldCheck className="ml-2 h-4 w-4" />
