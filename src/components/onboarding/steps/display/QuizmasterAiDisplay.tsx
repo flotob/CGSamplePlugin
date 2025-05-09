@@ -15,6 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, CheckCircle2, SendHorizonal, Bot, User, RefreshCcw } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface QuizmasterAiDisplayProps {
   step: UserStepProgress; // Ensure this type includes id, wizard_id, config.specific, completed_at
@@ -295,7 +297,15 @@ const QuizmasterAiDisplay: React.FC<QuizmasterAiDisplayProps> = ({ step, onCompl
                           : 'bg-muted/80 backdrop-blur-sm text-foreground rounded-tl-none slide-in-from-left-1 duration-150 ring-1 ring-foreground/5'
                       }`}
                     >
-                      <p className="whitespace-pre-wrap break-words leading-relaxed">{content}</p>
+                      {isUser ? (
+                        <p className="whitespace-pre-wrap break-words leading-relaxed">{content}</p>
+                      ) : (
+                        <div className="prose prose-sm dark:prose-invert max-w-none break-words leading-relaxed">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {content}
+                          </ReactMarkdown>
+                        </div>
+                      )}
                     </div>
                     
                     {/* Avatar for user messages */}
