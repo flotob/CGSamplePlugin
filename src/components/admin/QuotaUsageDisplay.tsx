@@ -14,22 +14,22 @@ import {
 } from "@/components/ui/table"
 import { AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
 import { cn } from "@/lib/utils";
+import { useCgLib } from '@/context/CgLibContext';
+import { useCgQuery } from '@/hooks/useCgQuery';
+import type { CommunityInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
+import Image from 'next/image';
 
 // Define props for the component, including className
 interface QuotaUsageDisplayProps {
   className?: string;
 }
 
-// Define a more specific type for the timeWindow parameter
-interface PgInterval {
-  years?: number;
-  months?: number;
+// Define PgInterval type used in the formatter
+type PgInterval = {
   days?: number;
+  months?: number;
   hours?: number;
-  minutes?: number;
-  seconds?: number;
-  milliseconds?: number;
-}
+};
 
 // Helper function to format the time window string for display
 const formatTimeWindow = (timeWindow: string | PgInterval | null | undefined): string => {
@@ -67,17 +67,18 @@ const formatTimeWindow = (timeWindow: string | PgInterval | null | undefined): s
  */
 export const QuotaUsageDisplay: React.FC<QuotaUsageDisplayProps> = ({ className }) => {
   const { data, isLoading, error, isError } = useQuotaUsageQuery();
+  const { iframeUid } = useCgLib();
+
+  // Fetch community info to get the header image
+  const { data: communityInfo } = useCgQuery<CommunityInfoResponsePayload, Error>(
+    ['communityInfo', iframeUid],
+    async (instance) => (await instance.getCommunityInfo()).data,
+    { enabled: !!iframeUid }
+  );
 
   // Determine the current plan details for progress bar and description
   const currentPlan = data?.plans.find(p => p.id === data.currentPlanId);
   const currentPlanName = currentPlan?.name ?? (data?.currentPlanId ? `Plan ID ${data.currentPlanId}` : 'Free');
-  // const currentLimit = currentPlan?.wizardLimit ?? 0; // Default to 0 if no plan or limit found - Unused
-  // const currentUsage = data?.currentWizardUsage ?? 0; // Unused
-
-  // Calculate progress percentage for the current plan - This variable is unused.
-  // const progressPercentage = (currentLimit > 0) 
-  //   ? Math.round((currentUsage / currentLimit) * 100) 
-  //   : 0;
 
   // Wizard Usage
   const wizardLimit = currentPlan?.wizardLimit ?? 0;
@@ -96,15 +97,48 @@ export const QuotaUsageDisplay: React.FC<QuotaUsageDisplayProps> = ({ className 
   const chatUsage = data?.currentAiChatMessageUsage ?? 0;
   const chatProgress = chatLimit > 0 ? Math.round((chatUsage / chatLimit) * 100) : 0;
 
+  // Check if we have a header image
+  const hasHeaderImage = communityInfo?.headerImageUrl && communityInfo.headerImageUrl.trim() !== '';
+
   return (
-    <Card className={cn("", className)}>
-      <CardHeader>
-        <CardTitle>Plan & Usage</CardTitle>
-        <CardDescription>
-          Your current plan is <strong>{isLoading ? 'Loading...' : currentPlanName}</strong>.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
+    <Card className={cn("overflow-hidden", className)}>
+      {/* Hero Image with Gradient Overlay */}
+      {hasHeaderImage && (
+        <div className="relative w-full h-48 overflow-hidden">
+          {/* Header Image */}
+          <Image 
+            src={communityInfo!.headerImageUrl!}
+            alt={communityInfo?.title || 'Community header'}
+            fill
+            sizes="(max-width: 1280px) 100vw, 1280px"
+            className="object-cover"
+            priority
+          />
+          
+          {/* Gradient Overlay - fades from transparent to card background color */}
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/70 to-background"></div>
+          
+          {/* Plan Info Overlay - positioned at the bottom of the image */}
+          <div className="absolute bottom-0 left-0 right-0 p-6 z-10">
+            <h3 className="text-2xl font-bold text-foreground drop-shadow-sm">Plan & Usage</h3>
+            <p className="text-muted-foreground">
+              Your current plan is <strong>{isLoading ? 'Loading...' : currentPlanName}</strong>
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Regular Card Header (shown when no header image) */}
+      {!hasHeaderImage && (
+        <CardHeader>
+          <CardTitle>Plan & Usage</CardTitle>
+          <CardDescription>
+            Your current plan is <strong>{isLoading ? 'Loading...' : currentPlanName}</strong>.
+          </CardDescription>
+        </CardHeader>
+      )}
+
+      <CardContent className={cn("space-y-6", hasHeaderImage ? "pt-0" : "")}>
         {isLoading && (
           <div className="flex items-center justify-center text-muted-foreground py-4">
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
