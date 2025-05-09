@@ -1,4 +1,5 @@
-'use client'; // This directive is not strictly necessary for route handlers but often included in App Router files.
+// 'use client'; // This directive is not strictly necessary for route handlers but often included in App Router files.
+// Removed: export const runtime = "edge"; // Switch to Node.js runtime for pg compatibility
 
 import { NextResponse } from 'next/server';
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
@@ -12,8 +13,6 @@ import { z } from 'zod';
 import { markStepAsCompletedInDB } from '@/lib/onboardingDbService';
 
 // Test comment to trigger linter
-export const runtime = "edge";
-
 interface ChatRequestBody {
   messages: CoreMessage[]; // Use CoreMessage from 'ai' for chat history
   wizardId: string; 

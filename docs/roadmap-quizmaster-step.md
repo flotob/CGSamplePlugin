@@ -282,147 +282,14 @@ To implement streaming chat and function calling, we will use the Vercel AI SDK 
 
 ### 4.2. Backend Implementation (API Routes)
 
-1.  **New API Route for AI Chat (`POST /api/onboarding/quizmaster/chat/route.ts` or similar Next.js App Router convention):**
-    *   **Runtime:** `export const runtime = "edge";` (Recommended for Vercel AI SDK streaming).
-    *   **Authentication:** Secure with `withAuth(async (req: AuthenticatedRequest) => { ... });`.
-    *   **Request Body:**
-        *   **TypeScript Interface (`QuizmasterChatApiPayload`):**
-            ```typescript
-            // In a types file, e.g., src/types/api.ts or src/types/onboarding-steps.ts
-            import { Message as VercelAIMessage } from 'ai'; // From Vercel AI SDK
-            import { QuizmasterAiSpecificConfig } from './onboarding-steps'; // Assuming types are in the same dir or adjust path
-
-            export interface QuizmasterChatApiPayload {
-              chatId?: string; // Optional: for resuming conversations if supported
-              messages: VercelAIMessage[]; // User's current message and history
-              // Option 1: Pass the full config (if not too large and security is handled)
-              stepConfig: QuizmasterAiSpecificConfig; 
-              // Option 2: Pass IDs and fetch config server-side (more secure for large/sensitive configs)
-              // wizardId: string; 
-              // stepId: string;
-            }
-            ```
-        *   **Discussion on `stepConfig` Transmission:**
-            *   **Passing Full `stepConfig`:** As shown in Option 1, the client sends the `QuizmasterAiSpecificConfig` (containing `knowledgeBase`, `agentPersonality`, etc.) directly in the payload. This is simpler for the client using the `useChat` hook's `body` parameter.
-                *   *Pros:* Simpler client-side, `useChat` hook can easily send it.
-                *   *Cons:* Increases payload size, especially if `knowledgeBase` is large. Exposes full AI configuration parameters to the client (though they are for the client's own step). Requires robust validation on the backend that the `stepConfig` sent actually matches the step the user is on (e.g., by comparing a `stepId` also sent in the payload against the database).
-            *   **Passing IDs (`wizardId`, `stepId`):** (Option 2, commented out) The client would send `wizardId` and `stepId`. The backend API route would then fetch the `QuizmasterAiSpecificConfig` from the `onboarding_steps` table using these IDs.
-                *   *Pros:* More secure as `knowledgeBase` and other AI parameters are not sent over the wire from client to server with each message. Smaller payload. Backend is the source of truth for the config.
-                *   *Cons:* Requires an extra DB call on the backend. The Vercel AI SDK's `useChat` hook sends its `body` with *every* request, so fetching from DB on every message might be slightly less performant than if the config were cached or managed in a dedicated session. However, for security and data integrity, this is often preferred.
-            *   **Recommendation:** Start with Option 1 (passing `stepConfig`) for simplicity if the `knowledgeBase` is not excessively large and proper validation of user context (e.g., that `userId` is indeed on `stepId` which uses this config) is performed on the backend. If `knowledgeBase` becomes very large or sensitive, switch to Option 2. For the purpose of this roadmap, we'll assume Option 1, but highlight that the backend *must* still validate that the authenticated user is currently undertaking a step that *should* be using the provided configuration parameters.
-        *   **Example JSON Payload (Option 1):**
-            ```json
-            {
-              "chatId": "optional-session-id-123",
-              "messages": [
-                { "role": "user", "content": "What was Gustave Eiffel's main profession?" }
-                // Potentially prior messages for context if maintaining history client-side
-              ],
-              "stepConfig": {
-                "knowledgeBase": "The Eiffel Tower is a wrought-iron lattice tower...",
-                "agentPersonality": "You are a witty and slightly sarcastic history professor...",
-                "taskChallenge": "Ask the user three unique questions about the Eiffel Tower...",
-                "aiModelSettings": { "model": "gpt-4-turbo-preview", "temperature": 0.7 }
-              }
-            }
-            ```
-    *   **Backend Processing of `stepConfig`:**
-        *   Regardless of how `stepConfig` is obtained (direct from payload or fetched via ID), the backend API route will use its `knowledgeBase`, `agentPersonality`, and `taskChallenge` to construct the system prompt and initial assistant messages for the OpenAI API call.
-        *   It should also validate that the user (from `req.user`) is authorized to interact with the quiz defined by this configuration (e.g. is currently on this step of their assigned wizard).
-    *   Expect `{ messages: Message[], chatId?: string, stepConfig: QuizmasterAiSpecificConfig }` where `Message` is from the `ai` package, and `stepConfig` contains `knowledge_base`, `agent_personality`, `task_challenge`. The `stepConfig` could be fetched server-side based on a `stepId` passed in the request to ensure security and avoid sending large configs over the wire repeatedly, or included if small and the user context is validated.
-    *   **Rate Limiting:**
-        *   Before calling OpenAI, use `await enforceEventRateLimit(communityId, Feature.AIQuizmasterMessage);` (assuming `AIQuizmasterMessage` is the new enum member).
-        *   Handle `QuotaExceededError` appropriately.
-    *   **OpenAI Client:** Initialize as in the image generation route: `const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });`
-    *   **Prompt Construction:**
-        *   From `stepConfig.agent_personality` and `stepConfig.task_challenge`, create a system prompt.
-        *   Include `stepConfig.knowledge_base` as an initial assistant message or part of the system prompt.
-        *   Append the user's `messages` from the request.
-    *   **Function Definition:** Define the `markTestPassed` function schema:
-        ```typescript
-        const functions: OpenAI.Chat.Completions.ChatCompletionCreateParams.Function[] = [{
-          name: "markTestPassed",
-          description: "Call this function when the user has successfully answered the required questions or passed the quiz based on the initial task instructions.",
-          parameters: {
-            type: "object",
-            properties: {
-              // userId and slideId/stepId can be inferred on the backend from the authenticated request context
-              // No specific parameters needed from the AI unless there's a score or summary to pass.
-              // For simplicity, we can assume the backend knows the context.
-              // If specific feedback is needed:
-              // feedback: { type: "string", description: "Brief feedback on why the user passed." }
-            },
-            required: [] // No specific parameters required from AI for this example
-          }
-        }];
-        ```
-    *   **OpenAI API Call with Streaming & Functions:**
-        ```typescript
-        const response = await openai.chat.completions.create({
-          model: stepConfig.ai_model_settings?.model || 'gpt-4', // Or your preferred default
-          messages: constructedMessages, // Your combined system, knowledge, and user messages
-          stream: true,
-          functions: functions,
-          function_call: 'auto', // Allow OpenAI to decide when to call the function
-          temperature: stepConfig.ai_model_settings?.temperature || 0.5,
-        });
-        ```
-    *   **Streaming Response with Vercel AI SDK:**
-        ```typescript
-        import { OpenAIStream, StreamingTextResponse, experimental_StreamData } from 'ai';
-        
-        // ... inside the POST handler
-        const streamData = new experimental_StreamData();
-        const stream = OpenAIStream(response, {
-          experimental_onFunctionCall: async (functionCallPayload, createFunctionCallMessages) => {
-            // This callback is invoked when the AI decides to call a function.
-            if (functionCallPayload.name === 'markTestPassed') {
-              // 1. AI wants to call markTestPassed.
-              // 2. Perform the actual action: update user_wizard_progress for this step.
-              //    This requires userId, wizardId, stepId from the authenticated request context.
-              //    Construct verified_data for AI completion.
-              const { wizardId, stepId } = /* get from validated request context or payload */;
-              const verifiedData = { passed: true, reason: "AI determined quiz completion." };
-              
-              // IMPORTANT: This logic should be robust, transactional, and secure.
-              // It's essentially the backend part of onComplete for the AI.
-              // For example, call an internal service function:
-              // await completeStepForUser(userId, wizardId, stepId, verifiedData);
-
-              // 3. Optionally, send a message back to the user *through the AI*
-              //    confirming the action. Create new messages and append to stream.
-              const functionCallMessages = createFunctionCallMessages(
-                 // result of the function call, if you want to send it to the client via AI
-                { success: true, message: "Quiz marked as passed!"} 
-              );
-              return openai.chat.completions.create({
-                  model: stepConfig.ai_model_settings?.model || 'gpt-4',
-                  stream: true,
-                  messages: [...constructedMessages, ...functionCallMessages],
-                  functions: functions, // important to include functions again
-                  function_call: 'auto',
-              });
-            }
-          },
-          onFinal: () => {
-            // Persist the stream data
-            streamData.close();
-          },
-          experimental_streamData: true, // Enable streamData
-        });
-        
-        // After successful stream initiation, log usage if not already logged per message.
-        // If logging per interaction (OpenAI call), do it here.
-        // await logUsageEvent(communityId, userId, Feature.AIQuizmasterMessage);
-        
-        // Append the stream data to the response
-        streamData.append({ timestamp: Date.now() }); // Example data to append
-        return new StreamingTextResponse(stream, {}, streamData);
-        ```
-    *   **Usage Logging:** Call `logUsageEvent(communityId, userId, Feature.AIQuizmasterMessage)` for each billable interaction (e.g., each OpenAI API call made).
-2.  **Step Completion Handling (`POST /api/user/wizards/[id]/steps/[stepId]/complete`):**
-    *   This endpoint will now primarily be called by human interaction (e.g. for non-AI steps or if AI step has a manual "I'm done" button).
-    *   The AI's `markTestPassed` function call will trigger an internal server-side completion logic (as detailed above, potentially a shared internal function `completeStepForUser`) rather than the AI directly calling this HTTP endpoint. This ensures the completion is tightly coupled with the AI's decision within the chat API's context.
+1.  **New API Route for AI Chat (`POST /api/onboarding/quizmaster/chat/route.ts`):**
+    *   (Most of this section is already well-defined and aligns with the guidance, e.g., Edge runtime, `withAuth`, quota checks, using `streamText` from `ai` and `openai` provider from `@ai-sdk/openai`, Zod for tool parameters).
+    *   **Tool Definition (`markTestPassed`):**
+        *   The `execute` method for `markTestPassed` (defined within `streamText`'s `tools` option) correctly calls our internal `markStepAsCompletedInDB(userId, wizardId, stepId, verifiedData)`.
+        *   The object returned by `execute` (e.g., `{ success: true, messageForAI: "..." }`) is for the AI to formulate its subsequent natural language response. The Vercel AI SDK handles sending this tool result back to the LLM automatically when `maxSteps > 1`.
+    *   **`maxSteps` Parameter:** Ensure `streamText` is called with `maxSteps: 2` (or more, though 2 is typical for one tool call + AI response) to allow the AI to respond after the `markTestPassed` tool executes.
+    *   **Response Handling:** The route correctly returns `result.toDataStreamResponse()`. This handles streaming text and any special events (like tool calls and results) using the AI SDK's data stream protocol (SSE).
+    *   **Usage Logging:** `logUsageEvent` is correctly called after successful API initiation.
 
 ### 4.3. Frontend Implementation - Admin Configuration
 
@@ -439,50 +306,86 @@ To implement streaming chat and function calling, we will use the Vercel AI SDK 
     *   Import `QuizmasterAiConfig`.
     *   Add conditional rendering for `stepTypeInfo?.name === 'quizmaster_ai'` to display `QuizmasterAiConfig`.
 
-### 4.4. Frontend Implementation - User Display & Interaction
+### 4.4. Frontend Implementation - User Display & Interaction (AI Quizmaster)
 
-1.  **Create `QuizmasterAiDisplay.tsx`:**
-    *   **File:** `src/components/onboarding/steps/display/QuizmasterAiDisplay.tsx`.
-    *   **Props:** `step: UserStepProgress`, `onComplete: (verifiedData?: Record<string, unknown>) => void`. (The `onComplete` prop here will primarily react to `step.completed_at` being updated by the backend function call.)
-    *   **Vercel AI SDK Hook:**
-        ```typescript
-        import { useChat, Message } from 'ai/react';
-        
-        // ... inside QuizmasterAiDisplay component
-        const { messages, input, handleInputChange, handleSubmit, error, isLoading, data } = useChat({
-          api: '/api/onboarding/quizmaster/chat', // Your new API endpoint
-          body: { // Pass additional context to the backend
-            stepConfig: step.config?.specific as QuizmasterAiSpecificConfig // Type assertion
-          },
-          initialMessages: [ // Optional: Start with a system or assistant greeting
-            // { 
-            //   id: 'initial-greeting', 
-            //   role: 'system', // or 'assistant'
-            //   content: 'Welcome to the AI Quiz! I will ask you questions based on the provided material.' 
-            // }
-          ],
-          onFinish: (message) => {
-            // This is called when the AI finishes a response.
-            // If the AI called a function that resulted in step completion, 
-            // the `step.completed_at` prop would update, triggering UI changes.
-            console.log('AI finished responding. Last message:', message);
-            // You might check `data` (experimental_StreamData) for function call results if needed.
-          },
-          onError: (err) => {
-            // Handle errors (e.g., display a toast, parse for quota issues)
-            console.error('Chat error:', err);
-            // Example: if err.message contains "Quota", show upgrade prompt.
-          }
-        });
-        ```
-    *   **Functionality:**
-        *   Render chat interface using `messages`, `input`, `handleInputChange`, `handleSubmit`.
-        *   Display loading states (`isLoading`) and errors (`error`).
-        *   **Completion:** The component primarily reacts to `step.completed_at` being populated. When the AI calls `markTestPassed`, the backend chat API updates the database, which should then cause the `step` prop to re-render with `completed_at` set. The `useEffect` in `StepDisplay.tsx` (or similar logic) would then call the main `onComplete` prop passed down to it.
-        *   The Vercel AI SDK's `useChat` hook handles streaming and function call message processing automatically if configured correctly on the backend (`experimental_onFunctionCall`). The client doesn't need to manually parse function call messages if the backend handles the effects of the function call and optionally streams further AI messages.
-2.  **Update `StepDisplay.tsx`:**
+1.  **Develop `QuizmasterAiDisplay.tsx`:**
+    *   **File:** `src/components/onboarding/steps/display/QuizmasterAiDisplay.tsx`. Add `'use client';` directive.
+    *   **Props:** `step: UserStepProgress` (containing `id`, `config.specific: QuizmasterAiSpecificConfig`, `completed_at`), `onComplete: () => void`.
+    *   **State:** `const [quizPassed, setQuizPassed] = useState(!!step.completed_at);`
+    *   **`useChat` Hook Setup (`@ai-sdk/react`):**
+        *   **System Message:** Construct an initial system message using `step.config.specific.agentPersonality`, `knowledgeBase`, and `taskChallenge`. Ensure the `taskChallenge` clearly instructs the AI to use the `markTestPassed` tool upon successful quiz completion.
+            ```typescript
+            const systemMessage = useMemo<Message>(() => {
+              const config = step.config.specific as QuizmasterAiSpecificConfig;
+              return {
+                id: 'system-instructions',
+                role: 'system',
+                content: `You are a quizmaster. Personality: ${config.agentPersonality}. Knowledge: ${config.knowledgeBase}. Task: ${config.taskChallenge}`
+              };
+            }, [step.config.specific]);
+            ```
+        *   **Initialization:**
+            ```typescript
+            const { messages, input, handleInputChange, handleSubmit, isLoading, error, data /* for StreamData */ } = useChat({
+              id: `quiz-${step.id}`, // Unique ID for chat session isolation per step
+              api: '/api/onboarding/quizmaster/chat', // Backend API route
+              initialMessages: [systemMessage],
+              body: { // To be sent with every request
+                wizardId: step.wizard_id, // Assuming wizard_id is on UserStepProgress
+                stepId: step.id, // or step.step_id if that's the field name
+                stepConfig: step.config.specific as QuizmasterAiSpecificConfig,
+              },
+              // maxSteps: 2, // Optional on client if backend handles full tool roundtrip with its maxSteps
+              // onToolCall: ({ toolCall }) => { /* Optional client-side handling/rendering for other tools if any */ }
+            });
+            ```
+            *(Ensure `UserStepProgress` type has `wizard_id` and `id/step_id` available)*
+    *   **Rendering Chat UI:**
+        *   Use `shadcn/ui` components (`Card`, `ScrollArea`, `Input`, `Button`, `Badge`) for layout and styling.
+        *   Map `messages` from `useChat` to display user and assistant messages differently.
+        *   For assistant messages, iterate through `message.parts` (as per Vercel AI SDK v4). Render `part.type === 'text'`. Other parts like `tool-invocation` are usually not rendered directly to the user but can be inspected.
+        *   Implement auto-scrolling for new messages.
+        *   Display `isLoading` and `error` states appropriately.
+        *   If `quizPassed` is true, show a success indicator (e.g., `<Badge variant="success">Quiz Passed!</Badge>`) and disable the input form.
+    *   **Detecting `markTestPassed` Success & Calling `onComplete`:**
+        *   **Primary Method (via `useEffect` on `messages`):**
+            ```typescript
+            useEffect(() => {
+              if (!quizPassed) {
+                const lastAssistantMsg = [...messages].reverse().find(m => m.role === 'assistant');
+                if (lastAssistantMsg?.parts) {
+                  for (const part of lastAssistantMsg.parts) {
+                    if (part.type === 'tool-invocation' && 
+                        part.toolName === 'markTestPassed' && 
+                        (part.result as any)?.success === true // Access result from tool invocation part
+                    ) {
+                      setQuizPassed(true);
+                      if (onComplete) onComplete();
+                      break;
+                    }
+                  }
+                }
+              }
+            }, [messages, quizPassed, onComplete]);
+            ```
+            *Note: The structure of `part.toolInvocation` might need to be confirmed against the exact Vercel AI SDK version for accessing the tool name and result. The guidance mentions `toolInvocation.tool` and `toolInvocation.state === 'result'`. The `(part.result as any)?.success` is an assumption based on our backend tool's execute method returning `{success: true}`.*
+        *   **Alternative/Fallback (via `props.step.completed_at`):**
+            ```typescript
+            useEffect(() => {
+              if (step.completed_at && !quizPassed) {
+                setQuizPassed(true);
+                // onComplete might have already been called by the message stream effect.
+                // Only call if primary method didn't catch it, or rely solely on this one
+                // if preferred (though it involves a data re-fetch delay).
+                // if (onComplete) onComplete(); 
+              }
+            }, [step.completed_at, quizPassed, onComplete]);
+            ```
+    *   **Handling Already Completed State:** If `step.completed_at` is set on initial mount, set `quizPassed` to true and display the quiz as completed (no input form).
+    *   **Error Handling:** Display errors from `useChat.error` to the user.
+2.  **Integrate `QuizmasterAiDisplay.tsx` into `StepDisplay.tsx`:**
     *   Import `QuizmasterAiDisplay`.
-    *   Add a case for `'quizmaster_ai'` in the `switch` statement.
+    *   Add `case 'quizmaster_ai':` to the `switch` statement, rendering `<QuizmasterAiDisplay step={step} onComplete={onComplete} />`.
 
 ### 4.5. TypeScript Definitions
 *   Define `QuizmasterAiSpecificConfig` and `QuizmasterAiVerifiedData` interfaces.
@@ -522,93 +425,14 @@ To implement streaming chat and function calling, we will use the Vercel AI SDK 
 
 ## 6. Next Steps & Focus for Revision
 
-This document provides an initial roadmap. For the next revision, we will focus on:
+*   **Detailed JSON Structures & TypeScript Types:** (Mostly DONE)
+*   **AI Interaction Flow & `onComplete` Integration:** (Guidance received, incorporated into plan for `QuizmasterAiDisplay`)
+*   **Backend API Refinements:**
+    *   Finalize request/response schemas for `/api/onboarding/quizmaster/chat` (Largely defined by `ChatRequestBody` and `CoreMessage` types).
+    *   **Implement actual `completeOnboardingStep` DB logic** (Task 5.1 was creating the shell, this is to ensure the `TODO` for the actual DB call in `markStepAsCompletedInDB` or directly in the tool `execute` is done. We did create `markStepAsCompletedInDB` and used it, so this is more a verification step now).
+    *   Ensure secure validation of `wizardId` and `stepId` context within the chat API.
+*   **Component Reusability:** (Can be assessed after AI components are built).
+*   **Error Handling and Edge Cases:** (Address in detail during implementation of each component).
+*   **Migration Strategy for `quizmaster_basic` to `quizmaster_ai`:** (Low priority for now).
 
-1.  **Detailed JSON Structures & TypeScript Types:**
-    *   Provide concrete examples and full TypeScript definitions for:
-        *   `QuizmasterBasicSpecificConfig` & `QuizmasterBasicVerifiedData` (✅ Done in Phase 1 description).
-        *   `QuizmasterAiSpecificConfig` & `QuizmasterAiVerifiedData` (✅ Done in Phase 2 description).
-        *   Payload for `/api/onboarding/quizmaster/chat` including how `stepConfig` is passed (✅ This section updated).
-        *   The structure of `verified_data` when an AI step is completed via `markTestPassed` (✅ Done in Phase 2 description, matches `QuizmasterAiVerifiedData`).
-2.  **AI Interaction Flow & `onComplete` Integration:**
-    *   **High-Level Goal:** The AI, guided by its instructions, determines quiz completion and calls the `markTestPassed` function. The backend handles this call, updates the user's progress, and the frontend UI reacts to this update to advance the wizard.
-    *   **Step-by-Step Data Flow:**
-        1.  **User Sends Message (Frontend):**
-            *   User types a message in the `QuizmasterAiDisplay.tsx` component.
-            *   The `useChat` hook (from Vercel AI SDK) sends the message and current chat history to the backend API (`POST /api/onboarding/quizmaster/chat`), including the `stepConfig` in the request body.
-        2.  **Backend API Receives Request (`/api/onboarding/quizmaster/chat`):
-            *   **Authentication:** `withAuth` middleware verifies the user.
-            *   **Quota Check:** `enforceEventRateLimit(communityId, Feature.ai_chat_message)` is called. (Ensuring `Feature.ai_chat_message` is the correct enum from `src/lib/quotas.ts`). If over limit, a 429 error is returned.
-            *   **Prompt Construction:** The API constructs the prompt for OpenAI using `stepConfig.knowledgeBase`, `stepConfig.agentPersonality`, `stepConfig.taskChallenge`, and the incoming `messages` history.
-            *   **OpenAI API Call:** Calls `openai.chat.completions.create` with `stream: true`, the `functions` array (containing `markTestPassed` definition), and `function_call: 'auto'`. An `OpenAI.APIError` or other exceptions are handled here.
-        3.  **OpenAI Streams Response / Calls Function:**
-            *   **Text Stream:** OpenAI streams back the AI's text response (questions, feedback, etc.).
-            *   **Function Call:** If the AI decides the conditions are met (based on its prompt and the conversation), it outputs a request to call the `markTestPassed` function.
-        4.  **Backend Handles Stream & Function Call (`experimental_onFunctionCall`):
-            *   The `OpenAIStream` helper on the backend uses its `experimental_onFunctionCall` callback when `markTestPassed` is invoked by the AI.
-            *   **Inside `experimental_onFunctionCall` for `markTestPassed`:**
-                *   The backend has the user's context (`userId`, `communityId`) and the current step context (e.g., `wizardId`, `stepId` - obtained securely, perhaps from validated request body parameters not directly from AI function args for security).
-                *   It constructs `QuizmasterAiVerifiedData` (e.g., `{ passed: true, reason: "AI determined quiz passed", attemptTimestamp: new Date().toISOString(), chatMessageCount: ... }`).
-                *   **Crucially, it calls an internal server-side function** (e.g., `internalCompleteStep(userId, wizardId, stepId, verifiedData)`) to update the `user_wizard_progress` table: sets `completed_at` to `NOW()` and saves the `verified_data` JSONB.
-                *   **Usage Logging:** `logUsageEvent(communityId, userId, Feature.ai_chat_message)` is called to record the interaction (if not logged per-message already).
-                *   Optionally, this callback can instruct the AI to send a concluding message back to the user (e.g., "Congratulations, you've passed!") by returning another `openai.chat.completions.create` call with appropriate messages.
-        5.  **Frontend Renders Stream / Reacts to Completion (`QuizmasterAiDisplay.tsx` & `StepDisplay.tsx`):
-            *   The `useChat` hook receives and renders the streamed text messages from the AI.
-            *   **Database Update Triggers Prop Change:** The server-side update to `user_wizard_progress` (setting `completed_at`) eventually leads to the `step: UserStepProgress` prop being updated in the frontend components (via SWR, React Query, or whatever data fetching mechanism is in use for `UserStepProgress`).
-            *   **Detecting Completion:** The `StepDisplay.tsx` component (or potentially `QuizmasterAiDisplay.tsx` if it directly handles this logic) likely has a `useEffect` hook that monitors `step.completed_at`:
-                ```typescript
-                // Simplified example in StepDisplay.tsx or QuizmasterAiDisplay.tsx
-                useEffect(() => {
-                  if (step.completed_at && !hasBeenCompleted.current) { // hasBeenCompleted is a ref to prevent multiple calls
-                    onComplete(step.verified_data || {}); // Call the main onComplete to advance wizard
-                    hasBeenCompleted.current = true;
-                  }
-                }, [step.completed_at, step.verified_data, onComplete]);
-                ```
-            *   This invocation of `onComplete` signals to the parent wizard logic that the current step is finished, allowing navigation to the next step.
-    *   **Visual Diagram (Mermaid Sequence):**
-        ```mermaid
-        sequenceDiagram
-            participant UserFE as User (Frontend - QuizmasterAiDisplay)
-            participant ChatHook as useChat (Vercel AI SDK)
-            participant BackendAPI as Backend API (/api/.../chat)
-            participant QuotasLib as Quotas Lib
-            participant OpenAI
-            participant DB as Database (user_wizard_progress)
-            participant StepDisplay as StepDisplay Component
-
-            UserFE->>+ChatHook: handleSubmit(userInput)
-            ChatHook->>+BackendAPI: POST {messages, stepConfig}
-            BackendAPI->>+QuotasLib: enforceEventRateLimit(Feature.ai_chat_message)
-            alt Quota Exceeded
-                QuotasLib-->>-BackendAPI: Error 429
-                BackendAPI-->>-ChatHook: Error 429
-                ChatHook-->>-UserFE: Displays error
-            else Quota OK
-                QuotasLib-->>-BackendAPI: OK
-                BackendAPI->>+OpenAI: chat.completions.create({stream:true, functions: [markTestPassed]})
-                OpenAI-->>-BackendAPI: Stream chunks / Function Call [markTestPassed]
-                alt Text Response
-                    BackendAPI-->>-ChatHook: Stream partial response
-                    ChatHook-->>-UserFE: Renders message chunk
-                else Function Call [markTestPassed]
-                    Note over BackendAPI: experimental_onFunctionCall for 'markTestPassed' triggered
-                    BackendAPI->>+DB: UPDATE user_wizard_progress SET completed_at=NOW(), verified_data={...}
-                    DB-->>-BackendAPI: Success
-                    BackendAPI->>+QuotasLib: logUsageEvent(Feature.ai_chat_message)
-                    QuotasLib-->>-BackendAPI: Logged
-                    BackendAPI-->>-ChatHook: Stream (optional further AI message, e.g., "Quiz Passed!")
-                    ChatHook-->>-UserFE: Renders final message(s)
-                end
-                Note over UserFE, BackendAPI: Data revalidation mechanism (e.g., SWR, React Query) updates `step` prop
-                UserFE->>StepDisplay: Receives updated `step` prop with `completed_at` set
-                StepDisplay->>StepDisplay: useEffect detects change in `step.completed_at`
-                StepDisplay->>ParentWizard: Calls onComplete() prop
-            end
-        ```
-
-3.  **Backend API Refinements:**
-    *   Finalize request/response schemas for `/api/onboarding/quizmaster/chat`.
-    *   Detail the internal function (e.g., `completeStepForUser(userId, wizardId, stepId, verifiedData)`) that `experimental_onFunctionCall` would use, ensuring it's robust and reusable if possible.
-    *   Specify how `wizardId` and `stepId` are securely obtained/validated within the chat API context to apply `markTestPassed` correctly.
-4.  **Component Reusability:** Consider if/how components or logic can be shared or extended between the `QuizmasterBasic` and `QuizmasterAi` versions (e.g., if `QuizmasterAiConfig` could extend `QuizmasterBasicConfig`
+// ... (rest of the roadmap) ...

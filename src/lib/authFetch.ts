@@ -4,12 +4,15 @@ import { useCallback } from 'react';
 // Define a generic type for fetch options
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 interface AuthFetchOptions extends RequestInit {
-    // We might add specific options later if needed
+    parseJson?: boolean; // New option to control JSON parsing
 }
 
 // Define the hook return type
 interface UseAuthFetchReturn {
-    authFetch: <T = unknown>(url: string, options?: AuthFetchOptions) => Promise<T>;
+    authFetch: <T = unknown>(
+        url: string, 
+        options?: AuthFetchOptions
+    ) => Promise<T extends Response ? Response : T>; // Adjusted return type
 }
 
 /**
@@ -20,8 +23,12 @@ interface UseAuthFetchReturn {
 export function useAuthFetch(): UseAuthFetchReturn {
     const authContext = useAuth();
 
-    const authFetch = useCallback(async <T = unknown>(url: string, options: AuthFetchOptions = {}): Promise<T> => {
+    const authFetch = useCallback(async <T = unknown>(
+        url: string, 
+        options: AuthFetchOptions = {}
+    ): Promise<T extends Response ? Response : T> => {
         const { jwt, logout } = authContext;
+        const { parseJson = true, ...fetchOptions } = options; // Default parseJson to true
 
         if (!jwt) {
             // This shouldn't happen if auth flow is correct, but good safeguard
@@ -31,15 +38,15 @@ export function useAuthFetch(): UseAuthFetchReturn {
             throw new Error('Not authenticated');
         }
 
-        const headers = new Headers(options.headers || {});
+        const headers = new Headers(fetchOptions.headers || {});
         headers.set('Authorization', `Bearer ${jwt}`);
         // Ensure Content-Type is set for POST/PUT etc. if body exists
-        if (options.body && !headers.has('Content-Type')) {
+        if (fetchOptions.body && !headers.has('Content-Type')) {
             headers.set('Content-Type', 'application/json');
         }
 
         const response = await fetch(url, {
-            ...options,
+            ...fetchOptions,
             headers,
         });
 
@@ -57,15 +64,21 @@ export function useAuthFetch(): UseAuthFetchReturn {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
+        if (!parseJson) {
+            // If parseJson is false, return the raw Response object
+            // The generic T is constrained to Response in this path by the return type conditional
+            return response as T extends Response ? Response : T;
+        }
+
         // Handle cases with no content (e.g., 204 No Content for DELETE)
         if (response.status === 204) {
-            return undefined as T; // Or null, depending on expected return type
+            return undefined as T extends Response ? Response : T; // Or null, depending on expected return type
         }
 
         // Attempt to parse JSON, handle potential errors
         try {
-            const data: T = await response.json();
-            return data;
+            const data = await response.json();
+            return data as T extends Response ? Response : T;
         } catch (error) {
             console.error('Failed to parse JSON response:', error);
             throw new Error('Invalid JSON response from server');

@@ -15,6 +15,8 @@ import { EnsVerificationStepDisplay } from './EnsVerificationStepDisplay';
 import { ContentStepDisplay } from './ContentStepDisplay';
 // Import the new basic quiz display component
 import QuizmasterBasicDisplay from './QuizmasterBasicDisplay';
+// Import the new AI quiz display component
+import QuizmasterAiDisplay from './QuizmasterAiDisplay';
 // import { InfoStepDisplay } from './InfoStepDisplay'; // Commented out potentially incorrect import
 // import { MultipleChoiceStepDisplay } from './MultipleChoiceStepDisplay';
 
@@ -95,6 +97,9 @@ export const StepDisplay: React.FC<StepDisplayProps> = ({
       break;
     case 'quizmaster_basic':
       stepContentElement = <QuizmasterBasicDisplay step={step} onComplete={onComplete} />;
+      break;
+    case 'quizmaster_ai':
+      stepContentElement = <QuizmasterAiDisplay step={step} onComplete={onComplete} />;
       break;
     default:
       stepContentElement = (
