@@ -180,9 +180,16 @@ const QuizmasterAiDisplay: React.FC<QuizmasterAiDisplayProps> = ({ step, onCompl
     return (
       <div className="flex flex-col h-full w-full items-center justify-center pt-8 pb-4 px-2">
         <div className="relative max-w-lg w-full text-center animate-in fade-in-0 duration-300">
-          <div className="absolute inset-0 -z-10 bg-background/30 dark:bg-background/20 backdrop-blur-md rounded-2xl shadow-sm"></div>
+          <div 
+            className="absolute inset-0 -z-10 bg-background/60 dark:bg-background/50 backdrop-blur-lg rounded-2xl shadow-sm"
+            style={{
+              WebkitBackdropFilter: 'blur(16px)',
+              transform: 'translateZ(0)',
+              background: 'linear-gradient(to bottom, var(--card-foreground-rgb-light, rgba(255, 255, 255, 0.9)), var(--card-foreground-rgb-dark, rgba(240, 240, 240, 0.85)))',
+            }}
+          ></div>
           
-          <div className="p-6 space-y-6">
+          <div className="p-6 space-y-6 relative z-10">
             <div className="flex justify-center">
               <div className="h-20 w-20 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
                 <CheckCircle2 className="h-10 w-10 text-green-600 dark:text-green-400" />
@@ -205,13 +212,13 @@ const QuizmasterAiDisplay: React.FC<QuizmasterAiDisplayProps> = ({ step, onCompl
     );
   }
 
-  // Main Chat UI - Remove Card and use transparent containers
+  // Main Chat UI with improved scrolling
   return (
-    <div className="flex flex-col h-full w-full pt-8 pb-4 px-2">
-      <div className="w-full max-w-2xl mx-auto h-full relative flex flex-col">
+    <div className="flex flex-col h-full w-full pt-4 pb-4 px-2">
+      <div className="w-full max-w-2xl mx-auto h-full flex flex-col">
         {/* Reset button */}
-        {messages.length > 1 && (
-          <div className="absolute top-0 right-4 z-10">
+        <div className="flex justify-end mb-2 sticky top-0 z-10">
+          {messages.length > 1 && (
             <Button 
               variant="ghost" 
               size="sm" 
@@ -222,100 +229,103 @@ const QuizmasterAiDisplay: React.FC<QuizmasterAiDisplayProps> = ({ step, onCompl
             >
               <RefreshCcw className="h-3.5 w-3.5" />
             </Button>
-          </div>
-        )}
+          )}
+        </div>
         
-        {/* Messages container - positioned to leave space for input at bottom */}
+        {/* Messages container - flex-grow to take available space */}
         <div 
           ref={messagesContainerRef}
-          className="absolute inset-x-0 bottom-16 top-0 overflow-y-auto px-2"
+          className="flex-grow overflow-y-auto mb-3 pr-1 custom-scrollbar"
+          style={{ 
+            overscrollBehavior: 'contain',
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'rgba(155, 155, 155, 0.5) transparent' 
+          }}
         >
-          <div className="h-full flex flex-col justify-end pb-4">
-            <div className="space-y-4">
-              {/* Welcome message when there are no messages */}
-              {messages.filter(message => message.role !== 'system').length === 0 && (
-                <div className="flex justify-start">
-                  <div className="h-8 w-8 rounded-full bg-primary/10 dark:bg-primary/20 backdrop-blur-sm flex items-center justify-center mr-2 flex-shrink-0 ring-1 ring-foreground/5 shadow-sm">
-                    <Bot className="h-4 w-4 text-primary" />
-                  </div>
-                  
-                  <div className="px-4 py-3 rounded-lg max-w-[85%] shadow-sm animate-in bg-muted/80 backdrop-blur-sm text-foreground rounded-tl-none slide-in-from-left-1 duration-150 ring-1 ring-foreground/5">
-                    <p className="whitespace-pre-wrap break-words leading-relaxed">
-                      👋 Welcome to the quiz! Introduce yourself to the Quizmaster to start the game.
-                    </p>
-                  </div>
+          <div className="flex flex-col space-y-4 pb-2">
+            {/* Welcome message when there are no messages */}
+            {messages.filter(message => message.role !== 'system').length === 0 && (
+              <div className="flex justify-start">
+                <div className="h-8 w-8 rounded-full bg-primary/10 dark:bg-primary/20 backdrop-blur-sm flex items-center justify-center mr-2 flex-shrink-0 ring-1 ring-foreground/5 shadow-sm">
+                  <Bot className="h-4 w-4 text-primary" />
                 </div>
-              )}
-              
-              {/* Regular messages */}
-              {messages
-                .filter(message => message.role !== 'system') // Don't display system messages
-                .map((message, index) => {
-                  const isUser = message.role === 'user';
-                  
-                  // Handle message content that could be string or array
-                  let content = '';
-                  if (typeof message.content === 'string') {
-                    content = message.content;
-                  } else if (Array.isArray(message.content)) {
-                    // Only render text parts for now
-                    content = (message.content as Array<{ type: string; text: string }>)
-                      .filter(part => part.type === 'text')
-                      .map(part => part.text)
-                      .join(' ');
-                  }
-                  
-                  return (
-                    <div
-                      key={message.id || index}
-                      className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
-                    >
-                      {/* Avatar for assistant messages */}
-                      {!isUser && (
-                        <div className="h-8 w-8 rounded-full bg-primary/10 dark:bg-primary/20 backdrop-blur-sm flex items-center justify-center mr-2 flex-shrink-0 ring-1 ring-foreground/5 shadow-sm">
-                          <Bot className="h-4 w-4 text-primary" />
-                        </div>
-                      )}
-                      
-                      <div
-                        className={`px-4 py-3 rounded-lg max-w-[85%] shadow-sm animate-in ${
-                          isUser
-                            ? 'bg-primary text-primary-foreground rounded-tr-none slide-in-from-right-1 duration-150'
-                            : 'bg-muted/80 backdrop-blur-sm text-foreground rounded-tl-none slide-in-from-left-1 duration-150 ring-1 ring-foreground/5'
-                        }`}
-                      >
-                        <p className="whitespace-pre-wrap break-words leading-relaxed">{content}</p>
+                
+                <div className="px-4 py-3 rounded-lg max-w-[85%] shadow-sm animate-in bg-muted/80 backdrop-blur-sm text-foreground rounded-tl-none slide-in-from-left-1 duration-150 ring-1 ring-foreground/5">
+                  <p className="whitespace-pre-wrap break-words leading-relaxed">
+                    👋 Welcome to the quiz! Introduce yourself to the Quizmaster to start the game.
+                  </p>
+                </div>
+              </div>
+            )}
+            
+            {/* Regular messages */}
+            {messages
+              .filter(message => message.role !== 'system') // Don't display system messages
+              .map((message, index) => {
+                const isUser = message.role === 'user';
+                
+                // Handle message content that could be string or array
+                let content = '';
+                if (typeof message.content === 'string') {
+                  content = message.content;
+                } else if (Array.isArray(message.content)) {
+                  // Only render text parts for now
+                  content = (message.content as Array<{ type: string; text: string }>)
+                    .filter(part => part.type === 'text')
+                    .map(part => part.text)
+                    .join(' ');
+                }
+                
+                return (
+                  <div
+                    key={message.id || index}
+                    className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
+                  >
+                    {/* Avatar for assistant messages */}
+                    {!isUser && (
+                      <div className="h-8 w-8 rounded-full bg-primary/10 dark:bg-primary/20 backdrop-blur-sm flex items-center justify-center mr-2 flex-shrink-0 ring-1 ring-foreground/5 shadow-sm">
+                        <Bot className="h-4 w-4 text-primary" />
                       </div>
-                      
-                      {/* Avatar for user messages */}
-                      {isUser && (
-                        <div className="h-8 w-8 rounded-full bg-primary/90 backdrop-blur-sm flex items-center justify-center ml-2 flex-shrink-0 shadow-sm">
-                          <User className="h-4 w-4 text-primary-foreground" />
-                        </div>
-                      )}
+                    )}
+                    
+                    <div
+                      className={`px-4 py-3 rounded-lg max-w-[85%] shadow-sm animate-in ${
+                        isUser
+                          ? 'bg-primary text-primary-foreground rounded-tr-none slide-in-from-right-1 duration-150'
+                          : 'bg-muted/80 backdrop-blur-sm text-foreground rounded-tl-none slide-in-from-left-1 duration-150 ring-1 ring-foreground/5'
+                      }`}
+                    >
+                      <p className="whitespace-pre-wrap break-words leading-relaxed">{content}</p>
                     </div>
-                  );
-                })}
-              
-              {/* Typing indicator when loading */}
-              {isLoading && (
-                <div className="flex items-center">
-                  <div className="h-8 w-8 rounded-full bg-primary/10 dark:bg-primary/20 backdrop-blur-sm flex items-center justify-center mr-2 flex-shrink-0 ring-1 ring-foreground/5 shadow-sm">
-                    <Bot className="h-4 w-4 text-primary" />
+                    
+                    {/* Avatar for user messages */}
+                    {isUser && (
+                      <div className="h-8 w-8 rounded-full bg-primary/90 backdrop-blur-sm flex items-center justify-center ml-2 flex-shrink-0 shadow-sm">
+                        <User className="h-4 w-4 text-primary-foreground" />
+                      </div>
+                    )}
                   </div>
-                  <div className="px-4 py-3 rounded-lg bg-muted/80 backdrop-blur-sm max-w-[85%] flex items-center space-x-1 rounded-tl-none shadow-sm ring-1 ring-foreground/5">
-                    <div className="w-2 h-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                    <div className="w-2 h-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                    <div className="w-2 h-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                  </div>
+                );
+              })}
+            
+            {/* Typing indicator when loading */}
+            {isLoading && (
+              <div className="flex items-center">
+                <div className="h-8 w-8 rounded-full bg-primary/10 dark:bg-primary/20 backdrop-blur-sm flex items-center justify-center mr-2 flex-shrink-0 ring-1 ring-foreground/5 shadow-sm">
+                  <Bot className="h-4 w-4 text-primary" />
                 </div>
-              )}
-            </div>
+                <div className="px-4 py-3 rounded-lg bg-muted/80 backdrop-blur-sm max-w-[85%] flex items-center space-x-1 rounded-tl-none shadow-sm ring-1 ring-foreground/5">
+                  <div className="w-2 h-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                  <div className="w-2 h-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                  <div className="w-2 h-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
         
-        {/* Input form - fixed at the bottom */}
-        <div className="absolute bottom-0 left-0 right-0 py-3 px-2">
+        {/* Input form - now part of the flex layout */}
+        <div className="py-2 px-1">
           <form onSubmit={handleSubmit} className="flex w-full space-x-2 relative">
             <div className="absolute inset-0 bg-background/40 dark:bg-background/30 backdrop-blur-md rounded-xl -z-10 shadow-sm"></div>
             <Input 
