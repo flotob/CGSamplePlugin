@@ -13,6 +13,10 @@ interface CreateCheckoutSessionResponse {
   sessionUrl: string;
 }
 
+export interface CreateCheckoutSessionVariables {
+  targetPlanCode: string;
+}
+
 export function useCreateCheckoutSession() {
   const { authFetch } = useAuthFetch();
   const { toast } = useToast();
@@ -20,15 +24,19 @@ export function useCreateCheckoutSession() {
   const { cgInstance } = useCgLib();
   const { setExpectingFocusLoss } = useStripeWaitContext();
 
-  const mutationFn = async (): Promise<CreateCheckoutSessionResponse> => {
+  const mutationFn = async (variables: CreateCheckoutSessionVariables): Promise<CreateCheckoutSessionResponse> => {
     return await authFetch<CreateCheckoutSessionResponse>('/api/stripe/create-checkout-session', {
       method: 'POST',
+      body: JSON.stringify(variables),
+      headers: {
+        'Content-Type': 'application/json',
+      },
     });
   };
 
-  return useMutation<CreateCheckoutSessionResponse, Error, void>({
+  return useMutation<CreateCheckoutSessionResponse, Error, CreateCheckoutSessionVariables>({
     mutationFn,
-    onSuccess: async (data) => {
+    onSuccess: async (data, variables) => {
       const { sessionUrl } = data;
       const pluginBaseUrl = process.env.NEXT_PUBLIC_PLUGIN_BASE_URL;
 

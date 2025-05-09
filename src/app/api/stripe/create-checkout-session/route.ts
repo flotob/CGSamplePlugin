@@ -18,6 +18,10 @@ interface PlanRow {
   stripe_price_id: string | null;
 }
 
+interface CreateCheckoutSessionBody {
+  targetPlanCode: string;
+}
+
 // RequestBody interface removed as communityShortId and pluginId come from JWT
 
 export const POST = withAuth(async (req: AuthenticatedRequest) => {
@@ -48,6 +52,18 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
     return NextResponse.json({ error: 'Essential routing information missing in token.' }, { status: 400 });
   }
 
+  let targetPlanCode: string;
+  try {
+    const body = await req.json() as CreateCheckoutSessionBody;
+    targetPlanCode = body.targetPlanCode;
+    if (!targetPlanCode || (targetPlanCode !== 'pro' && targetPlanCode !== 'premium')) {
+      return NextResponse.json({ error: 'Invalid targetPlanCode. Must be \'pro\' or \'premium\'.' }, { status: 400 });
+    }
+  } catch (parseError) {
+    console.error('Error parsing request body for create-checkout-session:', parseError);
+    return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 });
+  }
+
   try {
     // 1. Get community info (using LONG ID)
     const communityResult = await query<CommunityRow>(
@@ -57,12 +73,15 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
     if (communityResult.rowCount === 0) return NextResponse.json({ error: 'Community not found' }, { status: 404 });
     const community = communityResult.rows[0];
 
-    // 2. Get 'pro' plan Stripe Price ID
+    // 2. Get target plan Stripe Price ID based on targetPlanCode from request body
     const planResult = await query<PlanRow>(
-      `SELECT id, code, stripe_price_id FROM plans WHERE code = 'pro' AND is_active = true`
+      `SELECT id, code, stripe_price_id FROM plans WHERE code = $1 AND is_active = true`,
+      [targetPlanCode] // Use targetPlanCode from request
     );
-    if (planResult.rowCount === 0 || !planResult.rows[0].stripe_price_id) return NextResponse.json({ error: 'Pro plan configuration error.' }, { status: 500 });
-    const proPlanPriceId = planResult.rows[0].stripe_price_id;
+    if (planResult.rowCount === 0 || !planResult.rows[0].stripe_price_id) {
+      return NextResponse.json({ error: `Plan configuration error for ${targetPlanCode} plan.` }, { status: 500 });
+    }
+    const targetStripePriceId = planResult.rows[0].stripe_price_id;
 
     // 3. Ensure Stripe Customer exists
     let stripeCustomerId = community.stripe_customer_id;
@@ -89,7 +108,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
       mode: 'subscription',
       payment_method_types: ['card'],
       customer: stripeCustomerId,
-      line_items: [{ price: proPlanPriceId, quantity: 1 }],
+      line_items: [{ price: targetStripePriceId, quantity: 1 }], // Use fetched targetStripePriceId
       success_url: successUrl, // Updated URL
       cancel_url: cancelUrl,   // Updated URL
       client_reference_id: communityId, // Use LONG ID for reference

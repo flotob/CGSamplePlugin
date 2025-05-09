@@ -3,7 +3,7 @@
 import React from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCommunityBillingInfo } from '@/hooks/useCommunityBillingInfo';
-import { useCreateCheckoutSession } from '@/hooks/useCreateCheckoutSession';
+import { useCreateCheckoutSession, type CreateCheckoutSessionVariables } from '@/hooks/useCreateCheckoutSession';
 import { useCreatePortalSession } from '@/hooks/useCreatePortalSession';
 import { useToast } from "@/hooks/use-toast";
 // Removed useAuth import as communityId comes from props
@@ -14,7 +14,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { AlertCircle, ExternalLink, Loader2, CreditCard, CalendarClock, CheckCircle, RefreshCw } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { AlertCircle, ExternalLink, Loader2, CreditCard, CalendarClock, CheckCircle, RefreshCw, Zap, ShieldCheck, Star } from 'lucide-react';
 
 // Helper function to format Unix timestamp to readable date
 const formatDate = (timestamp: number | null | undefined): string => {
@@ -44,6 +45,27 @@ interface BillingManagementSectionProps {
   communityId: string | undefined;
 }
 
+// Define a structure for displaying plan features
+interface PlanFeature {
+  name: string;
+  free: string;
+  pro: string;
+  premium: string;
+}
+
+const planFeatures: PlanFeature[] = [
+  { name: 'Active Wizards', free: '3', pro: '10', premium: '25' },
+  { name: 'Image Generations', free: '5 / 30 days', pro: '100 / 30 days', premium: '500 / 30 days' },
+  { name: 'AI Chat Messages', free: '20 / day', pro: '200 / day', premium: '1000 / day' },
+  // Add more features as needed
+];
+
+const planDetails = {
+  free: { name: 'Free Tier', priceDisplay: '$0/month', code: 'free' },
+  pro: { name: 'Pro Tier', priceDisplay: '$10/month', code: 'pro' }, // Assuming $10 for pro
+  premium: { name: 'Premium Tier', priceDisplay: '$25/month', code: 'premium' },
+};
+
 export const BillingManagementSection: React.FC<BillingManagementSectionProps> = ({ communityId }) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -67,6 +89,10 @@ export const BillingManagementSection: React.FC<BillingManagementSectionProps> =
           title: "Refreshing billing info...",
           duration: 2000, // Show toast briefly
       });
+  };
+
+  const handleUpgradeClick = (planCode: 'pro' | 'premium') => {
+    createCheckoutSession({ targetPlanCode: planCode });
   };
 
   const renderContent = () => {
@@ -129,8 +155,8 @@ export const BillingManagementSection: React.FC<BillingManagementSectionProps> =
         );
     }
 
-    const isProPlan = billingInfo.currentPlan.code === 'pro';
-    const showManageButton = isProPlan && billingInfo.stripeCustomerId;
+    const currentPlanCode = billingInfo.currentPlan.code as 'free' | 'pro' | 'premium';
+    const showManageButton = (currentPlanCode === 'pro' || currentPlanCode === 'premium') && billingInfo.stripeCustomerId;
 
     // Helper to render detail rows
     const DetailRow: React.FC<{ icon: React.ElementType, label: string, value: React.ReactNode }> = ({ icon: Icon, label, value }) => (
@@ -142,7 +168,7 @@ export const BillingManagementSection: React.FC<BillingManagementSectionProps> =
     );
 
     return (
-      <div className="space-y-4">
+      <div className="space-y-6">
         <div>
           <div className="flex justify-between items-center mb-1">
              <p className="text-sm font-medium text-muted-foreground">Current Plan</p>
@@ -150,11 +176,75 @@ export const BillingManagementSection: React.FC<BillingManagementSectionProps> =
                 <RefreshCw className="h-4 w-4" />
              </Button>
           </div>
-          <p className="text-lg font-semibold">{billingInfo.currentPlan.name}</p>
+          <p className="text-2xl font-semibold flex items-center">
+            {billingInfo.currentPlan.name}
+            {currentPlanCode === 'pro' && <Star className="ml-2 h-5 w-5 text-yellow-500" />}
+            {currentPlanCode === 'premium' && <Zap className="ml-2 h-5 w-5 text-purple-500" />}
+          </p>
         </div>
 
+        {/* Plan Comparison & Upgrade Options Table */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Available Plans</CardTitle>
+            <CardDescription>Choose the plan that best suits your community's needs.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[200px]">Feature</TableHead>
+                  <TableHead className="text-center">{planDetails.free.name}</TableHead>
+                  <TableHead className="text-center">{planDetails.pro.name}</TableHead>
+                  <TableHead className="text-center">{planDetails.premium.name}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableHead className="font-medium">Price</TableHead>
+                  <TableCell className="text-center">{planDetails.free.priceDisplay}</TableCell>
+                  <TableCell className="text-center">{planDetails.pro.priceDisplay}</TableCell>
+                  <TableCell className="text-center">{planDetails.premium.priceDisplay}</TableCell>
+                </TableRow>
+                {planFeatures.map((feature) => (
+                  <TableRow key={feature.name}>
+                    <TableCell className="font-medium">{feature.name}</TableCell>
+                    <TableCell className="text-center">{feature.free}</TableCell>
+                    <TableCell className="text-center">{feature.pro}</TableCell>
+                    <TableCell className="text-center">{feature.premium}</TableCell>
+                  </TableRow>
+                ))}
+                <TableRow>
+                  <TableHead></TableHead>
+                  <TableCell className="text-center">
+                    {currentPlanCode === 'free' && <ShieldCheck className="h-5 w-5 mx-auto text-green-500" />}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    {currentPlanCode === 'pro' ? (
+                      <ShieldCheck className="h-5 w-5 mx-auto text-green-500" />
+                    ) : currentPlanCode === 'free' ? (
+                      <Button onClick={() => handleUpgradeClick('pro')} disabled={isCreatingCheckout} size="sm">
+                        {isCreatingCheckout && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Upgrade to Pro
+                      </Button>
+                    ) : null}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    {currentPlanCode === 'premium' ? (
+                      <ShieldCheck className="h-5 w-5 mx-auto text-green-500" />
+                    ) : (currentPlanCode === 'free' || currentPlanCode === 'pro') ? (
+                      <Button onClick={() => handleUpgradeClick('premium')} disabled={isCreatingCheckout} size="sm">
+                        {isCreatingCheckout && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Upgrade to Premium
+                      </Button>
+                    ) : null}
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+
         {/* Additional Pro Plan Details */} 
-        {isProPlan && (
+        {(currentPlanCode === 'pro' || currentPlanCode === 'premium') && (
           <div className="space-y-2 border-t pt-4 mt-4">
             {/* 
               KNOWN ISSUE / TODO:
@@ -213,7 +303,7 @@ export const BillingManagementSection: React.FC<BillingManagementSectionProps> =
         )}
 
         {/* Billing History Section */}        
-        {isProPlan && billingInfo.invoiceHistory && billingInfo.invoiceHistory.length > 0 && (
+        {(currentPlanCode === 'pro' || currentPlanCode === 'premium') && billingInfo.invoiceHistory && billingInfo.invoiceHistory.length > 0 && (
             <div className="space-y-3 border-t pt-4 mt-4">
                 <h4 className="text-sm font-medium">Recent Billing History</h4>
                 <ul className="space-y-2">
@@ -235,33 +325,23 @@ export const BillingManagementSection: React.FC<BillingManagementSectionProps> =
                 </ul>
             </div>
         )}
-        {isProPlan && (!billingInfo.invoiceHistory || billingInfo.invoiceHistory.length === 0) && !isLoadingBillingInfo && (
+        {(currentPlanCode === 'pro' || currentPlanCode === 'premium') && (!billingInfo.invoiceHistory || billingInfo.invoiceHistory.length === 0) && !isLoadingBillingInfo && (
              <div className="border-t pt-4 mt-4 text-sm text-muted-foreground italic">
                  No payment history found.
             </div>
         )}
 
         {/* Action Buttons */}
-        <div className="flex flex-col sm:flex-row gap-2 mt-4">
-            {!isProPlan && (
-                <Button 
-                    onClick={() => createCheckoutSession()} 
-                    disabled={isCreatingCheckout}
-                    className="w-full sm:w-auto"
-                >
-                    {isCreatingCheckout && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} 
-                    Upgrade to Pro
-                </Button>
-            )}
+        <div className="flex flex-col sm:flex-row gap-2 mt-6 pt-6 border-t">
             {showManageButton && (
                 <Button 
                     variant="outline"
                     onClick={() => createPortalSession()} 
-                    disabled={isCreatingPortal}
+                    disabled={isCreatingPortal || isCreatingCheckout}
                     className="w-full sm:w-auto"
                 >
                     {isCreatingPortal && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} 
-                    Manage Subscription
+                    Manage Billing & Subscription
                 </Button>
             )}
         </div>
