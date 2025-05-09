@@ -35,8 +35,8 @@ const adminLinks = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'config', label: 'Wizard Config', icon: Settings },
   { id: 'connections', label: 'Connections', icon: Plug },
-  { id: 'account', label: 'Account', icon: Building },
-  // { id: 'debug', label: 'Debug Settings', icon: Terminal }, // Removed from here
+  // { id: 'account', label: 'Account', icon: Building }, // Removed Account link
+  // { id: 'debug', label: 'Debug Settings', icon: Terminal }, // Already removed and handled separately
 ];
 const userLinks = [
   { id: 'wizards', label: 'Wizards', icon: Wand2 },

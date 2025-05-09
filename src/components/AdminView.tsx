@@ -14,7 +14,6 @@ import { WizardStepEditorPage } from './onboarding/WizardStepEditorPage';
 import { WizardList } from './onboarding/WizardList';
 import { NewWizardButton } from './onboarding/NewWizardButton';
 // Hooks & Libs
-import { BillingManagementSection } from './billing/BillingManagementSection';
 import { QuotaUsageDisplay } from './admin/QuotaUsageDisplay';
 import { DashboardStatsSection } from './admin/DashboardStatsSection';
 import { useAssignRoleAndRefresh } from '@/hooks/useAssignRoleAndRefresh';
@@ -288,14 +287,14 @@ export const AdminView: React.FC<AdminViewProps> = ({
         <div className="w-full max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-5 duration-500">
           {/* Community Info Card has been removed */}
 
-          {/* BillingManagementSection will now be the first item in this grid section. 
-              It will naturally take up one column on medium screens due to md:grid-cols-2 on the parent. 
-              If it should span both columns, it would need internal styling or its own col-span prop if supported.
-              The QuotaUsageDisplay below is md:col-span-2, so it will take the full width underneath.
-          */}
-          <BillingManagementSection communityId={communityInfo?.id} />
-
+          {/* BillingManagementSection was here. QuotaUsageDisplay now handles billing and should span both columns if it's the primary content for account settings, or adjust layout as needed. */}
+          {/* For now, assuming QuotaUsageDisplay will be the main component here. If it needs to be single column, it would need internal adjustment or a different parent grid structure. */}
           <QuotaUsageDisplay className="md:col-span-2" /> 
+
+          {/* If QuotaUsageDisplay handles ALL billing and usage, this second instance might be redundant or need to be a different component. */}
+          {/* For now, I am assuming the QuotaUsageDisplay above replaces the old BillingManagementSection AND the old QuotaUsageDisplay in this spot. */}
+          {/* If there was another QuotaUsageDisplay instance intended for other purposes, that needs clarification. */}
+          {/* Based on the request, it seems one consolidated component is desired. */}
         </div>
       )}
 
