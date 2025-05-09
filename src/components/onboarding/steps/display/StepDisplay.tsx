@@ -13,6 +13,8 @@ import { YouTubeBackground } from './YouTubeBackground';
 import { EnsVerificationStepDisplay } from './EnsVerificationStepDisplay';
 // Import the new content display component
 import { ContentStepDisplay } from './ContentStepDisplay';
+// Import the new basic quiz display component
+import QuizmasterBasicDisplay from './QuizmasterBasicDisplay';
 // import { InfoStepDisplay } from './InfoStepDisplay'; // Commented out potentially incorrect import
 // import { MultipleChoiceStepDisplay } from './MultipleChoiceStepDisplay';
 
@@ -90,6 +92,9 @@ export const StepDisplay: React.FC<StepDisplayProps> = ({
       break;
     case 'content':
       stepContentElement = <ContentStepDisplay step={step} stepType={stepType} onComplete={onComplete} />;
+      break;
+    case 'quizmaster_basic':
+      stepContentElement = <QuizmasterBasicDisplay step={step} onComplete={onComplete} />;
       break;
     default:
       stepContentElement = (
