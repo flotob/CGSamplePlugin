@@ -392,7 +392,8 @@ const PluginContent = () => {
     isAssigningRole,
     assignRoleError,
     activeSection,
-    authError
+    authError,
+    setActiveSection: handleSetActiveSection
   };
 
   // Render appropriate view based on active section AND preview mode

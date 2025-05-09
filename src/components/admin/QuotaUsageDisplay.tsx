@@ -185,45 +185,53 @@ export const QuotaUsageDisplay: React.FC<QuotaUsageDisplayProps> = ({ className 
               <ShadcnTableHeader>
                 <ShadcnTableRow>
                   <ShadcnTableHead className="w-[200px]">Feature</ShadcnTableHead>
-                  <ShadcnTableHead className="text-center">{staticPlanDetails.free.name}</ShadcnTableHead>
-                  <ShadcnTableHead className="text-center">{staticPlanDetails.pro.name}</ShadcnTableHead>
-                  <ShadcnTableHead className="text-center">{staticPlanDetails.premium.name}</ShadcnTableHead>
+                  <ShadcnTableHead className={cn("text-center px-2 py-3", currentPlanCode === staticPlanDetails.free.code && "font-bold text-primary bg-primary/10")}>{staticPlanDetails.free.name}</ShadcnTableHead>
+                  <ShadcnTableHead className={cn("text-center px-2 py-3", currentPlanCode === staticPlanDetails.pro.code && "font-bold text-primary bg-primary/10")}>{staticPlanDetails.pro.name}</ShadcnTableHead>
+                  <ShadcnTableHead className={cn("text-center px-2 py-3", currentPlanCode === staticPlanDetails.premium.code && "font-bold text-primary bg-primary/10")}>{staticPlanDetails.premium.name}</ShadcnTableHead>
                 </ShadcnTableRow>
               </ShadcnTableHeader>
               <ShadcnTableBody>
                 <ShadcnTableRow>
                   <ShadcnTableHead className="font-medium">Price</ShadcnTableHead>
-                  <ShadcnTableCell className="text-center">{staticPlanDetails.free.priceDisplay}</ShadcnTableCell>
-                  <ShadcnTableCell className="text-center">{staticPlanDetails.pro.priceDisplay}</ShadcnTableCell>
-                  <ShadcnTableCell className="text-center">{staticPlanDetails.premium.priceDisplay}</ShadcnTableCell>
+                  <ShadcnTableCell className={cn("text-center", currentPlanCode === staticPlanDetails.free.code && "font-semibold bg-primary/10")}>{staticPlanDetails.free.priceDisplay}</ShadcnTableCell>
+                  <ShadcnTableCell className={cn("text-center", currentPlanCode === staticPlanDetails.pro.code && "font-semibold bg-primary/10")}>{staticPlanDetails.pro.priceDisplay}</ShadcnTableCell>
+                  <ShadcnTableCell className={cn("text-center", currentPlanCode === staticPlanDetails.premium.code && "font-semibold bg-primary/10")}>{staticPlanDetails.premium.priceDisplay}</ShadcnTableCell>
                 </ShadcnTableRow>
                 {detailedPlanFeatures.map((feature) => (
                   <ShadcnTableRow key={feature.name}>
                     <ShadcnTableCell className="font-medium">{feature.name}</ShadcnTableCell>
-                    <ShadcnTableCell className="text-center">{feature.free}</ShadcnTableCell>
-                    <ShadcnTableCell className="text-center">{feature.pro}</ShadcnTableCell>
-                    <ShadcnTableCell className="text-center">{feature.premium}</ShadcnTableCell>
+                    <ShadcnTableCell className={cn("text-center", currentPlanCode === staticPlanDetails.free.code && "font-semibold bg-primary/10")}>{feature.free}</ShadcnTableCell>
+                    <ShadcnTableCell className={cn("text-center", currentPlanCode === staticPlanDetails.pro.code && "font-semibold bg-primary/10")}>{feature.pro}</ShadcnTableCell>
+                    <ShadcnTableCell className={cn("text-center", currentPlanCode === staticPlanDetails.premium.code && "font-semibold bg-primary/10")}>{feature.premium}</ShadcnTableCell>
                   </ShadcnTableRow>
                 ))}
                 <ShadcnTableRow>
                   <ShadcnTableHead></ShadcnTableHead>
-                  <ShadcnTableCell className="text-center">
-                    {currentPlanCode === 'free' && <ShieldCheck className="h-5 w-5 mx-auto text-green-500" />}
+                  <ShadcnTableCell className={cn("text-center", currentPlanCode === staticPlanDetails.free.code && "bg-primary/10")}>
+                    {currentPlanCode === 'free' && 
+                      <Button variant="outline" size="sm" className="border-primary text-primary hover:bg-primary/10 w-full cursor-default opacity-100" disabled>
+                        Current Plan <ShieldCheck className="ml-2 h-4 w-4" />
+                      </Button>
+                    }
                   </ShadcnTableCell>
-                  <ShadcnTableCell className="text-center">
+                  <ShadcnTableCell className={cn("text-center", currentPlanCode === staticPlanDetails.pro.code && "bg-primary/10")}>
                     {currentPlanCode === 'pro' ? (
-                      <ShieldCheck className="h-5 w-5 mx-auto text-green-500" />
+                      <Button variant="outline" size="sm" className="border-primary text-primary hover:bg-primary/10 w-full cursor-default opacity-100" disabled>
+                        Current Plan <ShieldCheck className="ml-2 h-4 w-4" />
+                      </Button>
                     ) : currentPlanCode === 'free' ? (
-                      <Button onClick={() => handleUpgradeClick('pro')} disabled={isCreatingCheckout} size="sm">
+                      <Button onClick={() => handleUpgradeClick('pro')} disabled={isCreatingCheckout} size="sm" className="w-full">
                         {isCreatingCheckout && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Upgrade to Pro
                       </Button>
                     ) : null}
                   </ShadcnTableCell>
-                  <ShadcnTableCell className="text-center">
+                  <ShadcnTableCell className={cn("text-center", currentPlanCode === staticPlanDetails.premium.code && "bg-primary/10")}>
                     {currentPlanCode === 'premium' ? (
-                      <ShieldCheck className="h-5 w-5 mx-auto text-green-500" />
+                      <Button variant="outline" size="sm" className="border-primary text-primary hover:bg-primary/10 w-full cursor-default opacity-100" disabled>
+                        Current Plan <ShieldCheck className="ml-2 h-4 w-4" />
+                      </Button>
                     ) : (currentPlanCode === 'free' || currentPlanCode === 'pro') ? (
-                      <Button onClick={() => handleUpgradeClick('premium')} disabled={isCreatingCheckout} size="sm">
+                      <Button onClick={() => handleUpgradeClick('premium')} disabled={isCreatingCheckout} size="sm" className="w-full">
                         {isCreatingCheckout && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Upgrade to Premium
                       </Button>
                     ) : null}
