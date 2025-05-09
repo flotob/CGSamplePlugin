@@ -33,6 +33,7 @@ interface SidebarProps {
   userImageUrl?: string | null;
   userId?: string | null;
   onProfileClick?: () => void;
+  logoUrl?: string | null; // Added logoUrl prop
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ 
@@ -48,26 +49,27 @@ export const Sidebar: React.FC<SidebarProps> = ({
   userImageUrl,
   userId,
   onProfileClick,
+  logoUrl, // Destructure new prop
 }) => {
 
-  // --- Re-add Logo Fetching Logic --- 
-  const { data: logoData, isLoading: isLoadingLogo } = useQuery<CommunityLogoResponse, Error>({
-    queryKey: ['communityLogo', communityId],
-    queryFn: async () => {
-      if (!communityId) return { logo_url: null }; // Don't fetch if no ID
-      const res = await fetch(`/api/community/settings?communityId=${communityId}`);
-      if (!res.ok) {
-        if (res.status === 404) return { logo_url: null }; 
-        console.error('Sidebar: Failed to fetch community logo');
-        return { logo_url: null }; 
-      }
-      return res.json();
-    },
-    enabled: !!communityId, // Only run query if communityId exists
-    staleTime: 15 * 60 * 1000, // Cache for 15 mins
-    retry: 1,
-    refetchOnWindowFocus: false,
-  });
+  // --- REMOVE Logo Fetching Logic ---
+  // const { data: logoData, isLoading: isLoadingLogo } = useQuery<CommunityLogoResponse, Error>({
+  //   queryKey: ['communityLogo', communityId], // communityId was also removed from props as it's not used here anymore
+  //   queryFn: async () => {
+  //     if (!communityId) return { logo_url: null }; 
+  //     const res = await fetch(`/api/community/settings?communityId=${communityId}`);
+  //     if (!res.ok) {
+  //       if (res.status === 404) return { logo_url: null }; 
+  //       console.error('Sidebar: Failed to fetch community logo');
+  //       return { logo_url: null }; 
+  //     }
+  //     return res.json();
+  //   },
+  //   enabled: !!communityId, 
+  //   staleTime: 15 * 60 * 1000, 
+  //   retry: 1,
+  //   refetchOnWindowFocus: false,
+  // });
 
   return (
     <div className="flex h-full max-h-screen flex-col">
@@ -77,15 +79,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div 
              className="relative flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-background to-background/80 shadow-md overflow-hidden"
            >
-            {!isLoadingLogo && (
-                 <Image 
-                    src={logoData?.logo_url || '/icon.webp'} 
-                    alt={logoData?.logo_url ? "Community Logo" : "App Logo"}
-                    fill={true}
-                    className="object-cover hover:scale-110 transition-transform duration-300"
-                    unoptimized
-                 />
-            )}
+            {/* Use logoUrl prop directly. Show loading state if logoUrl is undefined (still loading from parent) or explicitly handle. 
+                For now, if logoUrl is null/undefined, it will fall back to icon.webp */}
+            <Image 
+                src={logoUrl || '/icon.webp'} 
+                alt={logoUrl ? "Community Logo" : "App Logo"}
+                fill={true}
+                className="object-cover hover:scale-110 transition-transform duration-300"
+                unoptimized
+            />
           </div>
           <span className="transition-colors duration-200">Welcome OnBoard</span>
         </div>

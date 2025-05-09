@@ -43,10 +43,10 @@ const userLinks = [
   { id: 'profile', label: 'Profile', icon: User },
 ];
 
-// Define the expected shape of the settings API response
-interface CommunityLogoResponse {
-  logo_url: string | null;
-}
+// Define the expected shape of the settings API response -- THIS CAN BE REMOVED
+// interface CommunityLogoResponse {
+//   logo_url: string | null;
+// }
 
 // Inner component to access StripeWaitContext after provider
 const PluginContent = () => {
@@ -124,22 +124,21 @@ const PluginContent = () => {
   const communityId = communityInfo?.id;
   const communityTitle = communityInfo?.title;
 
-  // Fetch Community Logo URL
-  const { data: logoData, isLoading: isLoadingLogo, error: logoError } = useQuery<CommunityLogoResponse, Error>({
-    queryKey: ['communityLogo', communityId],
-    queryFn: async () => {
-      const res = await fetch(`/api/community/settings?communityId=${communityId}`);
-      if (!res.ok) {
-        // Handle 404 or other errors gracefully, maybe community has no logo set yet
-        if (res.status === 404) return { logo_url: null }; 
-        throw new Error('Failed to fetch community logo');
-      }
-      return res.json();
-    },
-    enabled: !!communityId,
-    staleTime: 15 * 60 * 1000,
-    retry: 1
-  });
+  // Fetch Community Logo URL -- THIS ENTIRE useQuery BLOCK CAN BE REMOVED
+  // const { data: logoData, isLoading: isLoadingLogo, error: logoError } = useQuery<CommunityLogoResponse, Error>({
+  //   queryKey: ['communityLogo', communityId],
+  //   queryFn: async () => {
+  //     const res = await fetch(`/api/community/settings?communityId=${communityId}`);
+  //     if (!res.ok) {
+  //       if (res.status === 404) return { logo_url: null }; 
+  //       throw new Error('Failed to fetch community logo');
+  //     }
+  //     return res.json();
+  //   },
+  //   enabled: !!communityId,
+  //   staleTime: 15 * 60 * 1000,
+  //   retry: 1
+  // });
 
   // Sync Community Data Mutation
   const { mutate: syncCommunity } = useMutation<unknown, Error, { communityTitle: string }>({
@@ -268,28 +267,30 @@ const PluginContent = () => {
 
   // Display loading indicator
   // Update core loading check to use userWizards loading state
-  const isCoreLoading = isInitializing || isLoadingAdminStatus || !activeSection || (isAuthenticating && !jwt) || isLoadingUserWizards || isLoadingCompletions;
-  const coreError = initError || adminStatusError || authError || userInfoError || communityInfoError || userWizardsError; // Include userWizardsError
+  const isCoreLoading = isInitializing || isLoadingAdminStatus || !activeSection || (isAuthenticating && !jwt) || isLoadingUserWizards || isLoadingCompletions || isLoadingCommunityInfo; 
+  const coreError = initError || adminStatusError || authError || userInfoError || communityInfoError || userWizardsError; 
 
   // Display loading indicator
   if (isCoreLoading) {
+    // Use communityInfo for logo in loading screen
+    const displayLogoUrl = communityInfo?.smallLogoUrl;
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground">
-        {isLoadingLogo ? (
+        {isLoadingCommunityInfo && !displayLogoUrl ? (
           <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        ) : logoData?.logo_url ? (
+        ) : displayLogoUrl ? (
           <Image 
-            src={logoData.logo_url} 
+            src={displayLogoUrl} 
             alt={`${communityInfo?.title || 'Community'} Logo`}
             width={80}
             height={80}
             className="w-auto h-20 mb-4 object-contain animate-pulse"
           />
         ) : (
-           <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+           <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" /> // Fallback if still no logo and not loading
         )}
         <p className="text-lg font-medium">Loading Plugin...</p>
-        {logoError && <p className="text-xs text-muted-foreground mt-1">Could not load community logo.</p>}
+        {/* Removed logoError display */}
       </div>
     );
   }
@@ -387,13 +388,13 @@ const PluginContent = () => {
             links={linksToShow}
             activeSection={activeSection ?? ''}
             setActiveSection={handleSetActiveSection} 
-            communityId={communityId}
             isAdmin={isAdmin ?? false}
             isPreviewingAsUser={isPreviewingAsUser}
             setIsPreviewingAsUser={setIsPreviewingAsUser}
             userName={userInfo?.name}
             userImageUrl={userInfo?.imageUrl}
             userId={userInfo?.id}
+            logoUrl={communityInfo?.smallLogoUrl} // Pass only smallLogoUrl from communityInfo
             onProfileClick={() => {
               const targetSection = (isAdmin && !isPreviewingAsUser) ? 'account' : 'profile';
               handleSetActiveSection(targetSection);

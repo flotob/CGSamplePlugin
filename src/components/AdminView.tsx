@@ -5,8 +5,6 @@ import React, { useState, useEffect } from 'react';
 // Shadcn components
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 // Payload types
 import type { CommunityInfoResponsePayload, UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
@@ -16,9 +14,6 @@ import { WizardStepEditorPage } from './onboarding/WizardStepEditorPage';
 import { WizardList } from './onboarding/WizardList';
 import { NewWizardButton } from './onboarding/NewWizardButton';
 // Hooks & Libs
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAuthFetch } from '@/lib/authFetch';
-import Image from 'next/image';
 import { BillingManagementSection } from './billing/BillingManagementSection';
 import { QuotaUsageDisplay } from './admin/QuotaUsageDisplay';
 import { DashboardStatsSection } from './admin/DashboardStatsSection';
@@ -39,11 +34,6 @@ interface AdminViewProps {
   authError: Error | null;
 }
 
-// Define the expected shape of the settings API response
-interface CommunitySettings {
-  logo_url: string | null;
-}
-
 export const AdminView: React.FC<AdminViewProps> = ({
   userInfo,
   communityInfo,
@@ -59,87 +49,10 @@ export const AdminView: React.FC<AdminViewProps> = ({
 }) => {
   const { toast } = useToast();
   const [editingWizardId, setEditingWizardId] = React.useState<string | null>(null);
-  const { authFetch } = useAuthFetch();
-  const queryClient = useQueryClient();
   const communityId = communityInfo?.id;
 
   // Instantiate the new role assignment hook
   const assignRoleMutation = useAssignRoleAndRefresh();
-
-  // --- State for Community Settings --- 
-  const [logoUrlInput, setLogoUrlInput] = useState<string>('');
-  const [inputError, setInputError] = useState<string | null>(null);
-  const [showLogoPreview, setShowLogoPreview] = useState<boolean>(false);
-
-  // --- Data Fetching for Community Settings --- 
-  const { data: settings, isLoading: isLoadingSettings, error: settingsError } = useQuery<CommunitySettings, Error>({
-    queryKey: ['communitySettings', communityId],
-    queryFn: async () => {
-      const res = await fetch(`/api/community/settings?communityId=${communityId}`); // Use fetch directly for public GET
-      if (!res.ok) {
-        throw new Error('Failed to fetch community settings');
-      }
-      return res.json();
-    },
-    enabled: !!communityId && activeSection === 'account', // Only fetch when ID is available and section is active
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-  });
-
-  // --- Update state when settings are loaded --- 
-  useEffect(() => {
-    if (settings) {
-      setLogoUrlInput(settings.logo_url ?? '');
-      setShowLogoPreview(!!settings.logo_url); // Show preview if URL exists
-      setInputError(null); // Clear error on successful load
-    }
-  }, [settings]);
-
-  // --- Input Validation --- 
-  const validateUrl = (url: string): boolean => {
-    if (url === '' || url === null) {
-      setInputError(null);
-      return true; // Allow empty/null to clear
-    }
-    if (!url.startsWith('https://app.cg/')) {
-      setInputError('URL must start with https://app.cg/');
-      return false;
-    }
-    setInputError(null);
-    return true;
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newUrl = e.target.value;
-    setLogoUrlInput(newUrl);
-    validateUrl(newUrl); // Validate on change
-    setShowLogoPreview(newUrl.startsWith('https://app.cg/')); // Update preview visibility based on valid prefix
-  };
-
-  // --- Data Mutation for Community Settings --- 
-  const { mutate: updateSettings, isPending: isUpdatingSettings } = useMutation<unknown, Error, { logo_url: string | null }>({
-    mutationFn: async (payload) => {
-      await authFetch('/api/community/settings', {
-        method: 'PATCH',
-        body: JSON.stringify(payload),
-      });
-    },
-    onSuccess: (data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['communitySettings', communityId] });
-      queryClient.invalidateQueries({ queryKey: ['communityLogo', communityId] }); // Invalidate logo-specific query too
-      toast({ title: "Settings saved successfully!" });
-      setShowLogoPreview(!!variables.logo_url); // Ensure preview state matches saved state
-    },
-    onError: (error) => {
-      console.error("Error saving settings:", error);
-      toast({ title: "Error saving settings", description: error.message, variant: "destructive" });
-    },
-  });
-
-  const handleSaveSettings = () => {
-    if (validateUrl(logoUrlInput)) {
-      updateSettings({ logo_url: logoUrlInput.trim() === '' ? null : logoUrlInput });
-    }
-  };
 
   // Define the click handler locally using the new mutation hook
   const handleAssignRoleClickLocal = (roleId: string | undefined) => {
@@ -347,68 +260,15 @@ export const AdminView: React.FC<AdminViewProps> = ({
       {/* Render Account Settings Section */}
       {activeSection === 'account' && (
         <div className="w-full max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-bottom-5 duration-500">
-          {/* Community Info Card */}
-          <Card className="md:col-span-1">
-            <CardHeader>
-              <CardTitle>Community Settings</CardTitle>
-              <CardDescription>Manage basic community details and preferences.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {isLoadingSettings && <p>Loading settings...</p>}
-              {settingsError && <p className="text-destructive">Error loading settings: {settingsError.message}</p>}
-              {!isLoadingSettings && !settingsError && (
-                <div className="space-y-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="community-logo-url">Community Logo URL</Label>
-                    <Input 
-                      id="community-logo-url" 
-                      placeholder="https://app.cg/path/to/your/logo.png" 
-                      value={logoUrlInput}
-                      onChange={handleInputChange}
-                      disabled={isUpdatingSettings}
-                    />
-                    {inputError && (
-                      <p className="text-sm text-destructive flex items-center gap-1">
-                        <AlertCircle className="h-3.5 w-3.5"/> 
-                        {inputError}
-                      </p>
-                    )}
-                    <p className="text-xs text-muted-foreground">
-                      Logo must be hosted on app.cg domain (e.g., uploaded via Common Ground).
-                    </p>
-                  </div>
+          {/* Community Info Card has been removed */}
 
-                  {showLogoPreview && logoUrlInput && (
-                    <div className="space-y-1.5">
-                       <Label>Logo Preview</Label>
-                       <div className="relative p-4 border rounded-md flex items-center justify-center bg-muted/40 h-32">
-                         <Image 
-                           src={logoUrlInput} 
-                           alt="Community Logo Preview" 
-                           fill={true}
-                           className="object-contain"
-                         />
-                       </div>
-                    </div>
-                  )}
-
-                  <div className="flex justify-end">
-                    <Button 
-                      onClick={handleSaveSettings} 
-                      disabled={isUpdatingSettings || !!inputError || logoUrlInput === (settings?.logo_url ?? '')}
-                    >
-                      {isUpdatingSettings ? 'Saving...' : 'Save Settings'}
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Plan & Billing Card (potentially spanning full width if only two cols, or keep alongside usage) */}
+          {/* BillingManagementSection will now be the first item in this grid section. 
+              It will naturally take up one column on medium screens due to md:grid-cols-2 on the parent. 
+              If it should span both columns, it would need internal styling or its own col-span prop if supported.
+              The QuotaUsageDisplay below is md:col-span-2, so it will take the full width underneath.
+          */}
           <BillingManagementSection communityId={communityInfo?.id} />
 
-          {/* Plan Usage Card (Spanning full width below settings/billing) */}
           <QuotaUsageDisplay className="md:col-span-2" /> 
         </div>
       )}
