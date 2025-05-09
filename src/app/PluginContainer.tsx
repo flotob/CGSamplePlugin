@@ -18,7 +18,8 @@ import { UserView } from '../components/UserView';
 import { HelpView } from '../components/HelpView';
 import { WizardView } from '../components/WizardView';
 import { ContactView } from '../components/ContactView';
-import { LayoutDashboard, Settings, Plug, User, Wand2, Building, Loader2 } from 'lucide-react';
+import { DebugSettingsView } from '../components/DebugSettingsView';
+import { LayoutDashboard, Settings, Plug, User, Wand2, Building, Loader2, Terminal } from 'lucide-react';
 import { Toaster } from "@/components/ui/toaster";
 import { useWizardSlideshow } from '../context/WizardSlideshowContext';
 import { WizardSlideshowModal } from '../components/onboarding/WizardSlideshowModal';
@@ -35,6 +36,7 @@ const adminLinks = [
   { id: 'config', label: 'Wizard Config', icon: Settings },
   { id: 'connections', label: 'Connections', icon: Plug },
   { id: 'account', label: 'Account', icon: Building },
+  { id: 'debug', label: 'Debug Settings', icon: Terminal },
 ];
 const userLinks = [
   { id: 'wizards', label: 'Wizards', icon: Wand2 },
@@ -352,7 +354,11 @@ const PluginContent = () => {
     } else if (activeSection === 'contact') {
       view = <ContactView />;
     } else if (isAdmin && !isPreviewingAsUser) {
-      view = <AdminView {...viewProps} activeSection={activeSection} />;
+      if (activeSection === 'debug') {
+        view = <DebugSettingsView {...viewProps} />;
+      } else {
+        view = <AdminView {...viewProps} activeSection={activeSection} />;
+      }
     } else {
       switch (activeSection) {
         case 'wizards':
