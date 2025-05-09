@@ -10,11 +10,8 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 // Payload types
 import type { CommunityInfoResponsePayload, UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
-import type { UserFriendsResponsePayload } from '@common-ground-dao/cg-plugin-lib-host';
 // Icons
-import { Shield, Users, BadgeCheck, Cog, Plug, Building, AlertCircle } from 'lucide-react';
-// Import the new UserAvatar component
-import { UserAvatar } from './UserAvatar';
+import { Shield, BadgeCheck, Cog, Plug, Building, AlertCircle } from 'lucide-react';
 import { WizardStepEditorPage } from './onboarding/WizardStepEditorPage';
 import { WizardList } from './onboarding/WizardList';
 import { NewWizardButton } from './onboarding/NewWizardButton';
@@ -31,16 +28,11 @@ import { useAssignRoleAndRefresh } from '@/hooks/useAssignRoleAndRefresh';
 interface AdminViewProps {
   userInfo: UserInfoResponsePayload | undefined;
   communityInfo: CommunityInfoResponsePayload | undefined;
-  friends: UserFriendsResponsePayload | undefined;
   assignableRoles: CommunityInfoResponsePayload['roles'] | undefined;
   activeSection: string; // Receive activeSection prop
   // Add loading/error props for specific data if needed
-  isLoadingUserInfo: boolean;
-  userInfoError: Error | null;
   isLoadingCommunityInfo: boolean;
   communityInfoError: Error | null;
-  isLoadingFriends: boolean;
-  friendsError: Error | null;
   // Remove JWT state props that are unused
   // jwt: string | null;
   // isAuthenticating: boolean;
@@ -55,16 +47,11 @@ interface CommunitySettings {
 export const AdminView: React.FC<AdminViewProps> = ({
   userInfo,
   communityInfo,
-  friends,
   assignableRoles,
   activeSection,
   // Destructure loading/error states
-  isLoadingUserInfo,
-  userInfoError,
   isLoadingCommunityInfo,
   communityInfoError,
-  isLoadingFriends,
-  friendsError,
   // Remove JWT state destructuring
   // jwt,
   // isAuthenticating,
