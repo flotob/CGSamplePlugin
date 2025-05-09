@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 // Removed Image import
 // Shadcn components
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 // Payload types
 import type { CommunityInfoResponsePayload, UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
 // Icons
-import { Shield, BadgeCheck, Cog, Plug, Building, AlertCircle } from 'lucide-react';
+import { Shield, BadgeCheck, Cog, Plug, Building } from 'lucide-react';
 import { WizardStepEditorPage } from './onboarding/WizardStepEditorPage';
 import { WizardList } from './onboarding/WizardList';
 import { NewWizardButton } from './onboarding/NewWizardButton';
@@ -19,39 +19,40 @@ import { QuotaUsageDisplay } from './admin/QuotaUsageDisplay';
 import { DashboardStatsSection } from './admin/DashboardStatsSection';
 import { useAssignRoleAndRefresh } from '@/hooks/useAssignRoleAndRefresh';
 
+// Define Role type based on CommunityInfoResponsePayload for clarity
+type CommunityRole = NonNullable<CommunityInfoResponsePayload['roles']>[number];
+
 // Define props expected from PluginContainer
 interface AdminViewProps {
   userInfo: UserInfoResponsePayload | undefined;
   communityInfo: CommunityInfoResponsePayload | undefined;
-  assignableRoles: CommunityInfoResponsePayload['roles'] | undefined;
+  pluginControlledDisplayRoles: CommunityRole[] | undefined;
+  otherDisplayRoles: CommunityRole[] | undefined;
   activeSection: string; // Receive activeSection prop
-  // Add loading/error props for specific data if needed
   isLoadingCommunityInfo: boolean;
   communityInfoError: Error | null;
-  // Remove JWT state props that are unused
-  // jwt: string | null;
-  // isAuthenticating: boolean;
   authError: Error | null;
+  handleAssignRoleClick: (roleId: string | undefined) => void;
+  isAssigningRole: boolean;
+  assignRoleError: Error | null;
 }
 
 export const AdminView: React.FC<AdminViewProps> = ({
   userInfo,
   communityInfo,
-  assignableRoles,
+  pluginControlledDisplayRoles,
+  otherDisplayRoles,
   activeSection,
-  // Destructure loading/error states
   isLoadingCommunityInfo,
   communityInfoError,
-  // Remove JWT state destructuring
-  // jwt,
-  // isAuthenticating,
   authError,
+  handleAssignRoleClick,
+  isAssigningRole,
+  assignRoleError,
 }) => {
   const { toast } = useToast();
   const [editingWizardId, setEditingWizardId] = React.useState<string | null>(null);
-  const communityId = communityInfo?.id;
 
-  // Instantiate the new role assignment hook
   const assignRoleMutation = useAssignRoleAndRefresh();
 
   // Define the click handler locally using the new mutation hook
@@ -70,9 +71,6 @@ export const AdminView: React.FC<AdminViewProps> = ({
     assignRoleMutation.mutate({ roleId, userId: userInfo.id }); 
   };
 
-  // Render loading/error specifically for the data needed by the active section if desired
-  // Or rely on the global loading state in PluginContainer
-
   // Display JWT auth errors if they occur
   if (authError) {
     return (
@@ -82,10 +80,64 @@ export const AdminView: React.FC<AdminViewProps> = ({
     )
   }
 
-  // Optionally show a loading state while authenticating
-  // if (isAuthenticating) {
-  //   return <div>Establishing session...</div>;
-  // }
+  const renderRoleItem = (role: CommunityRole, isFromPluginControlledGroup: boolean) => {
+    const isAssignedToCurrentUser = userInfo?.roles?.includes(role.id);
+    let isPluginManuallyAssignable = false;
+    let itemDisabledClass = '';
+    let buttonDisabled = assignRoleMutation.isPending;
+
+    if (!isAssignedToCurrentUser) {
+      if (isFromPluginControlledGroup) {
+        // For plugin-controlled roles, only CUSTOM_MANUAL_ASSIGN are truly clickable by admin in this UI
+        // (or PREDEFINED Public, if it weren't ignored - though it's filtered out before reaching here usually)
+        // CUSTOM_AUTO_ASSIGN roles in this group will appear but be disabled by this check.
+        isPluginManuallyAssignable = (role.type === 'CUSTOM_MANUAL_ASSIGN') || 
+                                     (role.type === 'PREDEFINED' && role.title === 'Public'); 
+        if (!isPluginManuallyAssignable) {
+          itemDisabledClass = 'opacity-60 cursor-not-allowed';
+          buttonDisabled = true;
+        }
+      } else {
+        // Roles in "Other Community Roles" group are always visually/functionally disabled for assignment via this UI
+        itemDisabledClass = 'opacity-60 cursor-not-allowed';
+        buttonDisabled = true;
+      }
+    }
+
+    return (
+      <div 
+        className={`flex items-center justify-between p-3 rounded-md border border-border bg-card transition-all hover:bg-secondary/20 ${itemDisabledClass}`}
+        key={role.id}
+      >
+        <div className={`flex items-center gap-3 ${itemDisabledClass ? 'opacity-80' : ''}`}>
+          <div className="h-8 w-8 rounded-full bg-accent flex items-center justify-center text-accent-foreground">
+            {role.title.charAt(0)}
+          </div>
+          <div>
+            <p className="font-medium">{role.title}</p>
+            <p className="text-xs text-muted-foreground">ID: {role.id.substring(0, 6)}...</p>
+            <p className="text-xs text-muted-foreground">Type: {role.type}</p> {/* Show type for clarity */}
+          </div>
+        </div>
+        {isAssignedToCurrentUser ? (
+          <div className='text-xs flex items-center gap-1.5 text-primary px-2.5 py-1.5 border-primary/20 border rounded-md bg-primary/10'>
+            <BadgeCheck className="h-3.5 w-3.5" />
+            <span>Assigned</span>
+          </div>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleAssignRoleClickLocal(role.id)}
+            disabled={buttonDisabled}
+            className="transition-all duration-200"
+          >
+            Assign Role
+          </Button>
+        )}
+      </div>
+    );
+  };
 
   return (
     <>
@@ -125,8 +177,10 @@ export const AdminView: React.FC<AdminViewProps> = ({
           {/* KEEP QuotaUsageDisplay */}
           <QuotaUsageDisplay className="md:col-span-2 animate-in fade-in slide-in-from-bottom-5 duration-500 delay-300" />
 
-          {/* Role Management Card - Ensure this remains */}
-          {!isLoadingCommunityInfo && !communityInfoError && assignableRoles && assignableRoles.length > 0 && (
+          {/* Role Management Card - Updated structure */}
+          {(!isLoadingCommunityInfo && !communityInfoError) && 
+           ( (pluginControlledDisplayRoles && pluginControlledDisplayRoles.length > 0) || 
+             (otherDisplayRoles && otherDisplayRoles.length > 0) ) && (
             <Card className="md:col-span-2 animate-in fade-in slide-in-from-bottom-5 duration-500 delay-600" interactive>
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-3">
@@ -139,7 +193,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                   </div>
                   <div>
                     <CardTitle>Role Management</CardTitle>
-                    <CardDescription className="mt-1">Assign roles to members</CardDescription>
+                    <CardDescription className="mt-1">Assign or view community roles.</CardDescription>
                   </div>
                 </div>
                 {assignRoleMutation.isPending && (
@@ -148,7 +202,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
                     <p className="text-sm">Assigning role...</p>
                   </div>
                 )}
-                {assignRoleMutation.isError && (
+                {assignRoleMutation.error && (
                   <div className='text-destructive pt-2 flex items-center gap-2 p-2 bg-destructive/10 rounded-md'>
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <circle cx="12" cy="12" r="10"/>
@@ -159,40 +213,23 @@ export const AdminView: React.FC<AdminViewProps> = ({
                   </div>
                 )}
               </CardHeader>
-              <CardContent className='grid grid-cols-1 md:grid-cols-2 gap-3'>
-                {assignableRoles?.map((role, index) => (
-                  <div 
-                    className='flex items-center justify-between p-3 rounded-md border border-border bg-card transition-all hover:bg-secondary/20' 
-                    key={role.id}
-                    style={{ animationDelay: `${450 + (index * 50)}ms` }}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-full bg-accent flex items-center justify-center text-accent-foreground">
-                        {role.title.charAt(0)}
-                      </div>
-                      <div>
-                        <p className="font-medium">{role.title}</p>
-                        <p className="text-xs text-muted-foreground">ID: {role.id.substring(0, 6)}...</p>
-                      </div>
+              <CardContent className='space-y-4'> {/* Use space-y for separation between groups */}
+                {pluginControlledDisplayRoles && pluginControlledDisplayRoles.length > 0 && (
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-medium text-muted-foreground px-1">Plugin Assignable Roles</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {pluginControlledDisplayRoles.map((role) => renderRoleItem(role, true))}
                     </div>
-                    {userInfo?.roles?.includes(role.id) ? (
-                      <div className='text-xs flex items-center gap-1.5 text-primary px-2.5 py-1.5 border-primary/20 border rounded-md bg-primary/10'>
-                        <BadgeCheck className="h-3.5 w-3.5" />
-                        <span>Assigned</span>
-                      </div>
-                    ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleAssignRoleClickLocal(role.id)}
-                        disabled={assignRoleMutation.isPending}
-                        className="transition-all duration-200"
-                      >
-                        Assign Role
-                      </Button>
-                    )}
                   </div>
-                ))}
+                )}
+                {otherDisplayRoles && otherDisplayRoles.length > 0 && (
+                  <div className="space-y-3 pt-4 border-t border-border mt-4">
+                    <h3 className="text-sm font-medium text-muted-foreground px-1">Other Community Roles</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {otherDisplayRoles.map((role) => renderRoleItem(role, false))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
@@ -227,11 +264,11 @@ export const AdminView: React.FC<AdminViewProps> = ({
                      <h2 className="text-xl font-semibold leading-none tracking-tight">Wizard Configuration</h2>
                      <p className="text-sm text-muted-foreground mt-2 text-balance">Setup roles and steps for the onboarding wizard here.</p>
                    </div>
-                   <NewWizardButton assignableRoles={assignableRoles} />
+                   <NewWizardButton assignableRoles={pluginControlledDisplayRoles} />
                </div>
                <div className="px-1 sm:px-0 pt-2 sm:pt-0">
                  {/* Pass assignableRoles to WizardList */}
-                 <WizardList setEditingWizardId={setEditingWizardId} assignableRoles={assignableRoles} />
+                 <WizardList setEditingWizardId={setEditingWizardId} assignableRoles={pluginControlledDisplayRoles} />
                </div>
            </div>
          </div>
@@ -289,7 +326,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
             </button>
             <WizardStepEditorPage 
               wizardId={editingWizardId} 
-              assignableRoles={assignableRoles} 
+              assignableRoles={pluginControlledDisplayRoles} 
               onClose={() => setEditingWizardId(null)}
             />
           </div>

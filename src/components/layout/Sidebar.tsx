@@ -4,7 +4,7 @@ import React from 'react';
 import Image from 'next/image'; // Re-add Image import
 import { Button } from "@/components/ui/button";
 import { BookOpen, Eye, Undo, Mail } from 'lucide-react'; // Removed Loader2 import
-import { useQuery } from '@tanstack/react-query'; // Re-add useQuery import
+// import { useQuery } from '@tanstack/react-query'; // Removed
 import { SidebarUserProfile } from './SidebarUserProfile';
 
 // Define expected link structure
@@ -14,17 +14,17 @@ interface SidebarLink {
   icon?: React.ElementType; // Optional icon component
 }
 
-// Re-add CommunityLogoResponse interface
-interface CommunityLogoResponse {
-  logo_url: string | null;
-}
+// REMOVE CommunityLogoResponse interface
+// interface CommunityLogoResponse {
+//   logo_url: string | null;
+// }
 
 // Define props for the Sidebar component
 interface SidebarProps {
   links: SidebarLink[];
   activeSection: string;
   setActiveSection: (section: string) => void;
-  communityId?: string; // Add communityId prop back (optional)
+  // communityId?: string; // Removed communityId prop
   isAdmin: boolean;
   isPreviewingAsUser: boolean;
   setIsPreviewingAsUser: (isPreviewing: boolean) => void;
@@ -40,7 +40,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   links,
   activeSection,
   setActiveSection,
-  communityId, // Add back to destructuring
+  // communityId, // Removed from destructuring
   isAdmin,
   isPreviewingAsUser,
   setIsPreviewingAsUser,

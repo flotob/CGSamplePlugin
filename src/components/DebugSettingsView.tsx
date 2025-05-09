@@ -1,15 +1,22 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React, { useEffect, useState } from 'react';
 import { useCgLib } from '@/context/CgLibContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2, AlertCircle, Terminal } from 'lucide-react';
+// import type { UserFriendsResponsePayload } from '@common-ground-dao/cg-plugin-lib-host'; // Removed unused import
 
 interface KeyValuePairs {
   [key: string]: any;
 }
 
-const DataDisplayCard: React.FC<{ title: string; data: any; isLoading: boolean; error: string | null }> = ({ title, data, isLoading, error }) => {
+const DataDisplayCard: React.FC<{
+  title: string;
+  data: any; 
+  isLoading: boolean;
+  error: string | null;
+}> = ({ title, data, isLoading, error }) => {
   let content;
   if (isLoading) {
     content = <div className="flex items-center"><Loader2 className="mr-2 h-4 w-4 animate-spin" />Loading...</div>;
@@ -33,12 +40,18 @@ const DataDisplayCard: React.FC<{ title: string; data: any; isLoading: boolean; 
   );
 };
 
-const getErrorMessage = (error: any): string => {
+const getErrorMessage = (error: unknown): string => {
   if (!error) return 'Unknown error';
   if (error instanceof Error) return error.message;
-  if (typeof error.message === 'string') return error.message;
+  if (typeof error === 'object' && error !== null && 'message' in error && typeof (error as { message: unknown }).message === 'string') {
+    return (error as { message: string }).message;
+  }
   if (typeof error === 'string') return error;
-  return JSON.stringify(error);
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return 'Could not stringify error object';
+  }
 };
 
 export const DebugSettingsView: React.FC = () => {
@@ -58,38 +71,44 @@ export const DebugSettingsView: React.FC = () => {
       const fetched: KeyValuePairs = {};
 
       try {
-        const userInfoResponse = await cgInstance.getUserInfo();
-        if (userInfoResponse.data) {
-          fetched.userInfo = userInfoResponse.data;
-        } else {
-          fetched.userInfo = { error: 'Failed to retrieve user info (no data property)' };
-        }
+        // File-level disable covers this (cgInstance as any)
+        const userInfoResponse = await (cgInstance as any).getUserInfo();
+        fetched.userInfo = userInfoResponse?.data ?? { error: getErrorMessage(userInfoResponse?.error) || 'Failed to fetch user info' };
       } catch (e) {
         fetched.userInfo = { error: `Failed to retrieve user info: ${getErrorMessage(e)}` };
       }
       
       try {
-        const communityInfoResponse = await cgInstance.getCommunityInfo();
-        if (communityInfoResponse.data) {
-          fetched.communityInfo = communityInfoResponse.data;
-        } else {
-          fetched.communityInfo = { error: 'Failed to retrieve community info (no data property)' };
-        }
+        // File-level disable covers this
+        const communityInfoResponse = await (cgInstance as any).getCommunityInfo();
+        fetched.communityInfo = communityInfoResponse?.data ?? { error: getErrorMessage(communityInfoResponse?.error) || 'Failed to fetch community info' };
       } catch (e) {
         fetched.communityInfo = { error: `Failed to retrieve community info: ${getErrorMessage(e)}` };
       }
 
-      if (typeof (cgInstance as any).getUserFriends === 'function') {
+      if (cgInstance && typeof (cgInstance as any).getUserFriends === 'function') {
         try {
+          // File-level disable covers this
           const friendsResponse = await (cgInstance as any).getUserFriends(10, 0);
-          if (friendsResponse.data) {
-            fetched.userFriends = friendsResponse.data;
-          } else {
-            fetched.userFriends = { error: 'Failed to retrieve user friends (no data property)' };
-          }
+          fetched.userFriends = friendsResponse?.data ?? { error: getErrorMessage(friendsResponse?.error) || 'Failed to fetch user friends' };
         } catch (e) {
           fetched.userFriends = { error: `Failed to retrieve user friends: ${getErrorMessage(e)}` };
         }
+      } else {
+        fetched.userFriends = { info: 'getUserFriends method not available or not a function on cgInstance' };
+      }
+      
+      // Fetch Plugin Context Data
+      if (typeof (cgInstance as any).getContextData === 'function') {
+        try {
+          const pluginContextData = await (cgInstance as any).getContextData(); // Assuming getContextData might be async or sync
+          // If it's synchronous: const pluginContextData = (cgInstance as any).getContextData();
+          fetched.pluginContext = pluginContextData ?? { error: 'getContextData returned null or undefined' };
+        } catch (e) {
+          fetched.pluginContext = { error: `Failed to retrieve plugin context data: ${getErrorMessage(e)}` };
+        }
+      } else {
+        fetched.pluginContext = { info: 'getContextData method not available on cgInstance' };
       }
       
       setAllData(fetched);
@@ -128,6 +147,9 @@ export const DebugSettingsView: React.FC = () => {
   const displayEntries = Object.entries(allData).map(([key, value]) => {
     if (value && typeof value.error === 'string') { 
       return { key, error: value.error, data: null };
+    }
+    if (value && typeof value.info === 'string') { // Handle info messages like method not available
+      return { key, error: value.info, data: null }; // Display info as an error for simplicity in this card
     }
     return { key, data: value, error: null };
   });

@@ -3,7 +3,7 @@ import React, { useState, useTransition, useEffect } from 'react';
 import Image from 'next/image';
 import type { CommunityInfoResponsePayload, UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
 import type { UserFriendsResponsePayload } from '@common-ground-dao/cg-plugin-lib-host';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { useCgLib } from '../context/CgLibContext';
 import { useAuth } from '../context/AuthContext';
 import { StripeWaitProvider, useStripeWaitContext } from '../context/StripeWaitContext';
@@ -52,7 +52,7 @@ const userLinks = [
 const PluginContent = () => {
   const { isInitializing, initError, iframeUid } = useCgLib();
   const { isAdmin, isLoading: isLoadingAdminStatus, error: adminStatusError } = useAdminStatus();
-  const { jwt, login, isAuthenticating, authError } = useAuth();
+  const { jwt, login, isAuthenticating, authError, pluginContextAssignableRoleIds } = useAuth();
   const { authFetch } = useAuthFetch();
   const { activeSlideshowWizardId, setActiveSlideshowWizardId } = useWizardSlideshow();
   const [isPending, startTransition] = useTransition();
@@ -197,9 +197,45 @@ const PluginContent = () => {
     }
   );
 
-  const assignableRoles = React.useMemo(() => {
-    return communityInfo?.roles?.filter((role) => role.assignmentRules?.type === 'free' || role.assignmentRules === null);
-  }, [communityInfo]);
+  // Env var is named _IDS, but we treat its content as titles
+  const ignoredRoleTitlesFromEnv = process.env.NEXT_PUBLIC_IGNORED_ROLE_IDS || '';
+  // Split the string from env var (which contains titles) into an array of titles
+  const titlesToIgnore = ignoredRoleTitlesFromEnv.split(',').map(title => title.trim().toLowerCase()).filter(title => title);
+
+  // Calculate the two groups of roles
+  const { pluginControlledDisplayRoles, otherDisplayRoles } = React.useMemo(() => {
+    if (!communityInfo?.roles || pluginContextAssignableRoleIds === undefined) {
+      return { pluginControlledDisplayRoles: [], otherDisplayRoles: [] };
+    }
+
+    const actualIdsToFilterOutByTitle = new Set<string>();
+    if (titlesToIgnore.length > 0) {
+      communityInfo.roles.forEach(role => {
+        if (titlesToIgnore.includes(role.title.toLowerCase())) {
+          actualIdsToFilterOutByTitle.add(role.id);
+        }
+      });
+    }
+
+    const allNonIgnoredRoles = communityInfo.roles.filter(role => !actualIdsToFilterOutByTitle.has(role.id));
+    
+    const group1_pluginControlledAndDisplayable = allNonIgnoredRoles.filter(role => 
+      pluginContextAssignableRoleIds.includes(role.id) &&
+      (
+        (role.assignmentRules?.type === 'free' || role.assignmentRules === null) ||
+        role.type === 'CUSTOM_AUTO_ASSIGN'
+      )
+    );
+
+    const group1Ids = new Set(group1_pluginControlledAndDisplayable.map(r => r.id));
+
+    const group2_otherCommunityRoles = allNonIgnoredRoles.filter(role => !group1Ids.has(role.id));
+
+    return {
+      pluginControlledDisplayRoles: group1_pluginControlledAndDisplayable,
+      otherDisplayRoles: group2_otherCommunityRoles
+    };
+  }, [communityInfo, titlesToIgnore, pluginContextAssignableRoleIds]);
 
   // --- Fetch Data needed for Hero Logic ---
   // Fetch USER wizards and completions (require JWT)
@@ -267,7 +303,7 @@ const PluginContent = () => {
 
   // Display loading indicator
   // Update core loading check to use userWizards loading state
-  const isCoreLoading = isInitializing || isLoadingAdminStatus || !activeSection || (isAuthenticating && !jwt) || isLoadingUserWizards || isLoadingCompletions || isLoadingCommunityInfo; 
+  const isCoreLoading = isInitializing || isLoadingAdminStatus || !activeSection || (isAuthenticating && !jwt) || isLoadingUserWizards || isLoadingCompletions || isLoadingCommunityInfo || pluginContextAssignableRoleIds === undefined; 
   const coreError = initError || adminStatusError || authError || userInfoError || communityInfoError || userWizardsError; 
 
   // Display loading indicator
@@ -335,7 +371,8 @@ const PluginContent = () => {
     friends,
     isLoadingFriends,
     friendsError,
-    assignableRoles,
+    pluginControlledDisplayRoles,
+    otherDisplayRoles,
     handleAssignRoleClick,
     isAssigningRole,
     assignRoleError,
@@ -356,7 +393,7 @@ const PluginContent = () => {
       view = <ContactView />;
     } else if (isAdmin && !isPreviewingAsUser) {
       if (activeSection === 'debug') {
-        view = <DebugSettingsView {...viewProps} />;
+        view = <DebugSettingsView />;
       } else {
         view = <AdminView {...viewProps} activeSection={activeSection} />;
       }

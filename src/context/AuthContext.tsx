@@ -18,6 +18,7 @@ interface AuthContextType {
     authError: Error | null;
     login: () => Promise<void>;
     logout: () => void;
+    pluginContextAssignableRoleIds?: string[];
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -55,6 +56,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         return null;
     }, [cgInstance]);
+
+    // Extract assignableRoleIds for the context value
+    const pluginContextAssignableRoleIds = useMemo(() => {
+        if (rawPluginContext && Array.isArray(rawPluginContext.assignableRoleIds)) {
+            return rawPluginContext.assignableRoleIds.filter((id: unknown) => typeof id === 'string') as string[];
+        }
+        return undefined; // or an empty array [] if preferred when not available
+    }, [rawPluginContext]);
 
     // Effect to decode JWT when it changes
     useEffect(() => {
@@ -158,7 +167,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         authError,
         login,
         logout,
-    }), [jwt, decodedPayload, isAuthenticating, authError, login, logout]);
+        pluginContextAssignableRoleIds,
+    }), [jwt, decodedPayload, isAuthenticating, authError, login, logout, pluginContextAssignableRoleIds]);
 
     return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
