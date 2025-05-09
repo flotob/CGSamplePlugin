@@ -4,39 +4,27 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   QuizmasterBasicSpecificConfig,
   QuizmasterBasicVerifiedData,
-  QuizQuestion, // Needed to type the current question
+  QuizQuestion,
   UserQuizAnswer 
-} from '@/types/onboarding-steps'; // Adjust path if necessary
-import type { UserStepProgress } from '@/app/api/user/wizards/[id]/steps/route'; // Import the correct type
-
-// TODO: Define or import the actual UserStepProgress type.
-// Assuming a structure based on user_wizard_progress table and likely usage.
-// interface UserStepProgress {
-//   user_id: string;
-//   wizard_id: string;
-//   step_id: string;
-//   config?: { // This comes from the joined onboarding_steps table
-//     presentation?: Record<string, unknown>;
-//     specific?: Record<string, unknown>;
-//   };
-//   completed_at: string | null;
-//   verified_data?: Record<string, unknown> | null;
-// }
+} from '@/types/onboarding-steps';
+import type { UserStepProgress } from '@/app/api/user/wizards/[id]/steps/route';
 
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2, XCircle } from 'lucide-react'; // Icons for feedback
-// import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CheckCircle2, XCircle, ArrowRight } from 'lucide-react';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+
+// Type guard for QuizmasterBasicSpecificConfig
+function isQuizmasterBasicConfig(data: any): data is QuizmasterBasicSpecificConfig {
+  return !!data && Array.isArray(data.questions);
+}
 
 interface QuizmasterBasicDisplayProps {
   step: UserStepProgress;
   onComplete: (verifiedData?: Record<string, unknown>) => void;
-}
-
-// Type guard to check if specific config is QuizmasterBasicSpecificConfig
-function isQuizmasterBasicConfig(config: any): config is QuizmasterBasicSpecificConfig {
-  return config && typeof config === 'object' && Array.isArray(config.questions);
 }
 
 const QuizmasterBasicDisplay: React.FC<QuizmasterBasicDisplayProps> = ({ step, onComplete }) => {
@@ -62,18 +50,13 @@ const QuizmasterBasicDisplay: React.FC<QuizmasterBasicDisplayProps> = ({ step, o
   const totalQuestions = config?.questions?.length ?? 0;
   const currentQuestion: QuizQuestion | undefined = config?.questions?.[currentQuestionIndex];
   const isLastQuestion = currentQuestionIndex === totalQuestions - 1;
+  const progressPercentage = totalQuestions ? Math.round(((currentQuestionIndex + 1) / totalQuestions) * 100) : 0;
 
   // Effect to potentially auto-complete if already completed (idempotency)
   useEffect(() => {
     if (step.completed_at && !results) {
-      // If the step is marked completed in the prop, but we haven't processed results locally,
-      // try to set results from verified_data or mark as submitted.
       setIsSubmitted(true);
       setResults(step.verified_data as QuizmasterBasicVerifiedData | null);
-      // Optionally call onComplete again if needed, but might cause loops if not handled carefully
-      // if (step.verified_data) {
-      //   onComplete(step.verified_data);
-      // }
     }
   }, [step.completed_at, step.verified_data, results, onComplete]);
 
@@ -112,13 +95,13 @@ const QuizmasterBasicDisplay: React.FC<QuizmasterBasicDisplayProps> = ({ step, o
       }
       return { 
         questionId: q.id,
-        selectedOptionId: selectedOptionId || 'skipped', // Mark unanswered as skipped or similar
+        selectedOptionId: selectedOptionId || 'skipped',
         isCorrect,
         pointsAwarded,
       };
     });
 
-    const passingScore = config.passingScore ?? totalQuestions; // Default passing score if not set (e.g., all correct)
+    const passingScore = config.passingScore ?? totalQuestions;
     const passed = score >= passingScore;
 
     const verifiedData: QuizmasterBasicVerifiedData = {
@@ -135,107 +118,173 @@ const QuizmasterBasicDisplay: React.FC<QuizmasterBasicDisplayProps> = ({ step, o
 
   // Handle invalid configuration or missing questions
   if (!config || totalQuestions === 0) {
-    // Optionally auto-complete if config is invalid?
-    // useEffect(() => { onComplete({}); }, [onComplete]);
     return (
-      <div className="p-4 text-center text-muted-foreground">
-        Quiz configuration is missing or invalid.
+      <div className="flex items-center justify-center h-full w-full">
+        <Card className="w-full max-w-xl shadow-md">
+          <CardHeader className="bg-muted/50">
+            <CardTitle className="text-destructive">Configuration Error</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6 text-center">
+            <p className="text-muted-foreground">Quiz configuration is missing or invalid.</p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   // Handle already submitted/completed state
   if (isSubmitted) {
-    // TODO: Implement results display based on `results` state
+    const totalPossibleScore = config.questions.reduce((sum, q) => sum + (q.points ?? 1), 0);
     return (
-      <div className="p-4">
-        <h4 className="font-semibold text-lg mb-2">Quiz Complete!</h4>
-        {results ? (
-          <div className="space-y-1 text-sm">
-            <p>Your Score: <span className="font-medium">{results.totalScore} / {config.questions.reduce((sum, q) => sum + (q.points ?? 1), 0)}</span></p>
-            <p>Result: <span className={`font-medium ${results.passed ? 'text-green-600' : 'text-destructive'}`}>{results.passed ? 'Passed' : 'Failed'}</span></p>
-            {/* Optionally show detailed answers - TODO */}
-          </div>
-        ) : (
-          <p>Results are being processed...</p>
-        )}
+      <div className="flex items-center justify-center h-full w-full">
+        <Card className="w-full max-w-xl shadow-md animate-in fade-in-0 slide-in-from-bottom-5 duration-300">
+          <CardHeader className="text-center bg-muted">
+            <CardTitle className="text-2xl font-bold">Quiz Complete!</CardTitle>
+          </CardHeader>
+          <CardContent className="p-8 flex flex-col items-center justify-center space-y-6">
+            {results?.passed ? (
+              <div className="w-24 h-24 rounded-full bg-green-100 flex items-center justify-center">
+                <CheckCircle2 className="h-12 w-12 text-green-600" />
+              </div>
+            ) : (
+              <div className="w-24 h-24 rounded-full bg-red-100 flex items-center justify-center">
+                <XCircle className="h-12 w-12 text-red-600" />
+              </div>
+            )}
+            
+            <div className="space-y-3 text-center">
+              <h4 className="text-xl font-semibold">Your Score</h4>
+              <div className="flex items-center justify-center">
+                <span className="text-3xl font-bold mr-2">{results?.totalScore}</span>
+                <span className="text-lg text-muted-foreground">/ {totalPossibleScore}</span>
+              </div>
+              <Badge className={`text-md px-3 py-1 ${results?.passed ? 'bg-green-100 text-green-800 hover:bg-green-100' : 'bg-red-100 text-red-800 hover:bg-red-100'}`}>
+                {results?.passed ? 'Passed' : 'Failed'}
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   // Render the current question
   if (!currentQuestion) {
-    // Should ideally not happen if totalQuestions > 0
-    return <div className="p-4 text-destructive">Error loading question.</div>;
+    return (
+      <div className="flex items-center justify-center h-full w-full">
+        <Card className="w-full max-w-xl shadow-md">
+          <CardContent className="p-6">
+            <p className="text-destructive text-center">Error loading question.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   const currentSelection = userAnswers[currentQuestion.id];
 
   return (
-    <div className="p-4 space-y-6 w-full max-w-md">
-      <div>
-        <p className="text-sm text-muted-foreground mb-1">
-          Question {currentQuestionIndex + 1} of {totalQuestions}
-        </p>
-        <h4 className="font-semibold text-lg leading-snug">
-          {currentQuestion.text}
-        </h4>
-      </div>
+    <div className="flex items-center justify-center h-full w-full">
+      <Card className="w-full max-w-xl shadow-md animate-in fade-in-0 slide-in-from-bottom-5 duration-300">
+        <CardHeader className="pb-2">
+          <div className="flex justify-between items-center mb-2">
+            <Badge variant="outline" className="font-normal">
+              Question {currentQuestionIndex + 1} of {totalQuestions}
+            </Badge>
+            {totalQuestions > 1 && (
+              <div className="text-xs text-muted-foreground">
+                {progressPercentage}% complete
+              </div>
+            )}
+          </div>
+          {totalQuestions > 1 && (
+            <Progress value={progressPercentage} className="h-1.5" />
+          )}
+          <CardTitle className="mt-4 text-xl">
+            {currentQuestion.text}
+          </CardTitle>
+        </CardHeader>
+        
+        <CardContent className="pt-4">
+          <RadioGroup 
+            value={currentSelection}
+            onValueChange={(value) => handleOptionSelect(currentQuestion.id, value)}
+            className="space-y-3"
+            disabled={!!feedbackStatus}
+          >
+            {currentQuestion.options.map((option) => {
+              const isSelected = currentSelection === option.id;
+              const isCorrect = option.id === currentQuestion.correctOptionId;
+              let feedbackIcon = null;
+              
+              if (feedbackStatus && isSelected) {
+                feedbackIcon = feedbackStatus === 'correct' 
+                  ? <CheckCircle2 className="h-5 w-5 text-green-600 ml-2 flex-shrink-0" /> 
+                  : <XCircle className="h-5 w-5 text-destructive ml-2 flex-shrink-0" />;
+              }
 
-      <RadioGroup 
-        value={currentSelection}
-        onValueChange={(value) => handleOptionSelect(currentQuestion.id, value)}
-        className="space-y-3"
-        disabled={!!feedbackStatus}
-      >
-        {currentQuestion.options.map((option) => {
-          const isSelected = currentSelection === option.id;
-          const isCorrect = option.id === currentQuestion.correctOptionId;
-          let feedbackIcon = null;
-          if (feedbackStatus && isSelected) {
-            feedbackIcon = feedbackStatus === 'correct' 
-              ? <CheckCircle2 className="h-5 w-5 text-green-600 ml-2 flex-shrink-0" /> 
-              : <XCircle className="h-5 w-5 text-destructive ml-2 flex-shrink-0" />;
-          }
+              return (
+                <Label 
+                  key={option.id} 
+                  htmlFor={option.id} 
+                  className={`flex items-center p-4 border-2 rounded-lg cursor-pointer transition-all
+                    ${isSelected ? 'ring-2 ring-primary/50' : 'hover:bg-accent/50'}
+                    ${isSelected && feedbackStatus === 'correct' ? 'border-green-500 bg-green-50 animate-pulse' : ''}
+                    ${isSelected && feedbackStatus === 'incorrect' ? 'border-destructive bg-red-50 animate-pulse' : ''}
+                    ${isSelected && !feedbackStatus ? 'border-primary bg-primary/5' : 'border-muted'}
+                    ${feedbackStatus ? 'opacity-90' : 'hover:opacity-100'}
+                  `}
+                >
+                  <RadioGroupItem 
+                    value={option.id} 
+                    id={option.id} 
+                    disabled={!!feedbackStatus}
+                    className="mr-3"
+                  />
+                  <span className="flex-grow font-medium">{option.text}</span>
+                  {feedbackIcon}
+                </Label>
+              );
+            })}
+          </RadioGroup>
 
-          return (
-            <Label 
-              key={option.id} 
-              htmlFor={option.id} 
-              className={`flex items-center space-x-3 p-3 border rounded-md cursor-pointer transition-colors 
-                ${isSelected && feedbackStatus === 'correct' ? 'border-green-500 bg-green-50' : ''}
-                ${isSelected && feedbackStatus === 'incorrect' ? 'border-destructive bg-red-50' : ''}
-                ${!feedbackStatus && isSelected ? 'border-primary bg-primary/5' : ''}
-                ${feedbackStatus ? 'opacity-80 cursor-not-allowed' : 'hover:bg-accent'}
-              `}
+          {/* Display Feedback Text */}
+          {feedbackStatus && (
+            <div className={`mt-4 p-3 rounded-md flex items-center text-sm font-medium
+              ${feedbackStatus === 'correct' 
+                ? 'bg-green-50 text-green-700 border border-green-200' 
+                : 'bg-red-50 text-red-700 border border-red-200'}`
+              }
             >
-              <RadioGroupItem value={option.id} id={option.id} disabled={!!feedbackStatus}/>
-              <span className="flex-grow font-normal">{option.text}</span>
-              {feedbackIcon}
-            </Label>
-          );
-        })}
-      </RadioGroup>
+              {feedbackStatus === 'correct' 
+                ? <><CheckCircle2 className="h-4 w-4 mr-2" /> Correct answer!</> 
+                : <><XCircle className="h-4 w-4 mr-2" /> That's not correct.</>
+              }
+            </div>
+          )}
+        </CardContent>
 
-      {/* Display Feedback Text */}
-      {feedbackStatus && (
-        <div className={`text-sm font-medium mt-2 ${feedbackStatus === 'correct' ? 'text-green-600' : 'text-destructive'}`}>
-          {feedbackStatus === 'correct' ? 'Correct!' : 'Incorrect.'}
-        </div>
-      )}
-
-      <div className="flex justify-end space-x-2 pt-2">
-        {/* TODO: Implement Previous Button? */}
-        {!isLastQuestion ? (
-          <Button onClick={handleNextQuestion} disabled={!currentSelection || !feedbackStatus && config?.showFeedback}>
-            Next Question
-          </Button>
-        ) : (
-          <Button onClick={handleSubmitQuiz} disabled={!currentSelection || !feedbackStatus && config?.showFeedback}>
-            Submit Quiz
-          </Button>
-        )}
-      </div>
+        <CardFooter className="flex justify-end pt-2">
+          {!isLastQuestion ? (
+            <Button 
+              onClick={handleNextQuestion} 
+              disabled={!currentSelection || (!feedbackStatus && config?.showFeedback)}
+              className="group"
+            >
+              Next Question
+              <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+            </Button>
+          ) : (
+            <Button 
+              onClick={handleSubmitQuiz} 
+              disabled={!currentSelection || (!feedbackStatus && config?.showFeedback)}
+              variant="default"
+            >
+              Submit Quiz
+            </Button>
+          )}
+        </CardFooter>
+      </Card>
     </div>
   );
 };
