@@ -19,6 +19,7 @@ import { useCgQuery } from '@/hooks/useCgQuery';
 import { useCgLib } from '@/context/CgLibContext';
 import type { UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
 import { useAssignRoleAndRefresh } from '@/hooks/useAssignRoleAndRefresh';
+import { getStepPassStatus } from './wizardStepUtils';
 
 // Define some type interfaces for better TypeScript support
 interface Role {
@@ -230,9 +231,12 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
     });
   }, [currentStep, completeStepMutation, wizardId]);
 
-  // Determine if Next button should be disabled 
+  // New logic using the helper function
+  const allStepTypes = stepTypesData?.step_types;
+  const canProceed = getStepPassStatus(currentStep, allStepTypes);
+
+  // Determine if Next button should be disabled
   const isCompleted = !!currentStep?.completed_at;
-  const canProceed = isCompleted || !currentStep?.is_mandatory; // Can always proceed if completed or optional
   const isPrevDisabled = currentStepIndex <= 0 || completeStepMutation.isPending;
 
   // Determine if we should show the summary screen
