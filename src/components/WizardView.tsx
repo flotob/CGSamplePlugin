@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Wand2, CheckCircle, Loader2, AlertCircle, CircleCheck, Ticket, ExternalLink, ShieldCheck, ImageOff } from 'lucide-react';
 import { useUserWizardsQuery } from '@/hooks/useUserWizardsQuery';
 import { useWizardSlideshow } from '@/context/WizardSlideshowContext';
+import { WizardHeroCard } from './wizards/WizardHeroCard';
 
 // --- Added hooks for earnable roles calculation ---
 import { useCgLib } from '@/context/CgLibContext';
@@ -137,6 +138,40 @@ export const WizardView: React.FC<WizardViewProps> = () => {
   }, [userInfo, communityInfo, activeWizardsData, relevantStepsData, completionsData, allCommunityRoles, userRoleIds]);
   // --- End earnableRoles calculation ---
 
+  // Determine the hero wizard (admin-selected or newest available)
+  const heroWizard = useMemo(() => {
+    if (!userWizardsData) return null;
+    
+    // First check if there's an admin-designated hero wizard
+    // Use type assertion since 'is_hero' might not be in the UserWizard type definition
+    const adminHeroWizard = userWizardsData.wizards.find(w => {
+      const wizard = w as any;
+      return wizard.is_hero === true;
+    });
+    
+    if (adminHeroWizard) {
+      return {
+        id: adminHeroWizard.id,
+        name: adminHeroWizard.name,
+        description: adminHeroWizard.description || undefined
+      };
+    }
+    
+    // If no hero wizard is set, use the newest available wizard
+    if (availableWizards.length > 0) {
+      // Sort to get most recently created one (assuming newest is more important)
+      // This is just a fallback - we don't have created_at in the wizard data, so we use the first one
+      const newestWizard = availableWizards[0];
+      return {
+        id: newestWizard.id,
+        name: newestWizard.name,
+        description: newestWizard.description || undefined
+      };
+    }
+    
+    return null;
+  }, [userWizardsData, availableWizards]);
+
   // Combine loading states
   const isLoading = isInitializing || isLoadingUserWizards || isLoadingUserInfo || isLoadingCommunityInfo || isLoadingActiveWizards || isLoadingRelevantSteps || isLoadingCompletions;
   const error = userWizardsError || userInfoError || communityInfoError;
@@ -168,34 +203,52 @@ export const WizardView: React.FC<WizardViewProps> = () => {
     );
   }
 
+  // Function to launch a wizard
+  const handleLaunchWizard = (wizardId: string) => {
+    setActiveSlideshowWizardId(wizardId);
+  };
+
   return (
-    <>
-      {/* Section title - Updated with padding and better text wrapping */}
-      <div className="mb-6 px-1 animate-in fade-in slide-in-from-bottom-5 duration-500">
-        <div className="flex items-center gap-2">
-          <Wand2 className="h-6 w-6 text-primary" />
-          <h1 className="text-2xl font-bold tracking-tight">Onboarding Wizards</h1>
+    <div className="animate-in fade-in duration-500">
+      {/* Title Section */}
+      <div className="flex items-center gap-2 mb-6 max-w-3xl mx-auto px-4">
+        <div className="p-1.5 bg-primary/10 rounded-full">
+          <Wand2 className="h-4 w-4 text-primary" />
         </div>
-        <p className="text-muted-foreground mt-2 text-balance max-w-full">
-          Complete wizards to gain roles and access within the community.
-        </p>
+        <div>
+          <h1 className="text-xl font-medium tracking-tight">Onboarding Wizards</h1>
+          <p className="text-sm text-muted-foreground">
+            Complete wizards to gain roles and access within the community.
+          </p>
+        </div>
       </div>
 
-      {/* Main content grid - Updated with responsive padding */}
-      <div className="w-full max-w-4xl mx-auto px-1 sm:px-2 space-y-8">
-        {/* Available Wizards Card (Includes Not Started and Started) */}
-        <div className="sm:rounded-xl sm:border sm:bg-card sm:shadow-sm sm:p-6 sm:transition-all animate-in fade-in slide-in-from-bottom-5 duration-500 delay-150">
-          <div className="px-1 sm:px-0 pb-2 sm:pb-6">
-            <h2 className="text-xl font-semibold leading-none tracking-tight">Available Wizards</h2>
-            <p className="text-sm text-muted-foreground mt-2">Start or continue these wizards to progress.</p>
-          </div>
-          <div className="space-y-3 px-1 sm:px-0 pt-2 sm:pt-0">
+      {/* Hero Wizard Card (desktop only) */}
+      {heroWizard && communityInfo && (
+        <WizardHeroCard
+          heroWizard={heroWizard}
+          communityInfo={{
+            headerImageUrl: communityInfo.headerImageUrl,
+            largeLogoUrl: communityInfo.largeLogoUrl,
+            title: communityInfo.title,
+            official: communityInfo.official,
+            premium: communityInfo.premium
+          }}
+          onLaunchWizard={handleLaunchWizard}
+        />
+      )}
+
+      {/* Main Content with Narrower Width */}
+      <div className="max-w-3xl mx-auto space-y-8 px-4">
+        {/* Available Wizards */}
+        <div>
+          <h2 className="text-lg font-medium mb-3">Available Wizards</h2>
+          <div className="space-y-2">
             {availableWizards.length > 0 ? (
-              availableWizards.map((wizard, index) => (
+              availableWizards.map((wizard) => (
                 <div 
                   key={wizard.id} 
-                  className='flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 rounded-md border border-border bg-card transition-all hover:bg-secondary/20 cursor-pointer'
-                  style={{ animationDelay: `${150 + (index * 50)}ms` }}
+                  className='flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 rounded-md border border-border bg-card/50 transition-all hover:bg-secondary/10 cursor-pointer'
                   onClick={() => setActiveSlideshowWizardId(wizard.id)}
                 >
                   <div className="flex items-center gap-4 flex-grow w-full">
@@ -229,79 +282,57 @@ export const WizardView: React.FC<WizardViewProps> = () => {
                 </div>
               ))
             ) : (
-              <p className="text-sm text-muted-foreground p-4 text-center">No available wizards at this time.</p>
+              <p className="text-sm text-muted-foreground p-4 text-center rounded-md border border-border/50">No available wizards at this time.</p>
             )}
           </div>
         </div>
 
-        {/* --- Added Roles to Earn Card --- */}
-        <div className="sm:rounded-xl sm:border sm:bg-card sm:shadow-sm sm:p-6 sm:transition-all animate-in fade-in slide-in-from-bottom-5 duration-500 delay-225">
-           <div className="pb-3 px-1 sm:px-0">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-full bg-primary/10">
-                <Ticket className="h-4 w-4 text-primary" /> 
-              </div>
-              <h2 className="text-xl font-semibold leading-none tracking-tight">Roles to Earn</h2>
+        {/* Roles to Earn */}
+        {earnableRoles && earnableRoles.length > 0 && (
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <Ticket className="h-4 w-4 text-primary" /> 
+              <h2 className="text-lg font-medium">Roles to Earn</h2>
             </div>
-            <p className="text-sm text-muted-foreground mt-2 pt-1 pl-10 text-balance">Complete available wizards to earn these roles.</p>
-           </div>
-           <div className='flex flex-col gap-4 px-1 sm:px-0'>
-            {isLoading ? (
-               <div className="flex items-center justify-center p-8">
-                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-               </div>
-            ) : earnableRoles && earnableRoles.length > 0 ? (
-                earnableRoles.map(({ roleInfo, grantingWizards }) => (
-                  <div key={roleInfo.id} className="p-3 border rounded-md bg-card/50">
-                    <p className="font-medium mb-1">{roleInfo.title}</p>
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                      <span className="text-xs text-muted-foreground mr-1">Earn via:</span>
-                      {grantingWizards.length > 0 ? (
-                         grantingWizards.map(wizard => (
-                           <Button 
-                             key={wizard.wizard_id} 
-                             variant="link"
-                             size="sm"
-                             className="h-auto p-0 text-xs text-primary hover:text-primary/80 flex items-center gap-1"
-                             onClick={() => setActiveSlideshowWizardId(wizard.wizard_id)}
-                           >
-                             <span>{wizard.wizard_name}</span>
-                             <ExternalLink className="h-3 w-3"/>
-                           </Button>
-                         ))
-                      ) : (
-                         <span className="text-xs italic text-muted-foreground">Error: No wizards found for this role.</span>
-                      )}
-                    </div>
+            
+            <div className='space-y-2'>
+              {earnableRoles.map(({ roleInfo, grantingWizards }) => (
+                <div key={roleInfo.id} className="p-3 border border-border rounded-md bg-card/50">
+                  <p className="font-medium mb-1">{roleInfo.title}</p>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="text-xs text-muted-foreground mr-1">Earn via:</span>
+                    {grantingWizards.length > 0 ? (
+                       grantingWizards.map(wizard => (
+                         <Button 
+                           key={wizard.wizard_id} 
+                           variant="link"
+                           size="sm"
+                           className="h-auto p-0 text-xs text-primary hover:text-primary/80 flex items-center gap-1"
+                           onClick={() => setActiveSlideshowWizardId(wizard.wizard_id)}
+                         >
+                           <span>{wizard.wizard_name}</span>
+                           <ExternalLink className="h-3 w-3"/>
+                         </Button>
+                       ))
+                    ) : (
+                       <span className="text-xs italic text-muted-foreground">Error: No wizards found for this role.</span>
+                    )}
                   </div>
-                ))
-            ) : (
-              <p className="text-sm text-muted-foreground italic p-4 text-center">No further roles currently earnable via wizards.</p>
-            )}
-            {/* Display general error for hooks if needed */}
-            {error && !isLoading && !(earnableRoles && earnableRoles.length > 0) && (
-                 <div className="text-destructive flex items-center gap-2 p-2 bg-destructive/10 rounded-md">
-                 <AlertCircle className="h-4 w-4" />
-                 <p>Error loading roles information: {(error as Error)?.message || 'An unknown error occurred'}</p>
-              </div>
-            )}
-           </div>
-        </div>
-        {/* --- End Roles to Earn Card --- */}
-
-        {/* Completed Wizards Card */}
-        <div className="sm:rounded-xl sm:border sm:bg-card sm:shadow-sm sm:p-6 sm:transition-all animate-in fade-in slide-in-from-bottom-5 duration-500 delay-300">
-          <div className="px-1 sm:px-0 pb-2 sm:pb-6">
-            <h2 className="text-xl font-semibold leading-none tracking-tight">Completed Wizards</h2>
-            <p className="text-sm text-muted-foreground mt-2 text-balance">You have successfully completed these wizards.</p>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="space-y-3 px-1 sm:px-0 pt-2 sm:pt-0">
-            {completedWizards.length > 0 ? (
-              completedWizards.map((wizard, index) => (
+        )}
+
+        {/* Completed Wizards */}
+        {completedWizards.length > 0 && (
+          <div className="pb-6">
+            <h2 className="text-lg font-medium mb-3">Completed Wizards</h2>
+            <div className="space-y-2">
+              {completedWizards.map((wizard) => (
                 <div 
                   key={wizard.id} 
-                  className='flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 rounded-md border border-border bg-card/50 opacity-70 cursor-default'
-                  style={{ animationDelay: `${300 + (index * 50)}ms` }}
+                  className='flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 rounded-md border border-border bg-card/30 opacity-80 cursor-default'
                 >
                   <div className="flex items-center gap-3 w-full">
                     <div className="h-8 w-8 rounded-full bg-green-500/10 flex items-center justify-center text-green-600 flex-shrink-0">
@@ -315,13 +346,11 @@ export const WizardView: React.FC<WizardViewProps> = () => {
                   {/* Indicator for completion */}
                   <CheckCircle className="h-5 w-5 text-green-500 self-end sm:self-center mt-2 sm:mt-0" />
                 </div>
-              ))
-            ) : (
-              <p className="text-sm text-muted-foreground p-4 text-center">You haven&apos;t completed any wizards yet.</p>
-            )}
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
-    </>
+    </div>
   );
 }; 
