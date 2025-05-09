@@ -4,7 +4,7 @@ import React from 'react';
 import Image from 'next/image';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, Award, Star, PlayCircle, Wand2 } from 'lucide-react';
+import { CheckCircle, Award, Star, PlayCircle, Wand2, ListChecks } from 'lucide-react';
 import { useUserWizardPreviewImageQuery } from '@/hooks/useUserWizardPreviewImageQuery';
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -13,6 +13,7 @@ interface WizardHeroCardProps {
     id: string;
     name: string;
     description?: string;
+    stepCount?: number; // Number of steps in the wizard
   } | null;
   communityInfo: {
     headerImageUrl?: string | null;
@@ -61,8 +62,15 @@ export function WizardHeroCard({
   return (
     // Only show on desktop (hidden on smaller screens)
     <div className="hidden md:block max-w-3xl mx-auto mb-8 rounded-xl overflow-hidden shadow-md">
-      {/* Single integrated preview area with overlays */}
-      <div className="relative aspect-video w-full">
+      {/* Single integrated preview area with overlays - entire area clickable */}
+      <div 
+        className="relative aspect-video w-full cursor-pointer group"
+        onClick={() => onLaunchWizard(heroWizard.id)}
+        role="button"
+        tabIndex={0}
+        aria-label={`Launch ${heroWizard.name} wizard`}
+        onKeyDown={(e) => e.key === 'Enter' && onLaunchWizard(heroWizard.id)}
+      >
         {/* Background preview image or placeholder */}
         {isLoadingPreview ? (
           <Skeleton className="w-full h-full" />
@@ -72,7 +80,7 @@ export function WizardHeroCard({
             alt={`${heroWizard.name} preview`}
             fill
             sizes="(max-width: 1280px) 100vw, 1280px"
-            className="object-cover"
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
           <div className="w-full h-full bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 flex items-center justify-center">
@@ -88,7 +96,7 @@ export function WizardHeroCard({
         <div className="absolute inset-0 bg-gradient-to-r from-black/40 to-transparent"></div>
         
         {/* Top community branding overlay */}
-        <div className="absolute top-4 left-4 flex items-center z-10">
+        <div className="absolute top-4 left-4 flex items-center z-10 pointer-events-none">
           {/* Logo */}
           <div className="relative h-12 w-12 rounded-full overflow-hidden border-2 border-background/80 shadow-lg bg-background/60 backdrop-blur-sm">
             {communityInfo.largeLogoUrl ? (
@@ -132,8 +140,18 @@ export function WizardHeroCard({
           </div>
         </div>
         
+        {/* Step Count Indicator in top right */}
+        <div className="absolute top-4 right-4 z-10 pointer-events-none">
+          <div className="flex items-center gap-1 bg-black/40 backdrop-blur-sm px-2.5 py-1.5 rounded-lg border border-white/10 shadow-md">
+            <ListChecks size={14} className="text-white/90" />
+            <span className="text-sm font-medium text-white">
+              {heroWizard.stepCount || '?'} Steps
+            </span>
+          </div>
+        </div>
+        
         {/* Wizard info in bottom section */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/90 via-black/80 to-transparent z-10">
+        <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/90 via-black/80 to-transparent z-10 pointer-events-none">
           <div className="flex items-center">
             <div className="p-1.5 bg-primary/20 rounded-full backdrop-blur-sm">
               <Wand2 className="h-4 w-4 text-primary/90" />
@@ -146,24 +164,21 @@ export function WizardHeroCard({
             </div>
           </div>
           
-          {/* Launch button */}
+          {/* Text and launch indicator */}
           <div className="mt-4 flex justify-between items-center">
-            <p className="text-xs text-white/70 italic">Preview Only — Launch to interact</p>
-            <Button
-              onClick={() => onLaunchWizard(heroWizard.id)}
-              className="flex items-center gap-1.5 bg-primary/90 hover:bg-primary"
-              size="sm"
-            >
-              <PlayCircle className="h-4 w-4" />
+            <p className="text-xs text-white/70 italic">Click anywhere to launch</p>
+            <span className="text-xs text-white/90 flex items-center gap-1.5 bg-primary/80 px-3 py-1 rounded-full backdrop-blur-sm">
+              <PlayCircle className="h-3.5 w-3.5" />
               <span>Launch Wizard</span>
-            </Button>
+            </span>
           </div>
         </div>
         
-        {/* Central play indicator */}
+        {/* Central play button - now with hover animation */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="rounded-full bg-background/10 backdrop-blur-sm p-3 border border-white/20 shadow-2xl">
-            <PlayCircle className="h-12 w-12 text-white/90" />
+          <div className="rounded-full bg-background/10 backdrop-blur-sm p-3 border border-white/20 shadow-2xl 
+                         group-hover:bg-primary/30 group-hover:scale-110 transition-all duration-300">
+            <PlayCircle className="h-12 w-12 text-white/90 group-hover:text-white" />
           </div>
         </div>
       </div>

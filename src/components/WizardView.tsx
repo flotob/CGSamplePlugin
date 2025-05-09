@@ -149,11 +149,19 @@ export const WizardView: React.FC<WizardViewProps> = () => {
       return wizard.is_hero === true;
     });
     
+    // Get step count for the wizard if available
+    const getStepCount = (wizardId: string) => {
+      if (!relevantStepsData?.steps) return undefined;
+      // Count steps that belong to this wizard
+      return relevantStepsData.steps.filter(step => step.wizard_id === wizardId).length;
+    };
+    
     if (adminHeroWizard) {
       return {
         id: adminHeroWizard.id,
         name: adminHeroWizard.name,
-        description: adminHeroWizard.description || undefined
+        description: adminHeroWizard.description || undefined,
+        stepCount: getStepCount(adminHeroWizard.id)
       };
     }
     
@@ -165,12 +173,13 @@ export const WizardView: React.FC<WizardViewProps> = () => {
       return {
         id: newestWizard.id,
         name: newestWizard.name,
-        description: newestWizard.description || undefined
+        description: newestWizard.description || undefined,
+        stepCount: getStepCount(newestWizard.id)
       };
     }
     
     return null;
-  }, [userWizardsData, availableWizards]);
+  }, [userWizardsData, availableWizards, relevantStepsData?.steps]);
 
   // Combine loading states
   const isLoading = isInitializing || isLoadingUserWizards || isLoadingUserInfo || isLoadingCommunityInfo || isLoadingActiveWizards || isLoadingRelevantSteps || isLoadingCompletions;
