@@ -3,6 +3,7 @@
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { markStepAsCompletedInDB } from '@/lib/onboardingDbService'; // Import the new service function
 // import { validateStepCompletion } from '@/lib/credentialVerification'; // Removed unused import
 
 // Define the expected shape of the request body (optional)
@@ -62,10 +63,9 @@ export const POST = withAuth<CompleteStepParams>(async (req: AuthenticatedReques
      console.warn('Could not parse JSON body for step completion, proceeding without verified_data.');
   }
 
-  const verifiedData = body?.verified_data ? JSON.stringify(body.verified_data) : null;
+  // const verifiedData = body?.verified_data ? JSON.stringify(body.verified_data) : null; // Stringification now handled by the service
 
   try {
-    // Wrap operations in a transaction for consistency
     await query('BEGIN');
 
     // Verify the step exists, belongs to the wizard, and the wizard belongs to the user's community
@@ -100,19 +100,12 @@ export const POST = withAuth<CompleteStepParams>(async (req: AuthenticatedReques
     };
 
     // --- Credential Verification Logic ---
-    // ... (existing credential verification logic) ...
+    // ... (existing credential verification logic if any, should be before marking complete) ...
     // --- End Credential Verification ---
 
-    // Insert or update the progress record
-    await query(
-      `INSERT INTO user_wizard_progress (user_id, wizard_id, step_id, verified_data, completed_at)
-       VALUES ($1, $2, $3, $4, NOW())
-       ON CONFLICT (user_id, wizard_id, step_id) DO UPDATE SET
-         completed_at = NOW(),
-         verified_data = COALESCE(EXCLUDED.verified_data, user_wizard_progress.verified_data); -- Keep existing data if new data is null`, 
-      [userId, wizardId, stepId, verifiedData]
-    );
-
+    // Use the new service function to update progress
+    await markStepAsCompletedInDB(userId, wizardId, stepId, body?.verified_data);
+    
     // Determine if a role should be assigned based on this step completion
     const shouldAssign = wizardInfo.assign_roles_per_step && !!stepInfo.target_role_id;
     const roleIdToAssign = shouldAssign ? stepInfo.target_role_id : null;
