@@ -19,7 +19,7 @@ import { HelpView } from '../components/HelpView';
 import { WizardView } from '../components/WizardView';
 import { ContactView } from '../components/ContactView';
 import { DebugSettingsView } from '../components/DebugSettingsView';
-import { LayoutDashboard, Settings, Plug, User, Wand2, Building, Loader2, Terminal } from 'lucide-react';
+import { LayoutDashboard, Settings, Plug, User, Wand2, Loader2, Terminal } from 'lucide-react';
 import { Toaster } from "@/components/ui/toaster";
 import { useWizardSlideshow } from '../context/WizardSlideshowContext';
 import { WizardSlideshowModal } from '../components/onboarding/WizardSlideshowModal';

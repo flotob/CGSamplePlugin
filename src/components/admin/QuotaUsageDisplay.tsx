@@ -12,6 +12,7 @@ import {
   TableHeader as ShadcnTableHeader,
   TableRow as ShadcnTableRow,
 } from "@/components/ui/table";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { AlertCircle, CheckCircle, Loader2, ExternalLink, CreditCard, CalendarClock, RefreshCw, Zap, ShieldCheck, Star } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { useCgLib } from '@/context/CgLibContext';
@@ -23,8 +24,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { useQueryClient } from '@tanstack/react-query';
-import { useCommunityBillingInfo, type BillingInfoResponse } from '@/hooks/useCommunityBillingInfo';
-import { useCreateCheckoutSession, type CreateCheckoutSessionVariables } from '@/hooks/useCreateCheckoutSession';
+import { useCommunityBillingInfo } from '@/hooks/useCommunityBillingInfo';
+import { useCreateCheckoutSession } from '@/hooks/useCreateCheckoutSession';
 import { useCreatePortalSession } from '@/hooks/useCreatePortalSession';
 import { useToast } from "@/hooks/use-toast";
 

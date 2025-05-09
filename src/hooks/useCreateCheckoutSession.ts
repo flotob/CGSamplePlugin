@@ -36,7 +36,7 @@ export function useCreateCheckoutSession() {
 
   return useMutation<CreateCheckoutSessionResponse, Error, CreateCheckoutSessionVariables>({
     mutationFn,
-    onSuccess: async (data, variables) => {
+    onSuccess: async (data, /*variables*/) => {
       const { sessionUrl } = data;
       const pluginBaseUrl = process.env.NEXT_PUBLIC_PLUGIN_BASE_URL;
 

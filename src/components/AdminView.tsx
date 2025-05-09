@@ -36,6 +36,7 @@ interface AdminViewProps {
 
 export const AdminView: React.FC<AdminViewProps> = ({
   userInfo,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   communityInfo,
   pluginControlledDisplayRoles,
   otherDisplayRoles,

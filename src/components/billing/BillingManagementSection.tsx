@@ -3,7 +3,7 @@
 import React from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCommunityBillingInfo } from '@/hooks/useCommunityBillingInfo';
-import { useCreateCheckoutSession, type CreateCheckoutSessionVariables } from '@/hooks/useCreateCheckoutSession';
+import { useCreateCheckoutSession } from '@/hooks/useCreateCheckoutSession';
 import { useCreatePortalSession } from '@/hooks/useCreatePortalSession';
 import { useToast } from "@/hooks/use-toast";
 // Removed useAuth import as communityId comes from props
