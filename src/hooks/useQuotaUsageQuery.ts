@@ -7,30 +7,35 @@ import { useAuthFetch } from '@/lib/authFetch';
 export interface PlanQuotaInfo {
   id: number;
   name: string;
+  planCode: string;
   wizardLimit: number;
+  imageGenerationLimit: number;
+  imageGenerationTimeWindow: string | null;
+  aiChatMessageLimit: number;
+  aiChatMessageTimeWindow: string | null;
 }
 
 // Define the expected shape of the API response data
 export interface QuotaComparisonData {
-  currentPlanId: number | null; // ID of the community's current plan (or null)
+  currentPlanId: number | null;
   currentWizardUsage: number;
-  plans: PlanQuotaInfo[]; // Array of all available plans
+  currentImageGenerationUsage: number;
+  currentAiChatMessageUsage: number;
+  plans: PlanQuotaInfo[];
 }
 
 /**
- * React Query hook to fetch the community's current quota usage for active wizards.
+ * React Query hook to fetch the community's current quota usage and plan comparisons.
  * This is intended for use in admin-only contexts.
  */
 export const useQuotaUsageQuery = () => {
   const { authFetch } = useAuthFetch();
 
-  return useQuery<QuotaComparisonData, Error>({ // Update Data type here
-    queryKey: ['quotaUsageComparison'], // Changed queryKey to reflect new data
+  return useQuery<QuotaComparisonData, Error>({
+    queryKey: ['quotaUsageComparison'], 
     queryFn: async () => {
-      const response = await authFetch<QuotaComparisonData>('/api/community/quota-usage'); // Update type here
-      
-      // authFetch already handles non-OK responses by throwing an error
-      // Just need to return the data if successful
+      // The API endpoint now returns the extended QuotaComparisonData structure
+      const response = await authFetch<QuotaComparisonData>('/api/community/quota-usage');
       return response;
     },
     // Optional: Configure caching behavior, e.g., refetch interval or stale time

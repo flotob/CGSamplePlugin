@@ -23,45 +23,99 @@ export const GET = withAuth(async (req) => {
   }
 
   try {
-    // 1. Fetch community's current plan ID and active wizard count concurrently
-    const [communityRes, wizardCountRes] = await Promise.all([
-      query('SELECT current_plan_id FROM communities WHERE id = $1', [communityId]),
-      query('SELECT COUNT(*) FROM onboarding_wizards WHERE community_id = $1 AND is_active = true', [communityId])
-    ]);
+    // 1. Fetch community's current plan ID
+    const communityRes = await query(
+      'SELECT id, current_plan_id FROM communities WHERE id = $1',
+      [communityId]
+    );
 
     if (!communityRes || communityRes.rowCount === 0) {
       return NextResponse.json({ error: 'Community not found' }, { status: 404 });
     }
+    const currentCommunity = communityRes.rows[0];
+    const currentPlanId = currentCommunity.current_plan_id;
 
-    const currentPlanId = communityRes.rows[0].current_plan_id; // Can be null
-    const currentWizardUsage = (wizardCountRes?.rowCount && wizardCountRes.rows?.[0]?.count) 
-      ? parseInt(wizardCountRes.rows[0].count, 10) 
-      : 0;
-
-    // 2. Fetch all active plans and their corresponding active_wizard limit
-    const allPlansRes = await query(
-      `SELECT 
-         p.id, 
-         p.name,
-         COALESCE(pl.hard_limit, 0) as wizard_limit -- Default to 0 if no limit is explicitly set
-       FROM plans p
-       LEFT JOIN plan_limits pl ON p.id = pl.plan_id AND pl.feature = 'active_wizard'
-       WHERE p.is_active = true -- Only show active plans
-       ORDER BY p.price_cents ASC -- Order plans logically (e.g., by price)
-      `
-    );
+    // 2. Fetch all active plans and their relevant limits
+    const allPlansQuery = `
+      SELECT 
+        p.id, 
+        p.name,
+        p.code as plan_code, -- For display or logic if needed
+        COALESCE(pl_wizard.hard_limit, 0) AS wizard_limit,
+        COALESCE(pl_image.hard_limit, 0) AS image_generation_limit,
+        pl_image.time_window AS image_generation_time_window,
+        COALESCE(pl_chat.hard_limit, 0) AS ai_chat_message_limit,
+        pl_chat.time_window AS ai_chat_message_time_window
+      FROM plans p
+      LEFT JOIN plan_limits pl_wizard ON p.id = pl_wizard.plan_id 
+        AND pl_wizard.feature = 'active_wizard' 
+        AND pl_wizard.time_window = '0 seconds'::interval 
+      LEFT JOIN plan_limits pl_image ON p.id = pl_image.plan_id 
+        AND pl_image.feature = 'image_generation' 
+        AND pl_image.time_window = '30 days'::interval -- Display the 30-day limit
+      LEFT JOIN plan_limits pl_chat ON p.id = pl_chat.plan_id 
+        AND pl_chat.feature = 'ai_chat_message' 
+        AND pl_chat.time_window = '1 day'::interval -- Display the 1-day limit
+      WHERE p.is_active = true
+      ORDER BY p.price_cents ASC;
+    `;
+    const allPlansRes = await query(allPlansQuery);
 
     const allPlans = allPlansRes.rows.map(row => ({
       id: row.id,
       name: row.name,
-      wizardLimit: parseInt(row.wizard_limit, 10)
-    })); 
+      planCode: row.plan_code,
+      wizardLimit: parseInt(row.wizard_limit, 10),
+      imageGenerationLimit: parseInt(row.image_generation_limit, 10),
+      imageGenerationTimeWindow: row.image_generation_time_window, // e.g., "30 days"
+      aiChatMessageLimit: parseInt(row.ai_chat_message_limit, 10),
+      aiChatMessageTimeWindow: row.ai_chat_message_time_window, // e.g., "1 day"
+    }));
 
-    // 3. Structure and return the data
+    // 3. Fetch current usage for the specific community based on their current plan's limits
+    let currentWizardUsage = 0;
+    let currentImageGenerationUsage = 0;
+    let currentAiChatMessageUsage = 0;
+
+    const currentPlanDetails = allPlans.find(p => p.id === currentPlanId);
+
+    // Fetch active wizard count (resource limit, not from usage_events typically)
+    const wizardCountRes = await query(
+      'SELECT COUNT(*) FROM onboarding_wizards WHERE community_id = $1 AND is_active = true',
+      [communityId]
+    );
+    currentWizardUsage = wizardCountRes?.rows?.[0]?.count ? parseInt(wizardCountRes.rows[0].count, 10) : 0;
+
+    if (currentPlanDetails) {
+      // Fetch image generation usage if window is defined
+      if (currentPlanDetails.imageGenerationTimeWindow) {
+        const imageUsageRes = await query(
+          `SELECT COUNT(*) FROM usage_events 
+           WHERE community_id = $1 AND feature = 'image_generation' 
+           AND occurred_at >= (now() - $2::interval)`,
+          [communityId, currentPlanDetails.imageGenerationTimeWindow]
+        );
+        currentImageGenerationUsage = imageUsageRes?.rows?.[0]?.count ? parseInt(imageUsageRes.rows[0].count, 10) : 0;
+      }
+
+      // Fetch AI chat message usage if window is defined
+      if (currentPlanDetails.aiChatMessageTimeWindow) {
+        const chatUsageRes = await query(
+          `SELECT COUNT(*) FROM usage_events 
+           WHERE community_id = $1 AND feature = 'ai_chat_message' 
+           AND occurred_at >= (now() - $2::interval)`,
+          [communityId, currentPlanDetails.aiChatMessageTimeWindow]
+        );
+        currentAiChatMessageUsage = chatUsageRes?.rows?.[0]?.count ? parseInt(chatUsageRes.rows[0].count, 10) : 0;
+      }
+    }
+
     const data = { 
-      currentPlanId: currentPlanId, // Send the ID of the current plan (or null)
+      currentPlanId: currentPlanId,
       currentWizardUsage: currentWizardUsage,
-      plans: allPlans // Send the array of all available plans with their limits
+      currentImageGenerationUsage: currentImageGenerationUsage,
+      currentAiChatMessageUsage: currentAiChatMessageUsage,
+      plans: allPlans,
     };
 
     return NextResponse.json(data);
