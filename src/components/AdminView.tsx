@@ -28,6 +28,7 @@ interface AdminViewProps {
   communityInfo: CommunityInfoResponsePayload | undefined;
   pluginControlledDisplayRoles: CommunityRole[] | undefined;
   otherDisplayRoles: CommunityRole[] | undefined;
+  selectableRolesForWizardConfig: CommunityRole[] | undefined;
   activeSection: string; // Receive activeSection prop
   isLoadingCommunityInfo: boolean;
   communityInfoError: Error | null;
@@ -42,6 +43,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
   communityInfo,
   pluginControlledDisplayRoles,
   otherDisplayRoles,
+  selectableRolesForWizardConfig,
   activeSection,
   isLoadingCommunityInfo,
   communityInfoError,
@@ -264,11 +266,10 @@ export const AdminView: React.FC<AdminViewProps> = ({
                      <h2 className="text-xl font-semibold leading-none tracking-tight">Wizard Configuration</h2>
                      <p className="text-sm text-muted-foreground mt-2 text-balance">Setup roles and steps for the onboarding wizard here.</p>
                    </div>
-                   <NewWizardButton assignableRoles={pluginControlledDisplayRoles} />
+                   <NewWizardButton assignableRoles={selectableRolesForWizardConfig} />
                </div>
                <div className="px-1 sm:px-0 pt-2 sm:pt-0">
-                 {/* Pass assignableRoles to WizardList */}
-                 <WizardList setEditingWizardId={setEditingWizardId} assignableRoles={pluginControlledDisplayRoles} />
+                 <WizardList setEditingWizardId={setEditingWizardId} assignableRoles={selectableRolesForWizardConfig} />
                </div>
            </div>
          </div>
@@ -326,7 +327,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
             </button>
             <WizardStepEditorPage 
               wizardId={editingWizardId} 
-              assignableRoles={pluginControlledDisplayRoles} 
+              assignableRoles={selectableRolesForWizardConfig} 
               onClose={() => setEditingWizardId(null)}
             />
           </div>

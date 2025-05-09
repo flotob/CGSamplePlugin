@@ -237,6 +237,11 @@ const PluginContent = () => {
     };
   }, [communityInfo, titlesToIgnore, pluginContextAssignableRoleIds]);
 
+  // Create a list of roles specifically for selection in wizard/step configuration dropdowns
+  const selectableRolesForWizardConfig = React.useMemo(() => {
+    return pluginControlledDisplayRoles.filter(role => role.type === 'CUSTOM_MANUAL_ASSIGN');
+  }, [pluginControlledDisplayRoles]);
+
   // --- Fetch Data needed for Hero Logic ---
   // Fetch USER wizards and completions (require JWT)
   const { data: userWizardsData, isLoading: isLoadingUserWizards, error: userWizardsError } = useUserWizardsQuery(
@@ -373,6 +378,7 @@ const PluginContent = () => {
     friendsError,
     pluginControlledDisplayRoles,
     otherDisplayRoles,
+    selectableRolesForWizardConfig,
     handleAssignRoleClick,
     isAssigningRole,
     assignRoleError,
