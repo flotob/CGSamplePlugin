@@ -29,8 +29,6 @@ interface StepSidebarProps {
   setActiveStepId: (id: string | null) => void;
   steps: Step[] | undefined;
   isLoading: boolean;
-  isCreating: boolean;
-  stepTypeToCreate: StepType | null;
 }
 
 export const StepSidebar: React.FC<StepSidebarProps> = ({
@@ -39,8 +37,6 @@ export const StepSidebar: React.FC<StepSidebarProps> = ({
   setActiveStepId,
   steps,
   isLoading,
-  isCreating,
-  stepTypeToCreate
 }) => {
   const { data: stepTypesData } = useStepTypesQuery();
   const queryClient = useQueryClient();
@@ -98,7 +94,7 @@ export const StepSidebar: React.FC<StepSidebarProps> = ({
 
   const getStepType = (step: Step) => stepTypesData?.step_types.find(t => t.id === step.step_type_id);
 
-  if (!isLoading && orderedSteps.length === 0 && !isCreating) {
+  if (!isLoading && orderedSteps.length === 0) {
     return <div className="p-4 text-muted-foreground">No steps yet.</div>;
   }
 
@@ -124,17 +120,10 @@ export const StepSidebar: React.FC<StepSidebarProps> = ({
         >
           {/* Container for the actual sortable items */}
           <div className="flex flex-col gap-3">
-            {/* Render the creating item placeholder */}
-            {isCreating && stepTypeToCreate && (
-              <div className="border rounded-md p-3 bg-blue-50 border-blue-200 opacity-70">
-                 <p className="text-sm font-medium capitalize text-blue-700">New {stepTypeToCreate.label || stepTypeToCreate.name.replace(/_/g, ' ')}</p>
-                 <p className="text-xs text-blue-600">Editing settings...</p>
-              </div>
-            )}
             {/* Map over the sortable steps */}
             {orderedSteps.map((step) => {
               const stepType = getStepType(step);
-              const isActive = step.id === activeStepId && !isCreating;
+              const isActive = step.id === activeStepId;
               return (
                 <StepSidebarItem
                   key={step.id}
@@ -151,8 +140,8 @@ export const StepSidebar: React.FC<StepSidebarProps> = ({
         </SortableContext>
       </DndContext>
 
-      {/* Divider and Static Summary Item (rendered only if there are steps or creating) */}
-      {(orderedSteps.length > 0 || isCreating) && (
+      {/* Divider and Static Summary Item (rendered only if there are steps) */}
+      {orderedSteps.length > 0 && (
         <>
           <div className="border-t my-3 mx-[-8px]"></div> {/* Divider */} 
           <div 
@@ -186,7 +175,7 @@ export const StepSidebar: React.FC<StepSidebarProps> = ({
       )}
       
       {/* Message if no steps exist and not currently creating */}
-      {!isLoading && orderedSteps.length === 0 && !isCreating && (
+      {!isLoading && orderedSteps.length === 0 && (
         <div className="p-4 text-muted-foreground text-center">No steps yet. Add one to begin.</div>
       )}
     </div>

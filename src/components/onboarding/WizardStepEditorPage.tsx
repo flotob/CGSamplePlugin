@@ -2,6 +2,7 @@ import React from 'react';
 import { StepSidebar } from './steps/StepSidebar';
 import { StepEditor } from './steps/StepEditor';
 import { useStepsQuery, useCreateStep, Step } from '@/hooks/useStepsQuery';
+import { MinimalCreateStepPayload } from '@/hooks/useStepsQuery';
 import { useStepTypesQuery, StepType } from '@/hooks/useStepTypesQuery';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -28,14 +29,6 @@ interface WizardStepEditorPageProps {
   onClose?: () => void; // Optional callback for closing
 }
 
-export interface CreateStepPayload {
-  step_type_id: string;
-  config: Record<string, unknown>;
-  target_role_id: string | null;
-  is_mandatory: boolean;
-  is_active: boolean;
-}
-
 // Define SummaryData structure using the defined CommunityRole type
 interface SummaryData {
   includedStepTypes: StepType[];
@@ -49,59 +42,40 @@ export const WizardStepEditorPage: React.FC<WizardStepEditorPageProps> = ({
 }) => {
   const { data, isLoading, refetch: refetchSteps } = useStepsQuery(wizardId);
   const [activeStepId, setActiveStepId] = React.useState<string | null>(null);
-  const createStep: UseMutationResult<{ step: Step }, Error, CreateStepPayload, unknown> = useCreateStep(wizardId);
+  const createStep: UseMutationResult<{ step: Step }, Error, MinimalCreateStepPayload, unknown> = useCreateStep(wizardId);
   const { data: stepTypesData, isLoading: isLoadingStepTypes } = useStepTypesQuery();
-  const [stepTypeToCreate, setStepTypeToCreate] = React.useState<StepType | null>(null);
-  // Add state for sidebar visibility (default closed on mobile)
   const [isSidebarOpen, setSidebarOpen] = React.useState(false);
 
   React.useEffect(() => {
-    if (data && data.steps.length > 0 && !activeStepId && !stepTypeToCreate) {
+    if (data && data.steps.length > 0 && !activeStepId) {
       setActiveStepId(data.steps[0].id);
     }
-    if (stepTypeToCreate && activeStepId) {
-      setActiveStepId(null);
-    }
-  }, [data, activeStepId, stepTypeToCreate]);
+  }, [data, activeStepId]);
 
-  const handleAddStepClick = (type: StepType) => {
-    setStepTypeToCreate(type);
-    setActiveStepId(null);
-  };
-
-  const handleSaveNewStep = (payload: CreateStepPayload) => {
+  const handleDirectCreateStep = (type: StepType) => {
+    const payload: MinimalCreateStepPayload = { step_type_id: type.id };
     createStep.mutate(payload, {
       onSuccess: (res) => {
-        setStepTypeToCreate(null);
         refetchSteps();
         setActiveStepId(res.step.id);
-        // Close sidebar on mobile after adding a step
         setSidebarOpen(false);
+      },
+      onError: (error) => {
+        console.error("Failed to create step:", error);
       }
     });
   };
 
-  const handleCancelCreate = React.useCallback(() => {
-    setStepTypeToCreate(null);
-    if (data && data.steps.length > 0) {
-      setActiveStepId(data.steps[0].id);
-    }
-  }, [data, setActiveStepId]);
-
-  // Close sidebar after selecting a step on mobile
   const handleStepSelect = (id: string | null) => {
-    // First set the active step ID before closing the sidebar
     setActiveStepId(id);
-    // Only close sidebar on mobile
-    if (window.innerWidth < 640) { // sm breakpoint is 640px in Tailwind
+    if (window.innerWidth < 640) { 
       setTimeout(() => {
         setSidebarOpen(false);
-      }, 100); // Increased timeout to ensure state updates
+      }, 100); 
     }
   };
 
-  const activeStep: Step | null = !stepTypeToCreate && data?.steps.find(s => s.id === activeStepId) || null;
-  const isCreating = !!stepTypeToCreate;
+  const activeStep: Step | null = data?.steps.find(s => s.id === activeStepId) || null;
   const isSummaryPreviewActive = activeStepId === 'summary-preview';
 
   // --- Calculate Summary Data --- 
@@ -225,7 +199,7 @@ export const WizardStepEditorPage: React.FC<WizardStepEditorPageProps> = ({
                                   className={`w-full text-left pl-8 pr-4 py-2 text-sm ${
                                     isEnabled ? 'hover:bg-accent' : 'opacity-50 cursor-not-allowed'
                                   }`}
-                                  onClick={() => isEnabled && handleAddStepClick(type)}
+                                  onClick={() => isEnabled && handleDirectCreateStep(type)}
                                   disabled={!isEnabled || createStep.isPending}
                                 >
                                   <span className="font-medium capitalize">
@@ -258,28 +232,24 @@ export const WizardStepEditorPage: React.FC<WizardStepEditorPageProps> = ({
         <StepSidebar
           wizardId={wizardId}
           activeStepId={activeStepId}
-          setActiveStepId={handleStepSelect} // Use the handler that closes sidebar
+          setActiveStepId={handleStepSelect}
           steps={data?.steps}
           isLoading={isLoading}
-          isCreating={isCreating}
-          stepTypeToCreate={stepTypeToCreate}
         />
       </div>
 
       {/* Main content area - adjust padding on mobile to account for toggle button */}
       <div className="flex-1 min-w-0 overflow-y-auto pt-12 sm:pt-0 pb-16">
         <StepEditor
-          key={isSummaryPreviewActive ? 'summary-preview' : (isCreating ? 'creating' : activeStep?.id || 'no-selection')}
+          key={isSummaryPreviewActive ? 'summary-preview' : (activeStep?.id || 'no-selection')}
           wizardId={wizardId}
           step={isSummaryPreviewActive ? null : activeStep}
           roles={assignableRoles}
-          isCreating={!isSummaryPreviewActive && isCreating}
-          stepTypeForCreate={isSummaryPreviewActive ? null : stepTypeToCreate}
-          onCreate={handleSaveNewStep}
-          onCancelCreate={handleCancelCreate}
-          createStepMutation={createStep}
           isSummaryPreview={isSummaryPreviewActive}
           summaryData={summaryData ?? undefined}
+          onSave={() => {
+            refetchSteps();
+          }}
           onDelete={() => {
             setActiveStepId(null);
             refetchSteps();
