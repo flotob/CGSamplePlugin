@@ -225,6 +225,45 @@ ORDER BY os.step_order ASC;
 ```
 This approach ensures that sidequest data is efficiently fetched along with the step data, minimizing additional database queries from the client or API layer.
 
+Example (conceptual modification to step data response):
+```json
+{
+  "id": "step-uuid",
+  "wizard_id": "wizard-uuid",
+  "step_type_id": "type-uuid",
+  "config": { "...step config..." },
+  // ... other step fields ...
+  "sidequests": [
+    {
+      "id": "sidequest1-uuid", // uuid
+      "onboarding_step_id": "step-uuid", // uuid
+      "title": "Watch: Intro to Topic X",
+      "description": "A quick video explaining the basics.", // nullable
+      "image_url": "https://example.com/image1.jpg", // nullable
+      "sidequest_type": "youtube", // 'youtube' | 'link' | 'markdown'
+      "content_payload": "https://www.youtube.com/watch?v=VIDEO_ID",
+      "display_order": 0,
+      "created_at": "2023-01-01T12:00:00Z", // timestamptz (ISO string)
+      "updated_at": "2023-01-01T12:00:00Z"  // timestamptz (ISO string)
+    },
+    {
+      "id": "sidequest2-uuid",
+      "onboarding_step_id": "step-uuid",
+      "title": "Read: Advanced Details",
+      "description": "An in-depth article.",
+      "image_url": "https://example.com/image2.jpg",
+      "sidequest_type": "link",
+      "content_payload": "https://example.com/blog-post",
+      "display_order": 1,
+      "created_at": "2023-01-02T14:30:00Z",
+      "updated_at": "2023-01-02T15:00:00Z"
+    }
+    // ... more sidequests or null if none
+  ]
+}
+```
+This approach ensures that sidequest data is efficiently fetched along with the step data, minimizing additional database queries from the client or API layer.
+
 ## 6. Backend Implementation Details
 
 ### Database Migrations
