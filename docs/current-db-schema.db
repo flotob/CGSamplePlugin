@@ -244,4 +244,4 @@ ALTER TABLE ONLY "public"."user_wizard_progress" ADD CONSTRAINT "user_wizard_pro
 ALTER TABLE ONLY "public"."user_wizard_sessions" ADD CONSTRAINT "user_wizard_sessions_last_viewed_step_id_fkey" FOREIGN KEY (last_viewed_step_id) REFERENCES onboarding_steps(id) ON DELETE CASCADE NOT DEFERRABLE;
 ALTER TABLE ONLY "public"."user_wizard_sessions" ADD CONSTRAINT "user_wizard_sessions_wizard_id_fkey" FOREIGN KEY (wizard_id) REFERENCES onboarding_wizards(id) ON DELETE CASCADE NOT DEFERRABLE;
 
--- 2025-05-05 16:35:35 UTC
+-- 2025-05-09 21:13:06 UTC
