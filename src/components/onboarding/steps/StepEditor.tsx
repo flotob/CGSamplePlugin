@@ -36,6 +36,7 @@ import { BackgroundType } from './CommonStepPresentationSettings';
 import { ColorPicker } from '../../color-picker';
 import { Input } from "@/components/ui/input";
 import { extractYouTubeVideoId, isValidYouTubeUrl } from "@/lib/utils";
+import { SidequestsManager } from './SidequestsManager';
 
 interface CommunityRole {
   id: string;
@@ -570,6 +571,24 @@ export const StepEditor: React.FC<StepEditorProps> = ({
             </AccordionContent>
           </AccordionItem>
         )}
+
+        <AccordionItem value="sidequests">
+          <AccordionTrigger className="text-sm font-medium text-muted-foreground uppercase tracking-wide hover:no-underline py-2">
+            Sidequests Management
+          </AccordionTrigger>
+          <AccordionContent className="pt-1 pb-2">
+            {step && wizardId && (
+              <SidequestsManager 
+                stepId={step.id} 
+                wizardId={wizardId} 
+              />
+            )}
+            {!step && (
+              <p className="text-sm text-muted-foreground p-4">Select a step to manage its sidequests.</p>
+            )}
+          </AccordionContent>
+        </AccordionItem>
+
       </Accordion>
 
       <div className="space-y-3 border-t border-border/30 pt-4 mt-4">

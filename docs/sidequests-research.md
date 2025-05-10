@@ -59,22 +59,31 @@ To store Sidequests, a new database table is proposed:
 
 ## 3. Admin Experience (Wizard & Step Configuration)
 
-The admin UI for managing Sidequests will be integrated into the existing `StepEditor`.
+The admin UI for managing Sidequests will be integrated into the existing `StepEditor` via a modal experience.
 
 ### UI in Step Editor (`StepEditor.tsx`)
--   **New Section:** A dedicated "Sidequests" section within the step configuration area.
--   **Management:**
-    *   An "Add New Sidequest" button.
-    *   A list displaying existing sidequests for the current step. Each item in the list should show the sidequest's title, type, and provide "Edit" and "Delete" buttons.
-    *   **Reordering:** Implement drag-and-drop functionality for the list of sidequests to allow admins to set the `display_order`.
+-   **New Section:** A dedicated "Sidequests" accordion item within the step configuration area.
+-   **Trigger Button:** This accordion item will contain a button, e.g., "Manage Sidequests".
+-   **Optional Summary:** A brief summary might be displayed here, like "3 sidequests attached" or a list of the first few titles. (Further detail for this summary can be decided during UI implementation).
+-   **Modal Invocation:** Clicking the "Manage Sidequests" button will open the `SidequestsLibraryModal.tsx`.
 
-### Sidequest Creation/Editing Form (Modal or Inline)
-This form will appear when an admin adds a new sidequest or edits an existing one.
+### `SidequestsLibraryModal.tsx` (New Modal Component)
+This modal is the central hub for managing all sidequests associated with a specific step.
+-   **Invocation:** Opened from `StepEditor.tsx`.
+-   **Content:**
+    *   Displays a list of all existing sidequests for the current step using `SidequestAdminListItem.tsx` components.
+    *   Supports drag-and-drop reordering of these items.
+    *   Includes an "Add New Sidequest" button.
+    *   When creating a new sidequest or editing an existing one, the `SidequestForm.tsx` will be rendered (likely within this same modal, perhaps replacing the list view or in a sub-section).
+-   **Data:** Fetches and manages its own list of sidequests via React Query hooks.
 
+### Sidequest Creation/Editing Form (`SidequestForm.tsx`)
+This form will appear when an admin adds a new sidequest (via the "Add New" button in `SidequestsLibraryModal`) or edits an existing one (via the "Edit" button on a `SidequestAdminListItem` within the modal).
+-   **Rendering Context:** Rendered inside `SidequestsLibraryModal.tsx`.
 -   **Fields:**
     *   `Title` (text input, required)
     *   `Description` (textarea, optional)
-    *   `Image URL` (text input, optional for MVP). *Future: Could integrate with `ImageLibraryModal`.*
+    *   `Image`: A button to "Choose or Generate Image" which will open the `ImageLibraryModal`. A preview of the selected image will be shown. The `image_url` itself will be stored.
     *   `Sidequest Type` (dropdown/radio buttons: "YouTube", "Link", "Markdown", required)
 -   **Conditional `Content Payload` Input (based on `Sidequest Type`):**
     *   **YouTube:** Text input for "YouTube Video URL". Validation for valid YouTube URL format.
@@ -82,8 +91,10 @@ This form will appear when an admin adds a new sidequest or edits an existing on
     *   **Markdown:** A larger textarea for "Markdown Content". A live preview panel for the Markdown would be beneficial.
 
 ### Image Handling
--   **MVP:** Admins provide a direct URL for the `image_url`.
--   **Future Enhancement:** Integrate with the existing `ImageLibraryModal` and `generated_images` table. This would require consideration of image scopes (e.g., are sidequest images community-public by default, or private to the wizard/step?). It might also involve extending quota checks for image generation/storage if admins can generate new images specifically for sidequests.
+-   Sidequest images will be managed using the existing `ImageLibraryModal` component. This allows admins to select from previously uploaded/generated images (scoped to their community) or generate new images using AI (DALL·E 3 via OpenAI API).
+-   The `SidequestForm` will include a button to launch the `ImageLibraryModal`.
+-   When an image is selected or generated via the modal, its `storage_url` will be returned and stored as the `image_url` for the sidequest.
+-   The `ImageLibraryModal` will be passed necessary context, such as `wizardId` (to determine `communityId` for image scoping and quota checks if new images are generated), and potentially `stepId` or `sidequestId` if finer-grained association for generated images is desired in the future (though `communityId` derived from `wizardId` is the primary scope for `generated_images` table).
 
 ## 4. User Experience (Wizard Slideshow)
 
@@ -347,27 +358,41 @@ This detailed script needs to be placed in a new migration file in the `migratio
 ## 7. Frontend Implementation Details
 
 ### Admin UI (`src/components/onboarding/`)
-Focus will be on integrating into `StepEditor.tsx`.
+Focus will be on integrating into `StepEditor.tsx` and a new modal for sidequest management.
 
--   **New Components (Conceptual):**
-    *   `SidequestsManager.tsx`: A new component to be placed within `StepEditor.tsx`. This component will:
-        *   Fetch existing sidequests for the current step using a React Query hook (e.g., `useStepSidequestsQuery(stepId)`).
-        *   Display a list of `SidequestAdminListItem.tsx` components.
-        *   Include an "Add Sidequest" button, which would toggle visibility of `SidequestForm.tsx`.
-        *   Handle reordering logic via drag-and-drop, calling a mutation (e.g., `useReorderSidequestsMutation`).
-    *   `SidequestAdminListItem.tsx`: Displays a single sidequest's title, type, and provides "Edit" and "Delete" buttons. Clicking "Edit" would populate and show the `SidequestForm` with that sidequest's data.
-    *   `SidequestForm.tsx`: A modal or inline form for creating/editing a sidequest.
-        *   Inputs for `title`, `description`, `image_url`, `sidequest_type` (dropdown).
-        *   Conditional input for `content_payload` based on `sidequest_type`.
-        *   Uses React Query mutations for create (`useCreateSidequestMutation`) and update (`useUpdateSidequestMutation`).
--   **State Management:** Standard React component state for form handling. React Query for server state management (fetching, creating, updating, deleting sidequests).
--   **Drag-and-Drop:** `@dnd-kit/sortable` is already a dependency and should be used here for reordering.
--   **API Hooks:** Create new React Query hooks for each admin API operation:
-    *   `useStepSidequestsQuery(stepId)`
-    *   `useCreateSidequestMutation(stepId)`
-    *   `useUpdateSidequestMutation(stepId, sidequestId)`
-    *   `useDeleteSidequestMutation(stepId, sidequestId)`
-    *   `useReorderSidequestsMutation(stepId)`
+-   **`SidequestsManager.tsx` (Refactored - to be integrated into `StepEditor.tsx` accordion item):**
+    *   **Props:** `stepId: string`, `wizardId: string`.
+    *   **Responsibilities:**
+        *   Displays a button (e.g., "Manage Sidequests") to open the `SidequestsLibraryModal`.
+        *   Manages the open/close state for `SidequestsLibraryModal`.
+        *   Optionally, it might fetch and display a brief summary of sidequests (e.g., count or first few titles) directly in the accordion item for a quick overview. This part is secondary to launching the modal.
+    *   Passes `stepId` and `wizardId` to `SidequestsLibraryModal` when opening it.
+
+-   **`SidequestsLibraryModal.tsx` (New - Main Management UI):**
+    *   **Props:** `isOpen: boolean`, `onClose: () => void`, `stepId: string`, `wizardId: string`.
+    *   **State:** Manages visibility of `SidequestForm` (e.g., `formMode: 'create' | 'edit' | null`, `editingSidequestData: Sidequest | null`).
+    *   **Functionality:**
+        *   Uses `useGetStepSidequests(stepId)` to fetch and display the list of sidequests.
+        *   Renders `SidequestAdminListItem.tsx` for each sidequest.
+        *   Implements drag-and-drop for reordering using `@dnd-kit/sortable` and `useReorderSidequestsMutation`.
+        *   Contains an "Add New Sidequest" button. When clicked, sets state to show `SidequestForm` in 'create' mode.
+        *   Handles the `onEdit` callback from `SidequestAdminListItem`, setting state to show `SidequestForm` in 'edit' mode with the selected sidequest's data.
+        *   Renders `SidequestForm.tsx` when `formMode` is 'create' or 'edit'.
+
+-   **`SidequestAdminListItem.tsx` (Rendered inside `SidequestsLibraryModal`):**
+    *   **Props:** `sidequest: Sidequest`, `stepId: string`, `onEdit: (sidequest: Sidequest) => void`.
+    *   (Internal logic for display, delete mutation, and sortable integration remains largely the same as previously defined).
+    *   The `onEdit` prop now signals `SidequestsLibraryModal` to show the form.
+
+-   **`SidequestForm.tsx` (Rendered inside `SidequestsLibraryModal`):**
+    *   **Props:** `stepId: string`, `wizardId: string`, `existingSidequest?: Sidequest | null`, `onCloseForm: () => void`, `onSaveSuccess?: (savedSidequest: Sidequest) => void`.
+    *   (Internal logic for fields, `ImageLibraryModal` integration, create/update mutations remains largely the same as previously defined).
+    *   `onCloseForm` now signals `SidequestsLibraryModal` to hide the form.
+    *   `onSaveSuccess` signals `SidequestsLibraryModal`, which can then trigger a refetch of its list if needed (though mutations should handle invalidation) and hide the form.
+
+-   **State Management:** React Query for server state. Local component state for form inputs, modal visibility, etc.
+-   **Drag-and-Drop:** `@dnd-kit/sortable` used within `SidequestsLibraryModal`.
+-   **API Hooks:** The existing hooks (`useGetStepSidequests`, `useCreateSidequestMutation`, etc.) will be used by these components, primarily by `SidequestsLibraryModal` and `SidequestForm`.
 
 ### User UI (`src/components/onboarding/WizardSlideshowModal.tsx`)
 Anticipating needs for later implementation:
