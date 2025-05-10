@@ -2,6 +2,9 @@ import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from '@/components/ui/button';
@@ -295,6 +298,13 @@ export const SidequestsLibraryModal: React.FC<SidequestsLibraryModalProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={(openState) => { if (!openState) onClose(); }}>
       <DialogContent className="sm:max-w-3xl md:max-w-4xl lg:max-w-5xl xl:max-w-6xl w-[90vw] h-[85vh] max-h-[900px] flex flex-col p-0">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Sidequest Library & Management</DialogTitle>
+          <DialogDescription>
+            View and manage sidequests attached to this step. You can also add new sidequests from your personal library or the community library, and manage your global sidequest creations.
+          </DialogDescription>
+        </DialogHeader>
+        
         <Button variant="ghost" size="icon" onClick={onClose} className="absolute top-3.5 right-3.5 z-50 h-7 w-7 p-0 opacity-70 hover:opacity-100">
             <XIcon className="h-5 w-5" />
             <span className="sr-only">Close</span>
