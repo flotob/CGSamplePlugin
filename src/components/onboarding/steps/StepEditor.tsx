@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Step, useUpdateStep, useDeleteStep } from '@/hooks/useStepsQuery';
 import { Button } from '@/components/ui/button';
 import { useStepTypesQuery, StepType } from '@/hooks/useStepTypesQuery';
-import { UseMutationResult } from '@tanstack/react-query';
 import { CommonStepPresentationSettings, PresentationConfig } from './CommonStepPresentationSettings';
 import { EnsStepConfig, EnsSpecificConfig } from './EnsStepConfig';
 import { ContentStepConfig, ContentSpecificConfigType } from './ContentStepConfig';

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Step, useUpdateStepOrder } from '@/hooks/useStepsQuery';
-import { useStepTypesQuery, StepType } from '@/hooks/useStepTypesQuery';
+import { useStepTypesQuery } from '@/hooks/useStepTypesQuery';
 import { StepSidebarItem } from './StepSidebarItem';
 import { useQueryClient } from '@tanstack/react-query';
 // Import dnd-kit components and hooks
