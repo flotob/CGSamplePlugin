@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Settings2, Loader2, AlertCircle } from 'lucide-react';
-import { useGetStepSidequests } from '@/hooks/useSidequestAdminQueries';
+import { useGetStepAttachedSidequests } from '@/hooks/useStepAttachedSidequestQueries';
 import { SidequestsLibraryModal } from './SidequestsLibraryModal';
 
 interface SidequestsManagerProps {
@@ -12,7 +12,7 @@ interface SidequestsManagerProps {
 export const SidequestsManager: React.FC<SidequestsManagerProps> = ({ stepId, wizardId }) => {
   const [isLibraryModalOpen, setIsLibraryModalOpen] = useState(false);
 
-  const { data: sidequestsData, isLoading, isError, error } = useGetStepSidequests(stepId);
+  const { data: sidequestsData, isLoading, isError, error } = useGetStepAttachedSidequests(stepId);
 
   const handleOpenModal = () => setIsLibraryModalOpen(true);
   const handleCloseModal = () => setIsLibraryModalOpen(false);

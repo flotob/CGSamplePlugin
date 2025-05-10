@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import type { Sidequest } from '@/types/sidequests';
+import type { Sidequest, CreateGlobalSidequestPayload, UpdateGlobalSidequestPayload } from '@/types/sidequests';
 import {
-  CreateSidequestPayload,
-  UpdateSidequestPayload,
-  useCreateSidequestMutation,
-  useUpdateSidequestMutation
-} from '@/hooks/useSidequestAdminMutations';
+  useCreateGlobalSidequestMutation,
+  useUpdateGlobalSidequestMutation
+} from '@/hooks/useSidequestLibraryHooks';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -23,16 +21,13 @@ interface SidequestFormProps {
   onSaveSuccess?: (savedSidequest: Sidequest) => void;
 }
 
-const defaultSidequestState: CreateSidequestPayload = {
+const defaultGlobalSidequestState: CreateGlobalSidequestPayload = {
   title: '',
   description: '',
   image_url: null,
-  sidequest_type: 'link', // Default type
+  sidequest_type: 'link',
   content_payload: '',
-  // display_order is usually handled by the backend on create (e.g., append) or set via reorder
-  // For explicit setting via form, it could be added here, but often better managed separately.
-  // For MVP, we can let backend assign default if not provided, or set during reorder.
-  // display_order: 0, 
+  is_public: false,
 };
 
 export const SidequestForm: React.FC<SidequestFormProps> = ({
@@ -43,17 +38,14 @@ export const SidequestForm: React.FC<SidequestFormProps> = ({
   onSaveSuccess,
 }) => {
   const isEditMode = !!existingSidequest;
-  const [formData, setFormData] = useState<CreateSidequestPayload | UpdateSidequestPayload>(
-    defaultSidequestState
+  const [formData, setFormData] = useState<CreateGlobalSidequestPayload | UpdateGlobalSidequestPayload>(
+    defaultGlobalSidequestState
   );
   const [isImageLibraryOpen, setIsImageLibraryOpen] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  const createMutation = useCreateSidequestMutation({ stepId });
-  const updateMutation = useUpdateSidequestMutation({ 
-    stepId, 
-    sidequestId: existingSidequest?.id || '', 
-  });
+  const createMutation = useCreateGlobalSidequestMutation();
+  const updateMutation = useUpdateGlobalSidequestMutation();
 
   const currentMutation = isEditMode ? updateMutation : createMutation;
 
@@ -65,19 +57,13 @@ export const SidequestForm: React.FC<SidequestFormProps> = ({
         image_url: existingSidequest.image_url || null,
         sidequest_type: existingSidequest.sidequest_type,
         content_payload: existingSidequest.content_payload,
-        display_order: existingSidequest.display_order, // Include for edit if present
+        is_public: existingSidequest.is_public,
       });
     } else {
-      // When creating, or if existingSidequest becomes null, reset to default.
-      // For create, we might want to fetch current max display_order + 1 for this step
-      // or let backend handle default on creation (e.g., to append).
-      // For simplicity, let's not set display_order in create form initially unless required.
-      const { display_order, ...createDefaults } = defaultSidequestState;
-      setFormData(createDefaults);
+      setFormData(defaultGlobalSidequestState);
     }
-    setFormErrors({}); // Clear errors when mode or existing data changes
+    setFormErrors({});
   }, [existingSidequest, isEditMode]);
-
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -88,7 +74,7 @@ export const SidequestForm: React.FC<SidequestFormProps> = ({
   };
 
   const handleSelectChange = (name: string, value: string) => {
-    setFormData(prev => ({ ...prev, [name]: value, content_payload: '' })); // Reset content_payload when type changes
+    setFormData(prev => ({ ...prev, [name]: value, content_payload: '' }));
      if (formErrors[name]) {
       setFormErrors(prev => ({ ...prev, [name]: '' }));
     }
@@ -108,9 +94,9 @@ export const SidequestForm: React.FC<SidequestFormProps> = ({
 
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};
-    const currentTitle = (formData as CreateSidequestPayload).title || (formData as UpdateSidequestPayload).title;
-    const currentSidequestType = (formData as CreateSidequestPayload).sidequest_type || (formData as UpdateSidequestPayload).sidequest_type;
-    const currentContentPayload = (formData as CreateSidequestPayload).content_payload || (formData as UpdateSidequestPayload).content_payload;
+    const currentTitle = formData.title;
+    const currentSidequestType = formData.sidequest_type;
+    const currentContentPayload = formData.content_payload;
 
     if (!currentTitle || !currentTitle.trim()) errors.title = 'Title is required.';
     if (!currentSidequestType) errors.sidequest_type = 'Sidequest type is required.';
@@ -123,12 +109,6 @@ export const SidequestForm: React.FC<SidequestFormProps> = ({
             errors.content_payload = 'Please enter a valid URL.';
         }
     }
-    // Display order validation (if field is present and required)
-    // const currentDisplayOrder = (formData as { display_order?: number }).display_order;
-    // if (typeof currentDisplayOrder === 'number' && currentDisplayOrder < 0) {
-    //   errors.display_order = 'Display order must be non-negative.';
-    // }
-
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -137,39 +117,31 @@ export const SidequestForm: React.FC<SidequestFormProps> = ({
     e.preventDefault();
     if (!validateForm()) return;
 
-    // Ensure description and image_url are null if empty strings, consistent with DB
-    const payloadToSubmit = {
+    const payloadToSubmit: CreateGlobalSidequestPayload | UpdateGlobalSidequestPayload = {
         ...formData,
         description: formData.description?.trim() === '' ? null : formData.description,
         image_url: formData.image_url?.trim() === '' ? null : formData.image_url,
     };
 
-    // Remove display_order for create if it's not explicitly set or meant to be auto-assigned by backend
-    let finalPayload: CreateSidequestPayload | UpdateSidequestPayload = payloadToSubmit;
-    if (!isEditMode) {
-      const { display_order, ...createPayload } = payloadToSubmit as CreateSidequestPayload & {display_order?:number}; // Type assertion for destructuring
-      finalPayload = createPayload;
-      // If your create API expects display_order, ensure it's included or handled
-      // if (payloadToSubmit.display_order !== undefined) {
-      //   (finalPayload as CreateSidequestPayload).display_order = payloadToSubmit.display_order;
-      // }
+    if (isEditMode && existingSidequest) {
+      updateMutation.mutate({ sidequestId: existingSidequest.id, payload: payloadToSubmit as UpdateGlobalSidequestPayload }, {
+        onSuccess: (savedData) => {
+          onSaveSuccess?.(savedData);
+          onCloseForm(); 
+        },
+      });
+    } else {
+      createMutation.mutate(payloadToSubmit as CreateGlobalSidequestPayload, {
+        onSuccess: (savedData) => {
+          onSaveSuccess?.(savedData);
+          onCloseForm(); 
+        },
+      });
     }
-
-    currentMutation.mutate(finalPayload as any, { // Use `as any` if types become too complex for TS to infer quickly with conditional payloads
-      onSuccess: (savedData) => {
-        onSaveSuccess?.(savedData);
-        onCloseForm(); 
-      },
-      onError: (error) => {
-        // Errors are displayed via currentMutation.isError and currentMutation.error below
-        // Optionally add toast notifications here
-        console.error("Save error:", error);
-      }
-    });
   };
 
-  const formTitle = isEditMode ? 'Edit Sidequest' : 'Create New Sidequest';
-  const submitButtonText = isEditMode ? 'Save Changes' : 'Create Sidequest';
+  const formTitle = isEditMode ? `Edit ${existingSidequest?.title || 'Sidequest'}` : 'Create New Library Sidequest';
+  const submitButtonText = isEditMode ? 'Save Changes to Library' : 'Create Library Sidequest';
 
   return (
     <div className="p-1">
@@ -177,7 +149,7 @@ export const SidequestForm: React.FC<SidequestFormProps> = ({
       <form onSubmit={handleSubmit} className="space-y-6">
         <div>
           <Label htmlFor="title">Title*</Label>
-          <Input id="title" name="title" value={(formData as CreateSidequestPayload).title} onChange={handleChange} />
+          <Input id="title" name="title" value={formData.title || ''} onChange={handleChange} />
           {formErrors.title && <p className="text-xs text-destructive mt-1">{formErrors.title}</p>}
         </div>
 
@@ -215,14 +187,14 @@ export const SidequestForm: React.FC<SidequestFormProps> = ({
           onClose={() => setIsImageLibraryOpen(false)}
           onSelect={handleImageSelected}
           wizardId={wizardId}
-          stepId={stepId} 
+          stepId={stepId}
         />
 
         <div>
           <Label htmlFor="sidequest_type">Sidequest Type*</Label>
           <Select 
             name="sidequest_type" 
-            value={(formData as CreateSidequestPayload).sidequest_type} 
+            value={formData.sidequest_type} 
             onValueChange={(value) => handleSelectChange('sidequest_type', value)}
           >
             <SelectTrigger><SelectValue placeholder="Select type..." /></SelectTrigger>
@@ -237,27 +209,32 @@ export const SidequestForm: React.FC<SidequestFormProps> = ({
 
         <div>
           <Label htmlFor="content_payload">
-            { (formData as CreateSidequestPayload).sidequest_type === 'youtube' ? 'YouTube URL*' 
-            : (formData as CreateSidequestPayload).sidequest_type === 'link' ? 'Link URL*' 
+            { formData.sidequest_type === 'youtube' ? 'YouTube URL*' 
+            : formData.sidequest_type === 'link' ? 'Link URL*' 
             : 'Markdown Content*'}
           </Label>
-          {(formData as CreateSidequestPayload).sidequest_type === 'markdown' ? (
-            <Textarea id="content_payload" name="content_payload" value={(formData as CreateSidequestPayload).content_payload} onChange={handleChange} rows={6} />
+          {formData.sidequest_type === 'markdown' ? (
+            <Textarea id="content_payload" name="content_payload" value={formData.content_payload || ''} onChange={handleChange} rows={6} />
           ) : (
-            <Input id="content_payload" name="content_payload" type={(formData as CreateSidequestPayload).sidequest_type === 'link' || (formData as CreateSidequestPayload).sidequest_type === 'youtube' ? 'url' : 'text'} value={(formData as CreateSidequestPayload).content_payload} onChange={handleChange} />
+            <Input id="content_payload" name="content_payload" type={formData.sidequest_type === 'link' || formData.sidequest_type === 'youtube' ? 'url' : 'text'} value={formData.content_payload || ''} onChange={handleChange} />
           )}
           {formErrors.content_payload && <p className="text-xs text-destructive mt-1">{formErrors.content_payload}</p>}
         </div>
-        
-        {/* Display Order: For create, it's usually auto-assigned (e.g., as last). For edit, user might change it. */}
-        {isEditMode && (
-          <div>
-            <Label htmlFor="display_order">Display Order</Label>
-            <Input id="display_order" name="display_order" type="number" value={(formData as UpdateSidequestPayload).display_order || 0} onChange={handleChange} min="0" />
-            {formErrors.display_order && <p className="text-xs text-destructive mt-1">{formErrors.display_order}</p>}
-          </div>
-        )}
 
+        <div className="flex items-center space-x-2 py-2">
+          <input 
+            type="checkbox" 
+            id="is_public" 
+            name="is_public"
+            checked={!!formData.is_public}
+            onChange={(e) => setFormData(prev => ({ ...prev, is_public: e.target.checked }))}
+            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+          />
+          <Label htmlFor="is_public" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            Make this sidequest public to the community library?
+          </Label>
+        </div>
+        
         {currentMutation.isError && (
            <div className="text-destructive text-sm bg-destructive/10 rounded p-3 flex items-center">
              <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0"/>
@@ -269,7 +246,7 @@ export const SidequestForm: React.FC<SidequestFormProps> = ({
           <Button type="button" variant="ghost" onClick={onCloseForm} disabled={currentMutation.isPending}>
             Cancel
           </Button>
-          <Button type="submit" disabled={currentMutation.isPending} className="min-w-[120px]">
+          <Button type="submit" disabled={currentMutation.isPending} className="min-w-[150px]">
             {currentMutation.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : submitButtonText}
           </Button>
         </div>

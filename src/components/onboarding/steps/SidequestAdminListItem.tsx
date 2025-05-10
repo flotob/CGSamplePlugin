@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import type { Sidequest } from '@/types/sidequests';
+import type { Sidequest, AttachedSidequest } from '@/types/sidequests';
 import { Button } from '@/components/ui/button';
 import { GripVertical, Edit3, Trash2, Loader2 } from 'lucide-react'; 
-import { useDeleteSidequestMutation } from '@/hooks/useSidequestAdminMutations';
+import { useDetachSidequestFromStepMutation } from '@/hooks/useStepAttachedSidequestMutations';
 import Image from 'next/image';
 
 // Assuming AlertDialog components from shadcn/ui might be used later
@@ -21,8 +21,8 @@ import Image from 'next/image';
 // } from "@/components/ui/alert-dialog";
 
 interface SidequestAdminListItemProps {
-  sidequest: Sidequest;
-  stepId: string; // For delete mutation context
+  sidequest: Sidequest & { attachment_id?: string };
+  stepId: string;
   onEdit: (sidequest: Sidequest) => void;
 }
 
@@ -45,21 +45,19 @@ export const SidequestAdminListItem: React.FC<SidequestAdminListItemProps> = ({ 
     zIndex: isDragging ? 10 : 'auto', // Ensure dragging item is above others
   };
 
-  const deleteMutation = useDeleteSidequestMutation();
+  const detachMutation = useDetachSidequestFromStepMutation();
 
   const handleDeleteConfirm = () => {
-    deleteMutation.mutate(
-      { stepId, sidequestId: sidequest.id },
+    if (!sidequest.attachment_id) {
+      console.error("Cannot detach: attachment_id is missing.");
+      return;
+    }
+    detachMutation.mutate(
+      { stepId, attachmentId: sidequest.attachment_id },
       {
         onSuccess: () => {
-          // setIsDeleteDialogOpen(false); // For AlertDialog
           // Query invalidation is handled in the hook's onSuccess
-          // console.log('Sidequest deleted successfully');
         },
-        onError: (error) => {
-          // console.error('Failed to delete sidequest:', error.message);
-          // Handle with toast or other user feedback
-        }
       }
     );
   };
@@ -83,7 +81,8 @@ export const SidequestAdminListItem: React.FC<SidequestAdminListItemProps> = ({ 
       <div className="flex-grow min-w-0"> {/* Added min-w-0 for better truncation if needed */}
         <p className="font-medium leading-tight truncate" title={sidequest.title}>{sidequest.title}</p>
         <p className="text-xs text-muted-foreground capitalize">
-          {sidequest.sidequest_type} - Order: {sidequest.display_order}
+          {sidequest.sidequest_type}
+          {typeof (sidequest as AttachedSidequest).display_order === 'number' && ` - Order: ${(sidequest as AttachedSidequest).display_order}`}
         </p>
       </div>
 
@@ -92,20 +91,22 @@ export const SidequestAdminListItem: React.FC<SidequestAdminListItemProps> = ({ 
           <Edit3 className="h-4 w-4" />
         </Button>
 
-        <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => { 
-                if (confirm(`Are you sure you want to delete the sidequest "${sidequest.title}"? This action cannot be undone.`)) {
-                    handleDeleteConfirm();
-                }
-            }}
-            disabled={deleteMutation.isPending}
-            className="text-destructive hover:text-destructive hover:bg-destructive/10" 
-            title="Delete Sidequest"
-        >
-            {deleteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-        </Button>
+        {sidequest.attachment_id && (
+          <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => { 
+                  if (confirm(`Are you sure you want to detach the sidequest "${sidequest.title}" from this step?`)) {
+                      handleDeleteConfirm();
+                  }
+              }}
+              disabled={detachMutation.isPending}
+              className="text-destructive hover:text-destructive hover:bg-destructive/10" 
+              title="Detach Sidequest from Step"
+          >
+              {detachMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+          </Button>
+        )}
       </div>
     </div>
   );

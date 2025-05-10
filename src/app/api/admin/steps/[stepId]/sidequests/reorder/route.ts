@@ -1,20 +1,21 @@
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
-import { query } from '@/lib/db'; // Assuming query handles transactions directly or uses a per-request client
+import { query } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import type { JwtPayload } from '@/app/api/auth/session/route'; // Adjust if necessary
+import type { JwtPayload } from '@/app/api/auth/session/route';
+import type { AttachedSidequest, ReorderAttachedSidequestItem, ReorderAttachedSidequestsPayload } from '@/types/sidequests';
 
-// Zod schema for an individual item in the reorder list
+// Zod schema for an individual item in the reorder list (using attachment_id)
 const reorderItemSchema = z.object({
-  sidequestId: z.string().uuid({ message: "Invalid Sidequest ID format" }),
+  attachment_id: z.string().uuid({ message: "Invalid Attachment ID format" }), // ID from onboarding_step_sidequests table
   display_order: z.number().int().min(0, { message: "Display order must be a non-negative integer" }),
 });
 
-// Zod schema for the entire request body (an array of reorder items)
-const reorderSidequestsSchema = z.array(reorderItemSchema)
+// Zod schema for the entire request body
+const reorderAttachedSidequestsSchema = z.array(reorderItemSchema)
   .min(1, { message: "At least one item must be provided for reordering" });
 
-// Helper function to verify step ownership
+// Helper function to verify step ownership (can be imported if centralized)
 async function verifyStepOwnership(stepId: string, adminCommunityId: string): Promise<boolean> {
   try {
     const stepQuery = await query(
@@ -31,13 +32,13 @@ async function verifyStepOwnership(stepId: string, adminCommunityId: string): Pr
   }
 }
 
-// POST Handler: Reorder sidequests for a step
+// POST Handler: Reorder sidequests attached to a step
 export const POST = withAuth(async (req: AuthenticatedRequest, { params }: { params: { stepId: string } }) => {
   const { stepId } = params;
   const user = req.user as JwtPayload | undefined;
 
   if (!user || !user.cid) {
-    return NextResponse.json({ error: 'Authentication required: Missing user or community ID.' }, { status: 401 });
+    return NextResponse.json({ error: 'Authentication required: Missing community ID.' }, { status: 401 });
   }
   const adminCommunityId = user.cid;
 
@@ -48,52 +49,55 @@ export const POST = withAuth(async (req: AuthenticatedRequest, { params }: { par
     }
 
     const body = await req.json();
-    const validation = reorderSidequestsSchema.safeParse(body);
+    const validationResult = reorderAttachedSidequestsSchema.safeParse(body);
 
-    if (!validation.success) {
-      return NextResponse.json({ error: 'Invalid input', details: validation.error.format() }, { status: 400 });
+    if (!validationResult.success) {
+      return NextResponse.json({ error: 'Invalid input', details: validationResult.error.format() }, { status: 400 });
     }
 
-    const reorderItems = validation.data;
+    const reorderItems: ReorderAttachedSidequestsPayload = validationResult.data;
 
-    await query('BEGIN'); // Start transaction using the standard query function
+    await query('BEGIN'); 
 
     try {
       for (const item of reorderItems) {
         const updateResult = await query(
-          `UPDATE sidequests
-           SET display_order = $1, updated_at = now()
+          `UPDATE onboarding_step_sidequests
+           SET display_order = $1 
+           -- Add updated_at = now() if the table gets an updated_at column
            WHERE id = $2 AND onboarding_step_id = $3 RETURNING id`,
-          [item.display_order, item.sidequestId, stepId]
+          [item.display_order, item.attachment_id, stepId]
         );
         if (updateResult.rowCount === 0) {
-          throw new Error(`Failed to update sidequest ${item.sidequestId}. It might not belong to step ${stepId} or does not exist.`);
+          throw new Error(`Failed to update attachment ${item.attachment_id}. It might not belong to step ${stepId} or does not exist.`);
         }
       }
-      await query('COMMIT'); // Commit transaction using the standard query function
+      await query('COMMIT');
 
-      // Fetch the updated list of sidequests to return
-      const updatedSidequestsResult = await query(
-          `SELECT * FROM sidequests WHERE onboarding_step_id = $1 ORDER BY display_order ASC`,
-          [stepId]
+      // Fetch the updated list of attached sidequests to return
+      const updatedAttachedSidequestsResult = await query<AttachedSidequest>(
+        `SELECT s.*, oss.id AS attachment_id, oss.onboarding_step_id, oss.display_order, oss.attached_at
+         FROM sidequests s
+         JOIN onboarding_step_sidequests oss ON s.id = oss.sidequest_id
+         WHERE oss.onboarding_step_id = $1
+         ORDER BY oss.display_order ASC`,
+        [stepId]
       );
-      return NextResponse.json({ message: 'Sidequests reordered successfully', sidequests: updatedSidequestsResult.rows }, { status: 200 });
+      return NextResponse.json({ 
+        message: 'Attached sidequests reordered successfully', 
+        sidequests: updatedAttachedSidequestsResult.rows 
+      }, { status: 200 });
 
     } catch (transactionError) {
-      await query('ROLLBACK'); // Rollback on error within the transaction block
-      // Re-throw to be caught by the outer catch block, or handle specific errors here
+      await query('ROLLBACK'); 
       throw transactionError;
     }
 
   } catch (error) {
-    // Outer catch block handles errors from verifyStepOwnership, body parsing, or re-thrown transaction errors
-    console.error('[API] Error reordering sidequests:', error);
-    if (error instanceof Error && error.message.includes('duplicate key value violates unique constraint "sidequests_onboarding_step_id_display_order_unique_index"')) {
+    console.error('[API /admin/steps/{stepId}/sidequests/reorder POST] Error reordering attached sidequests:', error);
+    if (error instanceof Error && error.message.includes('uniq_step_sidequest_order')) {
         return NextResponse.json({ error: 'Display order conflict. Ensure all display orders are unique for this step.' }, { status: 409 });
     }
-    // Check if it was a transaction error that didn't get rolled back by inner block (should not happen if inner throw is consistent)
-    // else if (error.message.includes('transaction')) { /* Potentially check if rollback was missed */ }
     return NextResponse.json({ error: 'Internal Server Error during reorder' }, { status: 500 });
   }
-  // No finally block needed for client.release() as we are not managing clients directly here
 }, true); 

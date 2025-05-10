@@ -25,8 +25,8 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { useGetStepSidequests } from '@/hooks/useSidequestAdminQueries';
-import { useReorderSidequestsMutation } from '@/hooks/useSidequestAdminMutations';
+import { useGetStepAttachedSidequests } from '@/hooks/useStepAttachedSidequestQueries';
+import { useReorderStepSidequestsMutation } from '@/hooks/useStepAttachedSidequestMutations';
 import type { Sidequest } from '@/types/sidequests';
 import { SidequestAdminListItem } from './SidequestAdminListItem';
 import { SidequestForm } from './SidequestForm';
@@ -52,9 +52,9 @@ export const SidequestsLibraryModal: React.FC<SidequestsLibraryModalProps> = ({
     isLoading,
     isError,
     error,
-  } = useGetStepSidequests(stepId, { enabled: isOpen && !!stepId });
+  } = useGetStepAttachedSidequests(stepId, { enabled: isOpen && !!stepId });
 
-  const reorderMutation = useReorderSidequestsMutation({ stepId });
+  const reorderMutation = useReorderStepSidequestsMutation({ stepId });
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -102,10 +102,14 @@ export const SidequestsLibraryModal: React.FC<SidequestsLibraryModalProps> = ({
 
       const reorderedList = arrayMove(oldSidequests, oldIndex, newIndex);
       const payloadForApi = reorderedList.map((sq, index) => ({
-        sidequestId: sq.id,
+        attachment_id: (sq as any).attachment_id,
         display_order: index,
       }));
-      reorderMutation.mutate(payloadForApi);
+      if (payloadForApi.some(p => !p.attachment_id)) {
+        console.error("Cannot reorder: one or more items missing attachment_id", payloadForApi);
+        return;
+      }
+      reorderMutation.mutate(payloadForApi as any);
     }
   };
 
