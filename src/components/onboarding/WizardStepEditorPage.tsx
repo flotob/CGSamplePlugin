@@ -135,7 +135,7 @@ export const WizardStepEditorPage: React.FC<WizardStepEditorPageProps> = ({
         />
       )}
 
-      {/* Sidebar with responsive classes */}
+      {/* Sidebar Container (Direct Parent of StepSidebar) */}
       <div 
         className={`
           ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
@@ -146,6 +146,7 @@ export const WizardStepEditorPage: React.FC<WizardStepEditorPageProps> = ({
           overflow-x-hidden
         `}
       >
+        {/* Sidebar Header (fixed height content) */}
         <div className="p-2 border-b flex items-center justify-between relative bg-background">
           <span className="font-semibold text-sm">Steps</span>
           <DropdownMenu>
@@ -229,6 +230,8 @@ export const WizardStepEditorPage: React.FC<WizardStepEditorPageProps> = ({
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+
+        {/* The StepSidebar component itself */}
         <StepSidebar
           wizardId={wizardId}
           activeStepId={activeStepId}

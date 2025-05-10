@@ -107,7 +107,9 @@ export const StepSidebar: React.FC<StepSidebarProps> = ({
 
   return (
     // Main container for the sidebar content, including Dnd context and static item
-    <div className="flex flex-col p-2 w-full border-r bg-muted/30 h-full overflow-y-auto overflow-x-hidden">
+    <div className="flex flex-col p-2 pb-16 w-full border-r bg-muted/30 
+     h-0 flex-1 
+     overflow-y-auto overflow-x-hidden">
       {/* Dnd Context for draggable items */}
       <DndContext 
         sensors={sensors}
