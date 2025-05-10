@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { Sidequest } from '@/types/sidequests';
 import { Button } from '@/components/ui/button';
-import { Link2Icon, Edit3 as Edit3Icon, Trash as TrashIcon, Lock as LockIcon, Unlock as UnlockIcon, Youtube as YoutubeIcon, FileText as FileTextIcon, ImageOff as ImageOffIcon, Globe2Icon } from 'lucide-react';
+import { Link2Icon, Edit3 as Edit3Icon, Trash as TrashIcon, Lock as LockIcon, Unlock as UnlockIcon, Youtube as YoutubeIcon, FileText as FileTextIcon, ImageOff as ImageOffIcon, Globe2Icon, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import Image from 'next/image';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -15,22 +15,23 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { cn } from "@/lib/utils";
 
 // Card component for Library and Community views
 export const SidequestCard: React.FC<{
   sidequest: Sidequest;
   onAttach: (id: string) => void;
   onEdit?: (sidequest: Sidequest) => void;
-  onDelete?: (id: string) => void;
+  onDelete?: (id: string, title: string) => void;
   onTogglePublic?: (id: string, currentState: boolean) => void;
-  isPublic?: boolean; // This prop seems unused based on original code, consider removing if not needed
+  isAlreadyAttached?: boolean;
 }> = ({ 
   sidequest, 
   onAttach, 
   onEdit, 
   onDelete, 
   onTogglePublic, 
-  // isPublic // Prop was destructured but not used
+  isAlreadyAttached,
 }) => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
@@ -69,7 +70,7 @@ export const SidequestCard: React.FC<{
             <span className="text-xs capitalize font-medium text-foreground/90">{sidequest.sidequest_type}</span>
           </div>
           
-          {/* Public/Private Badge - Only for personal library */}
+          {/* Public/Private Badge - Static indicator */}
           {onTogglePublic && (
             <div className="absolute top-2 left-2 rounded-full p-1 shadow-sm bg-background/50 backdrop-blur-sm">
               {sidequest.is_public ? (
@@ -86,19 +87,28 @@ export const SidequestCard: React.FC<{
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button 
-                    onClick={() => onAttach(sidequest.id)} 
+                    onClick={() => !isAlreadyAttached && onAttach(sidequest.id)}
                     variant="secondary" 
                     size="sm" 
-                    className="h-8 px-3"
+                    className={cn(
+                      "h-8 px-3 flex items-center",
+                      isAlreadyAttached && 
+                        "bg-green-600/30 text-green-50 hover:bg-green-600/40 cursor-not-allowed opacity-80"
+                    )}
+                    disabled={isAlreadyAttached}
                   >
-                    <Link2Icon className="h-3.5 w-3.5 mr-1.5" /> Attach
+                    {isAlreadyAttached ? (
+                      <><CheckCircle className="h-4 w-4 mr-1.5 text-green-100" /> <span className="text-green-50">Attached</span></>
+                    ) : (
+                      <><Link2Icon className="h-3.5 w-3.5 mr-1.5" /> Attach</>
+                    )}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Attach to current step</TooltipContent>
+                <TooltipContent>{isAlreadyAttached ? "Already attached to this step" : "Attach to current step"}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
             
-            {/* Edit button - only for personal library */}
+            {/* Edit button */}
             {onEdit && (
               <TooltipProvider>
                 <Tooltip>
@@ -120,35 +130,7 @@ export const SidequestCard: React.FC<{
               </TooltipProvider>
             )}
             
-            {/* Toggle visibility button - only for personal library */}
-            {onTogglePublic && (
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onTogglePublic(sidequest.id, sidequest.is_public);
-                      }}
-                      variant="secondary" 
-                      size="icon" 
-                      className="h-8 w-8"
-                    >
-                      {sidequest.is_public ? (
-                        <LockIcon className="h-3.5 w-3.5" />
-                      ) : (
-                        <UnlockIcon className="h-3.5 w-3.5" />
-                      )}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {sidequest.is_public ? "Make private" : "Make public"}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            )}
-            
-            {/* Delete button - only for personal library */}
+            {/* Delete button */}
             {onDelete && (
               <TooltipProvider>
                 <Tooltip>
@@ -193,18 +175,18 @@ export const SidequestCard: React.FC<{
               <AlertDialogTitle>Delete Sidequest?</AlertDialogTitle>
               <AlertDialogDescription>
                 This will permanently delete "{sidequest.title}" from your library. This action cannot be undone.
-                {sidequest.is_public && (
-                  <p className="mt-2 font-medium">
-                    Note: This is a public sidequest visible to others in the community.
-                  </p>
-                )}
               </AlertDialogDescription>
+              {sidequest.is_public && (
+                <div className="mt-2 font-medium text-sm text-destructive">
+                  Note: This is a public sidequest visible to others in the community.
+                </div>
+              )}
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction 
                 onClick={() => {
-                  onDelete(sidequest.id);
+                  onDelete(sidequest.id, sidequest.title);
                   setIsDeleteDialogOpen(false);
                 }}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"

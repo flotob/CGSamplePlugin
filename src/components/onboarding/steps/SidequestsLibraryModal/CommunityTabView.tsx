@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Sidequest } from '@/types/sidequests';
+import type { Sidequest, AttachedSidequest } from '@/types/sidequests';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { SidequestCardGrid } from './SidequestCardGrid';
 import { Loader2, AlertCircle } from 'lucide-react'; // Assuming these icons are needed
@@ -36,6 +36,7 @@ interface CommunityTabViewProps {
   renderLoadingState: (view: 'mine' | 'community') => React.ReactNode;
   renderErrorState: (error: Error | null, view: 'mine' | 'community') => React.ReactNode;
   renderEmptyState: (message: string, view: 'mine' | 'community', onCreate?: () => void) => React.ReactNode;
+  attachedSidequestsData?: AttachedSidequest[]; // New prop
 }
 
 export const CommunityTabView: React.FC<CommunityTabViewProps> = ({
@@ -50,9 +51,12 @@ export const CommunityTabView: React.FC<CommunityTabViewProps> = ({
   renderLoadingState = PlaceholderRenderLoadingState,
   renderErrorState = PlaceholderRenderErrorState,
   renderEmptyState = PlaceholderRenderEmptyState,
+  attachedSidequestsData = [], // Default to empty array
 }) => {
+  const attachedIds = attachedSidequestsData.map(sq => sq.id);
+
   return (
-    <>
+    <div className="flex flex-col h-full overflow-hidden">
       <div className="flex justify-between mb-6 flex-shrink-0">
         <h3 className="text-lg font-medium">
           Community Sidequest Library
@@ -72,19 +76,17 @@ export const CommunityTabView: React.FC<CommunityTabViewProps> = ({
       {isErrorCommunityLibrary && communityId && renderErrorState(errorCommunityLibrary, 'community')}
       
       {!isLoadingCommunityLibrary && !isErrorCommunityLibrary && communityId && (
-        <ScrollArea className="flex-grow -mr-6 pr-6">
+        <div className="flex-grow overflow-y-auto -mr-6 pr-6">
           <SidequestCardGrid 
             sidequests={communityLibraryData}
-            isMyLibrary={false} // Key difference from LibraryTabView
+            isMyLibrary={false}
             onAttach={onAttach}
-            // No edit, delete, or togglePublic for community items directly from this view
-            // onCreateNew is required by SidequestCardGrid, pass onOpenCreateGlobalForm for consistency,
-            // though the "Create New" card won't render due to isMyLibrary={false}
             onCreateNew={onOpenCreateGlobalForm} 
-            renderEmptyState={(message, view) => renderEmptyState(message, view)} // No onCreate for community empty state
+            renderEmptyState={(message, view) => renderEmptyState(message, view)} 
+            attachedSidequestIds={attachedIds}
           />
-        </ScrollArea>
+        </div>
       )}
-    </>
+    </div>
   );
 }; 

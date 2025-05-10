@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Sidequest } from '@/types/sidequests';
+import type { Sidequest, AttachedSidequest } from '@/types/sidequests';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Loader2, AlertCircle } from 'lucide-react'; // Assuming these icons are needed from original
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -19,11 +19,11 @@ const PlaceholderRenderErrorState = (error: Error | null, view: 'mine' | 'commun
     <p>Error loading {view} library: {error?.message}</p>
   </div>
 );
-const PlaceholderRenderEmptyState = (message: string, view: 'mine' | 'community') => (
+const PlaceholderRenderEmptyState = (message: string, view: 'mine' | 'community', onCreate?: () => void) => (
   <div className="flex flex-col items-center justify-center h-60 text-center p-6">
     <p className="text-muted-foreground mb-4">{message}</p>
     {view === 'mine' && (
-        <Button variant="outline" className="mt-2">
+        <Button variant="outline" className="mt-2" onClick={onCreate}>
           <PlusCircle className="mr-2 h-4 w-4"/> Create New Sidequest (from Empty State)
         </Button>
       )}
@@ -40,13 +40,14 @@ interface LibraryTabViewProps {
   currentUserId: string | undefined;
   onAttach: (id: string) => void;
   onEditGlobal: (sidequest: Sidequest) => void;
-  onDeleteGlobal: (id: string) => void;
+  onDeleteGlobal: (id: string, title: string) => void;
   onTogglePublic: (id: string, currentState: boolean) => void;
   onOpenCreateGlobalForm: () => void;
   // Functions to render various states - these would be passed from the main modal or a shared util
   renderLoadingState: (view: 'mine' | 'community') => React.ReactNode;
   renderErrorState: (error: Error | null, view: 'mine' | 'community') => React.ReactNode;
   renderEmptyState: (message: string, view: 'mine' | 'community', onCreate?: () => void) => React.ReactNode;
+  attachedSidequestsData?: AttachedSidequest[];
 }
 
 export const LibraryTabView: React.FC<LibraryTabViewProps> = ({
@@ -64,10 +65,12 @@ export const LibraryTabView: React.FC<LibraryTabViewProps> = ({
   // Use placeholders for now, these will be passed from parent later
   renderLoadingState = PlaceholderRenderLoadingState,
   renderErrorState = PlaceholderRenderErrorState,
-  renderEmptyState = (msg, view) => PlaceholderRenderEmptyState(msg, view), // onCreate for empty state needs wiring
+  renderEmptyState = (msg, view, onCreate) => PlaceholderRenderEmptyState(msg, view, onCreate),
+  attachedSidequestsData = [],
 }) => {
+  const attachedIds = attachedSidequestsData.map(sq => sq.id);
   return (
-    <>
+    <div className="flex flex-col h-full overflow-hidden">
       <div className="flex justify-between mb-6 flex-shrink-0">
         <h3 className="text-lg font-medium">
           My Sidequest Library
@@ -104,9 +107,10 @@ export const LibraryTabView: React.FC<LibraryTabViewProps> = ({
             onTogglePublic={onTogglePublic}
             onCreateNew={onOpenCreateGlobalForm} // Pass the callback for the "Create New" card
             renderEmptyState={(message, view) => renderEmptyState(message, view, onOpenCreateGlobalForm)} // Pass onCreate to empty state
+            attachedSidequestIds={attachedIds}
           />
         </ScrollArea>
       )}
-    </>
+    </div>
   );
 }; 

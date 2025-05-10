@@ -366,6 +366,7 @@ export const SidequestsLibraryModal: React.FC<SidequestsLibraryModalProps> = ({
               onDeleteGlobal={handleDeleteGlobal}
               onTogglePublic={handleTogglePublic}
               onOpenCreateGlobalForm={handleOpenCreateGlobalForm}
+              attachedSidequestsData={attachedSidequestsData}
               renderLoadingState={renderLoadingStateImpl}
               renderErrorState={(err, view) => renderErrorStateImpl(err, view, refetchMyLibrary)}
               renderEmptyState={(msg, view) => renderEmptyStateImpl(msg, view, handleOpenCreateGlobalForm)}
@@ -380,6 +381,7 @@ export const SidequestsLibraryModal: React.FC<SidequestsLibraryModalProps> = ({
               communityId={communityId}
               onAttach={handleAttachThisSidequest}
               onOpenCreateGlobalForm={handleOpenCreateGlobalForm}
+              attachedSidequestsData={attachedSidequestsData}
               renderLoadingState={renderLoadingStateImpl}
               renderErrorState={(err, view) => renderErrorStateImpl(err, view, refetchCommunityLibrary)}
               renderEmptyState={renderEmptyStateImpl}

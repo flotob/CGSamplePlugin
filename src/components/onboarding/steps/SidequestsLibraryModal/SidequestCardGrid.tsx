@@ -1,10 +1,8 @@
 import React from 'react';
 import type { Sidequest } from '@/types/sidequests';
 import { Card } from "@/components/ui/card";
-import { Button } from '@/components/ui/button';
 import { PlusCircle } from 'lucide-react';
-import { SidequestCard } from '../SidequestCard.tsx'; // Explicitly add .tsx extension
-import { ScrollArea } from '@/components/ui/scroll-area'; // Keep ScrollArea here for now
+import { SidequestCard } from '../SidequestCard'; // Adjusted path from previous refactor
 
 // Props definition for SidequestCardGrid
 interface SidequestCardGridProps {
@@ -12,10 +10,11 @@ interface SidequestCardGridProps {
   isMyLibrary: boolean;
   onAttach: (id: string) => void;
   onEdit?: (sidequest: Sidequest) => void;
-  onDelete?: (id: string) => void;
+  onDelete?: (id: string, title: string) => void; // title was added
   onTogglePublic?: (id: string, currentState: boolean) => void;
   onCreateNew: () => void; // Callback for the "Create New" card
-  renderEmptyState: (message: string, view: 'mine' | 'community') => React.ReactNode;
+  renderEmptyState: (message: string, view: 'mine' | 'community', onCreate?: () => void) => React.ReactNode; // onCreate was added
+  attachedSidequestIds?: string[]; // New prop: IDs of currently attached sidequests
 }
 
 export const SidequestCardGrid: React.FC<SidequestCardGridProps> = ({
@@ -27,12 +26,12 @@ export const SidequestCardGrid: React.FC<SidequestCardGridProps> = ({
   onTogglePublic,
   onCreateNew,
   renderEmptyState,
+  attachedSidequestIds = [], // Default to empty array
 }) => {
+  // Create a Set for efficient lookup of attached IDs
+  const attachedIdsSet = new Set(attachedSidequestIds);
+
   if (!sidequests || sidequests.length === 0) {
-    // If it's "My Library" and it's empty, we show the "Create New" card *before* the empty state.
-    // Or, we can make the empty state for "My Library" include the "Create New" button as it did.
-    // For now, let's align with the original: the empty state for 'mine' has a button.
-    // The "Create New" card is part of the grid itself.
     if (isMyLibrary) {
       return (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pb-4">
@@ -48,17 +47,19 @@ export const SidequestCardGrid: React.FC<SidequestCardGridProps> = ({
               <p className="font-medium text-sm text-muted-foreground">Create New Sidequest</p>
             </div>
           </Card>
-          {/* Optionally, if you still want an "empty state" message after the create card: */}
-          {/* {renderEmptyState(
-            'Your library is empty. Create new content to get started.',
-            'mine'
-          )} */}
+          {/* The empty state itself is rendered by the TabView if it needs a button */}
         </div>
       );
     }
+    // For community library, if it's empty, the TabView's logic will handle renderEmptyState which doesn't have a create new button within the grid itself.
+    // So this component just renders the grid content or nothing if sidequests is empty AND not isMyLibrary.
+    // The parent TabView component is responsible for the overall empty state text.
     return renderEmptyState(
-      'No public sidequests available in the community library yet.',
-      'community'
+      isMyLibrary 
+        ? 'Your library is empty. Create new content to get started.' 
+        : 'No public sidequests available in the community library yet.',
+      isMyLibrary ? 'mine' : 'community',
+      isMyLibrary ? onCreateNew : undefined
     );
   }
 
@@ -79,16 +80,20 @@ export const SidequestCardGrid: React.FC<SidequestCardGridProps> = ({
         </Card>
       )}
       
-      {sidequests.map(sidequest => (
-        <SidequestCard
-          key={sidequest.id}
-          sidequest={sidequest}
-          onAttach={onAttach}
-          onEdit={isMyLibrary ? onEdit : undefined}
-          onDelete={isMyLibrary ? onDelete : undefined}
-          onTogglePublic={isMyLibrary ? onTogglePublic : undefined}
-        />
-      ))}
+      {sidequests.map(sidequest => {
+        const isAttached = attachedIdsSet.has(sidequest.id);
+        return (
+          <SidequestCard
+            key={sidequest.id}
+            sidequest={sidequest}
+            onAttach={onAttach}
+            onEdit={isMyLibrary ? onEdit : undefined}
+            onDelete={isMyLibrary ? onDelete : undefined}
+            onTogglePublic={isMyLibrary ? onTogglePublic : undefined}
+            isAlreadyAttached={isAttached} // Pass the new prop
+          />
+        );
+      })}
     </div>
   );
 }; 
