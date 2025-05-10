@@ -40,7 +40,6 @@ export function useGetSidequestLibrary(
 export function useCreateGlobalSidequestMutation(
   // communityId will be derived from the JWT on the backend
   // No specific props needed for the hook itself, communityId needed for query invalidation scope though.
-  options?: { communityId?: string | undefined } // Optional communityId for targeted invalidation
 ): UseMutationResult<Sidequest, Error, CreateGlobalSidequestPayload> {
   const { authFetch } = useAuthFetch();
   const queryClient = useQueryClient();

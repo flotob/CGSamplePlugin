@@ -3,7 +3,7 @@ import { query } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import type { JwtPayload } from '@/app/api/auth/session/route';
-import type { AttachedSidequest, ReorderAttachedSidequestItem, ReorderAttachedSidequestsPayload } from '@/types/sidequests';
+import type { AttachedSidequest, ReorderAttachedSidequestsPayload } from '@/types/sidequests';
 
 // Zod schema for an individual item in the reorder list (using attachment_id)
 const reorderItemSchema = z.object({

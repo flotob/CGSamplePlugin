@@ -105,7 +105,7 @@ export const SidequestForm: React.FC<SidequestFormProps> = ({
     } else if ((currentSidequestType === 'youtube' || currentSidequestType === 'link')) {
         try {
             new URL(currentContentPayload);
-        } catch (_) {
+        } catch {
             errors.content_payload = 'Please enter a valid URL.';
         }
     }

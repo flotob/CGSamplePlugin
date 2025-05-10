@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Settings2, Loader2, AlertCircle, XIcon, ExternalLink } from 'lucide-react';
+import { Settings2, Loader2, AlertCircle } from 'lucide-react';
 import { useGetStepAttachedSidequests } from '@/hooks/useStepAttachedSidequestQueries';
 import { useDetachSidequestFromStepMutation } from '@/hooks/useStepAttachedSidequestMutations';
 import { SidequestsLibraryModal } from './SidequestsLibraryModal';

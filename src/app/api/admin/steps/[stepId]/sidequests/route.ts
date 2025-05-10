@@ -1,6 +1,6 @@
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { query } from '@/lib/db'; // Assuming db utility, adjust if necessary
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import type { JwtPayload } from '@/app/api/auth/session/route'; // Assuming this path is correct for JwtPayload
 import type { AttachedSidequest, Sidequest } from '@/types/sidequests'; // Import AttachedSidequest

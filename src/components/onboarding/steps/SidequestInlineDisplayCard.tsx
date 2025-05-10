@@ -1,7 +1,7 @@
 import React from 'react';
 import type { AttachedSidequest } from '@/types/sidequests';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { XIcon, LinkIcon, YoutubeIcon, FileTextIcon, ImageOffIcon } from 'lucide-react';
 import NextImage from 'next/image';
 import { cn } from '@/lib/utils';

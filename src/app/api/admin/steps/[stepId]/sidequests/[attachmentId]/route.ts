@@ -1,6 +1,6 @@
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { query } from '@/lib/db';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import type { JwtPayload } from '@/app/api/auth/session/route';
 
 interface RouteContextParams {

@@ -55,7 +55,7 @@ export interface ReorderAttachedSidequestItem {
   attachment_id: string; // PK of the junction table record, or sidequest_id if preferred by API design
   display_order: number;
 }
-export interface ReorderAttachedSidequestsPayload extends Array<ReorderAttachedSidequestItem> {}
+export type ReorderAttachedSidequestsPayload = ReorderAttachedSidequestItem[];
 
 // Response type for attaching a sidequest (returns the junction table record details)
 export interface AttachSidequestResponse {

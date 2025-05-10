@@ -25,10 +25,10 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 
-import { useGetStepAttachedSidequests, stepAttachedSidequestQueryKeys } from '@/hooks/useStepAttachedSidequestQueries';
+import { useGetStepAttachedSidequests } from '@/hooks/useStepAttachedSidequestQueries';
 import { useReorderStepSidequestsMutation, useAttachSidequestToStepMutation } from '@/hooks/useStepAttachedSidequestMutations';
-import { useGetSidequestLibrary, useCreateGlobalSidequestMutation, useUpdateGlobalSidequestMutation, sidequestLibraryQueryKeys } from '@/hooks/useSidequestLibraryHooks';
-import type { Sidequest, AttachedSidequest } from '@/types/sidequests';
+import { useGetSidequestLibrary, sidequestLibraryQueryKeys } from '@/hooks/useSidequestLibraryHooks';
+import type { Sidequest } from '@/types/sidequests';
 import { SidequestAdminListItem } from './SidequestAdminListItem';
 import { SidequestForm } from './SidequestForm';
 import { useAuth } from '@/context/AuthContext'; 

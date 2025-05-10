@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient, UseMutationResult } from '@tanstack/react-query';
 import { useAuthFetch } from '@/lib/authFetch';
-import type { AttachedSidequest, AttachSidequestToStepPayload, AttachSidequestResponse, ReorderAttachedSidequestsPayload, ReorderAttachedSidequestItem } from '@/types/sidequests'; // Updated types
+import type { AttachedSidequest, AttachSidequestToStepPayload, AttachSidequestResponse, ReorderAttachedSidequestsPayload } from '@/types/sidequests'; 
 import { stepAttachedSidequestQueryKeys } from './useStepAttachedSidequestQueries'; 
 
 // --- Attach Sidequest to Step ---

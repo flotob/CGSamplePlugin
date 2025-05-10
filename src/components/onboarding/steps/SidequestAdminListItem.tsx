@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Sidequest, AttachedSidequest } from '@/types/sidequests';
 import { Button } from '@/components/ui/button';
-import { GripVertical, Edit3, Trash2, Loader2, Globe, Lock, LinkIcon, Paperclip } from 'lucide-react'; 
+import { GripVertical, Edit3, Trash2, Loader2, Globe, Lock, LinkIcon } from 'lucide-react'; 
 import { useDetachSidequestFromStepMutation } from '@/hooks/useStepAttachedSidequestMutations';
 import { useDeleteGlobalSidequestMutation, useToggleSidequestPublicMutation } from '@/hooks/useSidequestLibraryHooks';
 import Image from 'next/image';

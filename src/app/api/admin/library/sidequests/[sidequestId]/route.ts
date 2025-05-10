@@ -1,6 +1,6 @@
 import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { query } from '@/lib/db';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import type { JwtPayload } from '@/app/api/auth/session/route';
 import type { Sidequest } from '@/types/sidequests';
@@ -37,7 +37,6 @@ export const PUT = withAuth(async (req: AuthenticatedRequest, context: RouteCont
     return NextResponse.json({ error: 'Authentication required: Missing community ID.' }, { status: 401 });
   }
   const admin_community_id = user.cid;
-  // const admin_user_id = user.sub; // Needed if we implement stricter creator-only update logic
 
   try {
     const body = await req.json();
@@ -49,13 +48,13 @@ export const PUT = withAuth(async (req: AuthenticatedRequest, context: RouteCont
 
     const updates = validation.data;
     
-    // Dynamically build SET clause
     const setClauses: string[] = [];
-    const queryParams: any[] = [sidequestId, admin_community_id]; // $1 = id, $2 = community_id (for WHERE)
-    let paramIndex = 3; // Start $3 for SET clause values
+    // Typed queryParams more specifically
+    const queryParams: (string | boolean | number | null)[] = [sidequestId, admin_community_id]; 
+    let paramIndex = 3; 
 
     Object.entries(updates).forEach(([key, value]) => {
-      if (value !== undefined) { // Ensure we only add fields that were actually provided
+      if (value !== undefined) { 
         setClauses.push(`${key} = $${paramIndex}`);
         queryParams.push(value);
         paramIndex++;
@@ -63,10 +62,9 @@ export const PUT = withAuth(async (req: AuthenticatedRequest, context: RouteCont
     });
 
     if (setClauses.length === 0) {
-      // This should be caught by zod .refine(), but as a safeguard.
       return NextResponse.json({ error: 'No valid fields provided for update.' }, { status: 400 });
     }
-    setClauses.push(`updated_at = now()`); // Always update updated_at
+    setClauses.push(`updated_at = now()`);
 
     const sqlQuery = `UPDATE sidequests SET ${setClauses.join(', ')} 
                       WHERE id = $1 AND community_id = $2 
@@ -75,7 +73,6 @@ export const PUT = withAuth(async (req: AuthenticatedRequest, context: RouteCont
     const result = await query<Sidequest>(sqlQuery, queryParams);
 
     if (result.rows.length === 0) {
-      // This means either the sidequestId doesn't exist OR it doesn't belong to the admin's community.
       return NextResponse.json({ error: 'Sidequest not found or permission denied.' }, { status: 404 });
     }
 
