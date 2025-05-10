@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import type { Sidequest, AttachedSidequest } from '@/types/sidequests';
@@ -45,7 +45,7 @@ interface SidequestAdminListItemProps {
   onAttach?: (globalSidequestId: string) => void;
 }
 
-export const SidequestAdminListItem: React.FC<SidequestAdminListItemProps> = ({
+const SidequestAdminListItemComponent: React.FC<SidequestAdminListItemProps> = ({
   sidequest,
   stepId,
   viewMode,
@@ -337,4 +337,6 @@ export const SidequestAdminListItem: React.FC<SidequestAdminListItemProps> = ({
       </AlertDialog>
     </>
   );
-}; 
+};
+
+export const SidequestAdminListItem = memo(SidequestAdminListItemComponent); 

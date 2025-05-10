@@ -57,24 +57,46 @@ export const POST = withAuth(async (req: AuthenticatedRequest, { params }: { par
 
     const reorderItems: ReorderAttachedSidequestsPayload = validationResult.data;
 
-    await query('BEGIN'); 
-
+    if (reorderItems.length === 0) {
+      return NextResponse.json({ message: 'No items to reorder.', sidequests: [] }, { status: 200 });
+    }
+    
+    await query('BEGIN');
     try {
-      for (const item of reorderItems) {
-        const updateResult = await query(
+      // Step 1: Update to temporary, unique negative display_order values
+      // Using -(index + 1) ensures uniqueness and negativity if original orders were >= 0
+      // More robustly, using a large offset (e.g., + reorderItems.length + 100) from current order
+      // or simply using a large negative offset, but negative indices are simple if we ensure all items are processed.
+      for (let i = 0; i < reorderItems.length; i++) {
+        const item = reorderItems[i];
+        const tempDisplayOrder = -(i + 1); // Assign a unique temporary negative value
+        const updateToTempResult = await query(
           `UPDATE onboarding_step_sidequests
-           SET display_order = $1 
-           -- Add updated_at = now() if the table gets an updated_at column
+           SET display_order = $1
+           WHERE id = $2 AND onboarding_step_id = $3 RETURNING id`,
+          [tempDisplayOrder, item.attachment_id, stepId]
+        );
+        if (updateToTempResult.rowCount === 0) {
+          throw new Error(`Failed to set temporary order for attachment ${item.attachment_id}. Item might not exist or belong to the step.`);
+        }
+      }
+
+      // Step 2: Update to final display_order values
+      for (const item of reorderItems) {
+        const updateToFinalResult = await query(
+          `UPDATE onboarding_step_sidequests
+           SET display_order = $1
            WHERE id = $2 AND onboarding_step_id = $3 RETURNING id`,
           [item.display_order, item.attachment_id, stepId]
         );
-        if (updateResult.rowCount === 0) {
-          throw new Error(`Failed to update attachment ${item.attachment_id}. It might not belong to step ${stepId} or does not exist.`);
+        if (updateToFinalResult.rowCount === 0) {
+          // This should ideally not happen if the first step succeeded for all items
+          throw new Error(`Failed to set final order for attachment ${item.attachment_id}.`); 
         }
       }
+
       await query('COMMIT');
 
-      // Fetch the updated list of attached sidequests to return
       const updatedAttachedSidequestsResult = await query<AttachedSidequest>(
         `SELECT s.*, oss.id AS attachment_id, oss.onboarding_step_id, oss.display_order, oss.attached_at
          FROM sidequests s
@@ -95,7 +117,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest, { params }: { par
 
   } catch (error) {
     console.error('[API /admin/steps/{stepId}/sidequests/reorder POST] Error reordering attached sidequests:', error);
-    if (error instanceof Error && error.message.includes('uniq_step_sidequest_order')) {
+    if (error instanceof Error && (error.message.includes('uniq_step_sidequest_order') || error.message.includes('violates unique constraint'))) {
         return NextResponse.json({ error: 'Display order conflict. Ensure all display orders are unique for this step.' }, { status: 409 });
     }
     return NextResponse.json({ error: 'Internal Server Error during reorder' }, { status: 500 });

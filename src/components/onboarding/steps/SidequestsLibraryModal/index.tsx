@@ -38,7 +38,7 @@ import {
 import { useGetStepAttachedSidequests } from '@/hooks/useStepAttachedSidequestQueries';
 import { useReorderStepSidequestsMutation, useAttachSidequestToStepMutation } from '@/hooks/useStepAttachedSidequestMutations';
 import { useGetSidequestLibrary, sidequestLibraryQueryKeys, useDeleteGlobalSidequestMutation, useToggleSidequestPublicMutation } from '@/hooks/useSidequestLibraryHooks';
-import type { Sidequest } from '@/types/sidequests';
+import type { Sidequest, AttachedSidequest } from '@/types/sidequests';
 // SidequestAdminListItem is used by ComposerTabView, not directly here after full refactor.
 // import { SidequestAdminListItem } from './SidequestAdminListItem'; 
 import { SidequestForm } from '../SidequestForm';
@@ -71,6 +71,7 @@ export const SidequestsLibraryModal: React.FC<SidequestsLibraryModalProps> = ({
   const [editingSidequestData, setEditingSidequestData] = useState<Sidequest | null>(null);
   const [isAttachingMode, setIsAttachingMode] = useState(false); 
   const [activeLibraryView, setActiveLibraryView] = useState<'mine' | 'community'>('mine');
+  const [displayedAttachedSidequests, setDisplayedAttachedSidequests] = useState<AttachedSidequest[] | undefined>(undefined);
   
   const { decodedPayload } = useAuth(); 
   const communityId = decodedPayload?.cid;
@@ -136,6 +137,10 @@ export const SidequestsLibraryModal: React.FC<SidequestsLibraryModalProps> = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, stepId, communityId, currentUserId]);
 
+  useEffect(() => {
+    setDisplayedAttachedSidequests(attachedSidequestsData);
+  }, [attachedSidequestsData]);
+
   const handleOpenCreateGlobalForm = () => {
     setEditingSidequestData(null);
     setFormMode('createGlobal');
@@ -197,19 +202,29 @@ export const SidequestsLibraryModal: React.FC<SidequestsLibraryModalProps> = ({
 
   const handleDragEndAttached = (event: DragEndEvent) => {
     const { active, over } = event;
-    if (over && active.id !== over.id) {
-      const oldList = attachedSidequestsData || [];
+    if (over && active.id !== over.id && displayedAttachedSidequests) {
+      const oldList = displayedAttachedSidequests;
       const activeId = active.id as string;
       const overId = over.id as string;
       const oldIndex = oldList.findIndex(sq => sq.attachment_id === activeId);
       const newIndex = oldList.findIndex(sq => sq.attachment_id === overId);
+
       if (oldIndex === -1 || newIndex === -1) return;
+
       const reorderedList = arrayMove(oldList, oldIndex, newIndex);
+      setDisplayedAttachedSidequests(reorderedList);
+
       const payloadForApi = reorderedList.map((sq, index) => ({
         attachment_id: sq.attachment_id,
         display_order: index,
       }));
-      reorderAttachedMutation.mutate(payloadForApi);
+
+      reorderAttachedMutation.mutate(payloadForApi, {
+        onError: (err) => {
+          console.error("Failed to reorder sidequests on backend:", err);
+          setDisplayedAttachedSidequests(attachedSidequestsData);
+        },
+      });
     }
   };
 
@@ -321,7 +336,7 @@ export const SidequestsLibraryModal: React.FC<SidequestsLibraryModalProps> = ({
         <div className="flex-grow flex flex-col overflow-hidden">
           {activeTab === 'composer' && (
             <ComposerTabView
-              attachedSidequestsData={attachedSidequestsData}
+              attachedSidequestsData={displayedAttachedSidequests}
               isLoadingAttached={isLoadingAttached}
               isErrorAttached={isErrorAttached}
               errorAttached={errorAttached}
