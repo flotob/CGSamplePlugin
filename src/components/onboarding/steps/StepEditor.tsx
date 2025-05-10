@@ -2,8 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Step, useUpdateStep, useDeleteStep } from '@/hooks/useStepsQuery';
 import { Button } from '@/components/ui/button';
 import { useStepTypesQuery, StepType } from '@/hooks/useStepTypesQuery';
-import { UseMutationResult } from '@tanstack/react-query';
-import { CreateStepPayload } from '../WizardStepEditorPage';
 import { CommonStepPresentationSettings, PresentationConfig } from './CommonStepPresentationSettings';
 import { EnsStepConfig, EnsSpecificConfig } from './EnsStepConfig';
 import { ContentStepConfig, ContentSpecificConfigType } from './ContentStepConfig';
@@ -50,11 +48,6 @@ interface StepEditorProps {
   roles?: CommunityRole[];
   onSave?: () => void;
   onDelete?: () => void;
-  isCreating: boolean;
-  stepTypeForCreate: StepType | null;
-  onCreate: (formData: CreateStepPayload) => void;
-  onCancelCreate: () => void;
-  createStepMutation: UseMutationResult<{ step: Step }, Error, CreateStepPayload, unknown>;
   isSummaryPreview?: boolean;
   summaryData?: { includedStepTypes: StepType[]; potentialRoles: CommunityRole[] } | undefined;
 }
@@ -79,11 +72,6 @@ export const StepEditor: React.FC<StepEditorProps> = ({
   roles = [],
   onSave,
   onDelete,
-  isCreating,
-  stepTypeForCreate,
-  onCreate,
-  onCancelCreate,
-  createStepMutation,
   isSummaryPreview = false,
   summaryData,
 }) => {
@@ -157,17 +145,10 @@ export const StepEditor: React.FC<StepEditorProps> = ({
 
   // Main useEffect - Initializes step-level things 
   React.useEffect(() => {
-    // Reset mutation status when step/mode changes
+    // Reset updateStep mutation status when step changes (createStepMutation is removed)
     updateStep.reset(); 
-    createStepMutation.reset();
 
-    if (isCreating) {
-      setTargetRoleId('');
-      setIsMandatory(true);
-      setIsActive(true);
-      setStepConfig(INITIAL_STEP_CONFIG);
-      setIsRoleAssignmentEnabled(false); 
-    } else if (step) {
+    if (step) {
       const shouldEnableRole = !!step.target_role_id;
       setTargetRoleId(step.target_role_id ?? '');
       setIsMandatory(step.is_mandatory);
@@ -185,7 +166,7 @@ export const StepEditor: React.FC<StepEditorProps> = ({
     setIsImageLibraryOpen(false);
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, isCreating]); // REMOVED mutations from deps, added eslint disable comment
+  }, [step]);
 
   useEffect(() => {
     const type = stepConfig.presentation.backgroundType;
@@ -204,7 +185,7 @@ export const StepEditor: React.FC<StepEditorProps> = ({
     }
   }, [stepConfig.presentation.backgroundType, stepConfig.presentation.backgroundValue, youtubeUrlInput]);
 
-  const currentMutation = isCreating ? createStepMutation : updateStep;
+  const currentMutation = updateStep;
 
   const handleYouTubeUrlChange = (url: string) => {
     setYoutubeUrlInput(url);
@@ -262,43 +243,32 @@ export const StepEditor: React.FC<StepEditorProps> = ({
     );
   }
 
-  if (!isCreating && !step) {
+  if (!step) {
     return <div className="p-8 text-muted-foreground">Select a step to edit or add a new one.</div>;
   }
 
-  const stepTypeInfo = isCreating ? stepTypeForCreate : stepTypesData?.step_types.find(t => t.id === step?.step_type_id);
+  const stepTypeInfo = stepTypesData?.step_types.find(t => t.id === step?.step_type_id);
   const roleOptions = roles;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!step) return;
 
     const finalTargetRoleId = targetRoleId === '' ? null : targetRoleId;
 
-    if (isCreating) {
-      if (!stepTypeInfo) return;
-      const payload: CreateStepPayload = {
-        step_type_id: stepTypeInfo.id,
-        target_role_id: finalTargetRoleId,
-        is_mandatory: isMandatory,
-        is_active: isActive,
-        config: stepConfig,
-      };
-      onCreate(payload);
-    } else {
-      const updatePayload: Partial<Step> = {
-        target_role_id: finalTargetRoleId,
-        is_mandatory: isMandatory,
-        is_active: isActive,
-        config: stepConfig,
-      }
-      updateStep.mutate(updatePayload, {
-        onSuccess: () => onSave && onSave(),
-      });
+    const updatePayload: Partial<Step> = {
+      target_role_id: finalTargetRoleId,
+      is_mandatory: isMandatory,
+      is_active: isActive,
+      config: stepConfig,
     }
+    updateStep.mutate(updatePayload, {
+      onSuccess: () => onSave && onSave(),
+    });
   };
 
   const handleDelete = () => {
-    if (isCreating) return;
+    if (!step) return;
     setShowDeleteConfirm(false);
     deleteStep.mutate(undefined, {
       onSuccess: () => onDelete && onDelete(),
@@ -638,20 +608,13 @@ export const StepEditor: React.FC<StepEditorProps> = ({
           type="submit"
           disabled={isSaveDisabled}
         >
-          {currentMutation.isPending ? (isCreating ? 'Creating...' : 'Saving...') : (isCreating ? 'Create Step' : 'Save Changes')}
+          {currentMutation.isPending ? 'Saving...' : 'Save Changes'}
         </Button>
-        {isCreating && (
-          <Button type="button" variant="outline" onClick={onCancelCreate} disabled={currentMutation.isPending}>
-            Cancel
-          </Button>
-        )}
-        {!isCreating && (
-          <Button type="button" variant="destructive" onClick={() => setShowDeleteConfirm(true)} disabled={deleteStep.isPending}>
-            Delete Step
-          </Button>
-        )}
+        <Button type="button" variant="destructive" onClick={() => setShowDeleteConfirm(true)} disabled={deleteStep.isPending || !step}>
+          Delete Step
+        </Button>
       </div>
-      {!isCreating && showDeleteConfirm && (
+      {showDeleteConfirm && step && (
         <div className="bg-destructive/10 border border-destructive rounded p-3 mt-2 flex flex-col gap-2">
           <span className="text-destructive font-medium">Are you sure you want to delete this step?</span>
           <div className="flex gap-2">
@@ -662,13 +625,13 @@ export const StepEditor: React.FC<StepEditorProps> = ({
       )}
       {currentMutation.isError && (
         <div className="text-destructive text-sm bg-destructive/10 rounded p-2 mt-2">
-          Error: {currentMutation.error instanceof Error ? currentMutation.error.message : (isCreating ? 'Failed to create step' : 'Failed to update step')}
+          Error: {currentMutation.error instanceof Error ? currentMutation.error.message : 'Failed to update step'}
         </div>
       )}
-      {updateStep.isSuccess && !isCreating && (
+      {updateStep.isSuccess && (
         <div className="text-green-700 text-sm bg-green-100 rounded p-2 mt-2">Saved!</div>
       )}
-      {deleteStep.isError && !isCreating && (
+      {deleteStep.isError && (
         <div className="text-destructive text-sm bg-destructive/10 rounded p-2 mt-2">
           Error: {deleteStep.error instanceof Error ? deleteStep.error.message : 'Failed to delete step'}
         </div>

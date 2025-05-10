@@ -14,6 +14,11 @@ export interface Step {
   updated_at: string;
 }
 
+// Define the new payload type for minimal creation
+export interface MinimalCreateStepPayload {
+  step_type_id: string;
+}
+
 // Fetch all steps for a wizard
 export function useStepsQuery(wizardId: string | undefined) {
   const { authFetch } = useAuthFetch();
@@ -32,7 +37,7 @@ export function useCreateStep(wizardId: string | undefined) {
   const { authFetch } = useAuthFetch();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: Omit<Step, 'id' | 'wizard_id' | 'step_order' | 'created_at' | 'updated_at'>) => {
+    mutationFn: async (data: MinimalCreateStepPayload) => {
       if (!wizardId) throw new Error('No wizardId');
       return await authFetch<{ step: Step }>(`/api/wizards/${wizardId}/steps`, {
         method: 'POST',
