@@ -6,33 +6,21 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { 
-  Loader2, 
-  AlertCircle, 
-  PlusCircle, 
-  // XIcon, // Assuming XIcon might not be needed if form closure is handled by Back button
-  // Link2Icon, // Used in SidequestCard, not directly here anymore
-  // UserSquare2Icon, // Not used
-  Globe2Icon, 
+import {
+  Loader2,
+  AlertCircle,
+  PlusCircle,
+  Globe2Icon,
   ArrowLeftIcon,
   ListIcon,
   BookIcon,
 } from 'lucide-react';
-
 import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
+  DragEndEvent, 
+  useSensor, useSensors, PointerSensor, KeyboardSensor
 } from '@dnd-kit/core';
 import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
+  arrayMove, sortableKeyboardCoordinates 
 } from '@dnd-kit/sortable';
 
 import { useGetStepAttachedSidequests } from '@/hooks/useStepAttachedSidequestQueries';
@@ -44,7 +32,6 @@ import type { Sidequest, AttachedSidequest } from '@/types/sidequests';
 import { SidequestForm } from '../SidequestForm';
 import { useAuth } from '@/context/AuthContext'; 
 import { useQueryClient } from '@tanstack/react-query';
-import { cn } from '@/lib/utils';
 
 // Import the new TabView components
 // These paths assume this file will be moved to SidequestsLibraryModal/index.tsx
@@ -69,7 +56,6 @@ export const SidequestsLibraryModal: React.FC<SidequestsLibraryModalProps> = ({
   const [activeTab, setActiveTab] = useState<ActiveTab>('composer');
   const [formMode, setFormMode] = useState<'hidden' | 'createGlobal' | 'editGlobal'>('hidden');
   const [editingSidequestData, setEditingSidequestData] = useState<Sidequest | null>(null);
-  const [isAttachingMode, setIsAttachingMode] = useState(false); 
   const [activeLibraryView, setActiveLibraryView] = useState<'mine' | 'community'>('mine');
   const [displayedAttachedSidequests, setDisplayedAttachedSidequests] = useState<AttachedSidequest[] | undefined>(undefined);
   
@@ -126,7 +112,6 @@ export const SidequestsLibraryModal: React.FC<SidequestsLibraryModalProps> = ({
       setTimeout(() => {
         setFormMode('hidden');
         setEditingSidequestData(null);
-        setIsAttachingMode(false);
         setActiveTab('composer');
       }, 150);
     } else {
@@ -193,7 +178,6 @@ export const SidequestsLibraryModal: React.FC<SidequestsLibraryModalProps> = ({
       onSuccess: () => {
         if (activeTab !== 'composer') {
           setActiveTab('composer');
-          setIsAttachingMode(false); 
         }
       },
       onError: (err) => console.error("Failed to attach sidequest:", err)
@@ -204,8 +188,8 @@ export const SidequestsLibraryModal: React.FC<SidequestsLibraryModalProps> = ({
     const { active, over } = event;
     if (over && active.id !== over.id && displayedAttachedSidequests) {
       const oldList = displayedAttachedSidequests;
-      const activeId = active.id as string;
-      const overId = over.id as string;
+      const activeId = active.id as string; // attachment_id
+      const overId = over.id as string;     // attachment_id
       const oldIndex = oldList.findIndex(sq => sq.attachment_id === activeId);
       const newIndex = oldList.findIndex(sq => sq.attachment_id === overId);
 
@@ -222,7 +206,7 @@ export const SidequestsLibraryModal: React.FC<SidequestsLibraryModalProps> = ({
       reorderAttachedMutation.mutate(payloadForApi, {
         onError: (err) => {
           console.error("Failed to reorder sidequests on backend:", err);
-          setDisplayedAttachedSidequests(attachedSidequestsData);
+          setDisplayedAttachedSidequests(attachedSidequestsData); // Revert on error
         },
       });
     }

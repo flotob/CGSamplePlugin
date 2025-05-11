@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { /*useState, useEffect, useCallback*/ } from 'react';
 import type { Sidequest, AttachedSidequest } from '@/types/sidequests'; // Assuming AttachedSidequest might be needed
 import { cn } from '@/lib/utils';
 import { SidequestAdminListItem } from '../SidequestAdminListItem';
@@ -6,16 +6,16 @@ import { LibraryContentRenderer } from './LibraryContentRenderer';
 import {
   DndContext,
   closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
+  // KeyboardSensor, // Removed unused
+  // PointerSensor,  // Removed unused
+  // useSensor,      // Removed unused
   useSensors,
-  DragEndEvent,
+  DragEndEvent, // Re-added DragEndEvent
 } from '@dnd-kit/core';
 import {
-  arrayMove,
+  // arrayMove,      // Removed unused
   SortableContext,
-  sortableKeyboardCoordinates,
+  // sortableKeyboardCoordinates, // Removed unused
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { Loader2, AlertCircle, ListIcon, PlusCircle, BookIcon, Globe2Icon, ArrowLeftIcon } from 'lucide-react'; // Added icons that might be used by placeholder states

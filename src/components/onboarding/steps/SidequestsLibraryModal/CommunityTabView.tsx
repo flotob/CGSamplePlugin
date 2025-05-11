@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { /*useState*/ } from 'react';
 import type { Sidequest, AttachedSidequest } from '@/types/sidequests';
-import { ScrollArea } from '@/components/ui/scroll-area';
+// import { Input } from '@/components/ui/input'; // Removed unused
 import { SidequestCardGrid } from './SidequestCardGrid';
 import { Loader2, AlertCircle } from 'lucide-react'; // Assuming these icons are needed
+// import { useGetSidequestLibrary } from '@/hooks/useSidequestLibraryAdminHooks'; // Commented out potentially problematic import
+// import { SidequestCard } from '../SidequestCard'; // Removed unused
 
 // Placeholder render functions (similar to LibraryTabView)
 const PlaceholderRenderLoadingState = (view: 'mine' | 'community') => (
@@ -17,12 +19,17 @@ const PlaceholderRenderErrorState = (error: Error | null, view: 'mine' | 'commun
     <p>Error loading {view} library: {error?.message}</p>
   </div>
 );
-const PlaceholderRenderEmptyState = (message: string, _view: 'mine' | 'community') => (
-  <div className="flex flex-col items-center justify-center h-60 text-center p-6">
-    <p className="text-muted-foreground mb-4">{message}</p>
-    {/* No create button for community empty state generally */}
-  </div>
-);
+const PlaceholderRenderEmptyState = (
+  message: string, 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _view: 'mine' | 'community'
+) => {
+  return (
+    <div className="flex flex-col items-center justify-center h-60 text-center p-6">
+      <p className="text-muted-foreground mb-4">{message}</p>
+    </div>
+  );
+};
 
 interface CommunityTabViewProps {
   communityLibraryData: Sidequest[] | undefined;
@@ -35,7 +42,7 @@ interface CommunityTabViewProps {
   // Functions to render various states - these would be passed from the main modal or a shared util
   renderLoadingState: (view: 'mine' | 'community') => React.ReactNode;
   renderErrorState: (error: Error | null, view: 'mine' | 'community') => React.ReactNode;
-  renderEmptyState: (message: string, view: 'mine' | 'community', onCreate?: () => void) => React.ReactNode;
+  renderEmptyState?: (message: string, view: 'mine' | 'community', onCreate?: () => void) => React.ReactNode;
   attachedSidequestsData?: AttachedSidequest[]; // New prop
 }
 
@@ -53,6 +60,14 @@ export const CommunityTabView: React.FC<CommunityTabViewProps> = ({
   renderEmptyState = PlaceholderRenderEmptyState,
   attachedSidequestsData = [], // Default to empty array
 }) => {
+  // const [searchTerm, setSearchTerm] = useState(''); // Removed unused searchTerm and setSearchTerm
+
+  // Commented out the local useGetSidequestLibrary call as data is passed via props
+  // const { data: sidequestsResponse, isLoading, error } = useGetSidequestLibrary(
+  // This useGetSidequestLibrary call seems to be a leftover or incorrect, 
+  // as communityLibraryData is passed as a prop. Removing it to avoid confusion and potential errors.
+  // );
+
   const attachedIds = attachedSidequestsData.map(sq => sq.id);
 
   return (

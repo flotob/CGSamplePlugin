@@ -4,6 +4,7 @@ import React from 'react';
 import type { Sidequest } from '@/types/sidequests'; // As per docs/rework-sidequests.md
 import { Card, CardContent } from "@/components/ui/card";
 import { Youtube, Link, FileText, Image as ImageIcon } from 'lucide-react'; // Icons
+import Image from 'next/image'; // Added next/image import
 
 interface SidequestPlaylistItemCardProps {
   sidequest: Sidequest;
@@ -43,9 +44,15 @@ export const SidequestPlaylistItemCard: React.FC<SidequestPlaylistItemCardProps>
       aria-label={`Open sidequest: ${title}`}
     >
       <CardContent className="p-3 flex items-center space-x-3">
-        <div className="flex-shrink-0 w-16 h-10 bg-muted rounded overflow-hidden flex items-center justify-center">
+        <div className="flex-shrink-0 w-16 h-10 bg-muted rounded overflow-hidden flex items-center justify-center relative">
           {image_url ? (
-            <img src={image_url} alt={title} className="w-full h-full object-cover" />
+            <Image 
+              src={image_url} 
+              alt={title} 
+              fill 
+              className="object-cover" 
+              unoptimized // Assuming image_url can be any external URL
+            />
           ) : (
             <ImageIcon className="h-6 w-6 text-gray-400" /> // Placeholder if no image
           )}

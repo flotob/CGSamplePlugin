@@ -24,6 +24,7 @@ import { getStepPassStatus } from './wizardStepUtils';
 import { SidequestPlaylist } from '@/components/sidequests/SidequestPlaylist';
 import { YouTubeViewerModal } from '@/components/modals/YouTubeViewerModal';
 import { MarkdownViewerModal } from '@/components/modals/MarkdownViewerModal';
+import { StepInfoDisplay } from '@/components/onboarding/StepInfoDisplay';
 import {
   Dialog,
   DialogContent,
@@ -32,6 +33,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import Image from 'next/image';
 
 // Define some type interfaces for better TypeScript support
 interface Role {
@@ -369,13 +371,30 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
               onComplete={handleCompleteStep} 
            />
         </div>
-        {/* SidequestPlaylist renders if there are sidequests and it's not summary view */}
-        {currentStep.sidequests && currentStep.sidequests.length > 0 && !showSummary && (
-          <div className="w-64 lg:w-72 xl:w-80 flex-shrink-0 border-l bg-white/20 dark:bg-black/20 h-full z-[60]">
-            <SidequestPlaylist
-              sidequests={currentStep.sidequests}
-              onOpenSidequest={handleOpenSidequest}
-            />
+        {/* Right Sidebar: Always visible unless on summary screen */}
+        {!showSummary && (
+          <div className="w-64 lg:w-72 xl:w-80 flex-shrink-0 border-l border-border/30 
+                        bg-gradient-to-t from-slate-50/90 via-slate-50/50 to-slate-50/10 
+                        dark:from-slate-900/90 dark:via-slate-900/50 dark:to-slate-900/10 
+                        h-full z-[60] flex flex-col">
+            
+            {/* Sidequest Playlist Area (Scrollable, takes most space) */}
+            <div className="flex-grow overflow-y-auto p-1 min-h-[100px]">
+              <SidequestPlaylist
+                sidequests={currentStep.sidequests}
+                onOpenSidequest={handleOpenSidequest}
+              />
+            </div>
+
+            {/* Step Info Display Area (Fixed at bottom) */}
+            <div className="flex-shrink-0">
+              <StepInfoDisplay 
+                currentStep={currentStep}
+                currentStepType={currentStepType}
+                communityRoles={communityInfoResponse?.roles}
+                assignRolesPerStep={stepsData?.assignRolesPerStep}
+              />
+            </div>
           </div>
         )}
       </div>
@@ -513,11 +532,13 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
               </DialogHeader>
               <div className="py-4">
                 {activeSidequest.image_url && (
-                  <div className="mb-4 aspect-video bg-muted rounded overflow-hidden">
-                    <img 
+                  <div className="mb-4 aspect-video bg-muted rounded overflow-hidden relative">
+                    <Image 
                       src={activeSidequest.image_url} 
                       alt={activeSidequest.title} 
-                      className="w-full h-full object-cover"
+                      fill
+                      className="object-cover"
+                      unoptimized
                     />
                   </div>
                 )}

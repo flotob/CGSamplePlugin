@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import type { Sidequest } from '@/types/sidequests';
 import { Button } from '@/components/ui/button';
-import { Link2Icon, Edit3 as Edit3Icon, Trash as TrashIcon, Lock as LockIcon, Unlock as UnlockIcon, Youtube as YoutubeIcon, FileText as FileTextIcon, ImageOff as ImageOffIcon, Globe2Icon, CheckCircle } from 'lucide-react';
+import { Link2Icon, Edit3 as Edit3Icon, Trash as TrashIcon, Lock as LockIcon, Youtube as YoutubeIcon, FileText as FileTextIcon, ImageOff as ImageOffIcon, Globe2Icon, CheckCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import Image from 'next/image';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
