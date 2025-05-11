@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { X, Loader2, AlertCircle, ExternalLink, PanelRightIcon, XIcon } from 'lucide-react';
 import { useUserWizardStepsQuery } from '@/hooks/useUserWizardStepsQuery';
@@ -271,6 +271,25 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
   const allStepTypes = stepTypesData?.step_types;
   const canProceed = getStepPassStatus(currentStep, allStepTypes);
 
+  const allMandatoryStepsCompleted = useMemo(() => {
+    if (!steps) return false;
+    const mandatorySteps = steps.filter(step => step.is_mandatory);
+    if (mandatorySteps.length === 0 && steps.length > 0) return true; // Wizard has steps, but none are mandatory
+    if (mandatorySteps.length === 0 && steps.length === 0) return false; // No steps at all
+    return mandatorySteps.every(step => {
+      const stepType = allStepTypes?.find(st => st.id === step.step_type_id);
+      if (step.is_mandatory && stepType && (stepType.name === 'quizmaster_basic' || stepType.name === 'quizmaster_ai')) {
+        return !!(
+          step.completed_at &&
+          step.verified_data &&
+          typeof step.verified_data === 'object' &&
+          (step.verified_data as { passed?: boolean }).passed === true
+        );
+      }
+      return !!step.completed_at;
+    });
+  }, [steps, allStepTypes]);
+
   // Determine if Next button should be disabled
   const isCompleted = !!currentStep?.completed_at;
   const isPrevDisabled = currentStepIndex <= 0 || completeStepMutation.isPending;
@@ -453,6 +472,55 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
   // Custom modal implementation that works in iframe
   if (!open) return null;
   
+  // New button logic variables
+  let buttonText = 'Next';
+  let buttonOnClick: () => void = handleNext;
+  // Default disabled state for "Next" button
+  let buttonIsDisabled = !canProceed || completeStepMutation.isPending; 
+
+  if (isLastStep) {
+    if (allMandatoryStepsCompleted) {
+      buttonText = 'Finish Wizard';
+      buttonOnClick = () => {
+        if (!markCompleted.isPending) {
+          if (!markCompleted.isSuccess && !hasTriedCompletion) {
+            setHasTriedCompletion(true);
+            markCompleted.mutate(wizardId, {
+              onSuccess: (data) => {
+                console.log('Wizard explicitly marked complete by button click.');
+                // Role assignment is handled by the hook's own onSuccess or the useEffect
+                // Ensure credentialsQuery.refetch() is called before showing summary, if needed by summary screen
+                credentialsQuery.refetch().then(() => {
+                    setShowSummary(true); // Proceed to show summary
+                });
+              },
+              onError: (error) => {
+                console.error('Failed to mark wizard as completed from button:', error);
+                setHasTriedCompletion(false);
+                // Optionally, show an error toast to the user
+              }
+            });
+          } else {
+            // If already completed or completion attempt is done (without error), just show summary
+            credentialsQuery.refetch().then(() => {
+                setShowSummary(true);
+            });
+          }
+        }
+      };
+      // Disabled if:
+      // 1. Current mandatory last step is not passed OR
+      // 2. Wizard completion is pending OR
+      // 3. Current step completion is pending
+      buttonIsDisabled = (currentStep?.is_mandatory && !canProceed) || markCompleted.isPending || completeStepMutation.isPending;
+    } else {
+      // Last step, but not all mandatory steps are completed.
+      // Button remains "Next" (or could be "Finish Wizard" but disabled if preferred)
+      // Its disabled state is determined by whether the current (last) step can be proceeded from.
+      buttonIsDisabled = !canProceed || completeStepMutation.isPending;
+    }
+  }
+
   return (
     <div className="wizard-slideshow-modal">
       {/* Custom overlay */}
@@ -535,13 +603,13 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
              {/* Right Side: Next/Summary Button */}
              <div className="flex-1 flex justify-end"> 
                  <Button 
-                    onClick={isLastStep && isCompleted ? handleViewSummary : handleNext}
-                    disabled={!canProceed || completeStepMutation.isPending} 
-                    className={`h-8 px-3 sm:h-10 sm:px-4 text-xs sm:text-sm ${isCompleted ? "bg-green-600 hover:bg-green-700" : ""}`}
+                    onClick={buttonOnClick}
+                    disabled={buttonIsDisabled} 
+                    className={`h-8 px-3 sm:h-10 sm:px-4 text-xs sm:text-sm ${isCompleted && !isLastStep ? "bg-green-600 hover:bg-green-700" : ""} ${(isLastStep && allMandatoryStepsCompleted) ? "bg-primary hover:bg-primary/90" : ""}`}
                     size="sm"
                  >
-                    {isLastStep && isCompleted ? 'View Summary' : 'Next'}
-                    {completeStepMutation.isPending && <Loader2 className="ml-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />}
+                    {buttonText}
+                    {(completeStepMutation.isPending || markCompleted.isPending) && <Loader2 className="ml-2 h-3 w-3 sm:h-4 sm:w-4 animate-spin" />}
                  </Button>
              </div>
           </div>

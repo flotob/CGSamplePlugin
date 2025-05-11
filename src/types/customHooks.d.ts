@@ -15,6 +15,7 @@ declare module '@/hooks/useMarkWizardCompleted' {
   interface MarkWizardCompletedResult extends UseMutationResult<WizardCompletionResponse, Error, string> {
     earnedRoles: string[];
     isPending: boolean;
+    isSuccess: boolean;
     mutate: (wizardId: string, options?: MutateOptions) => void;
   }
   
