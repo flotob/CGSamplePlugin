@@ -371,7 +371,7 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
         </div>
         {/* SidequestPlaylist renders if there are sidequests and it's not summary view */}
         {currentStep.sidequests && currentStep.sidequests.length > 0 && !showSummary && (
-          <div className="w-64 lg:w-72 xl:w-80 flex-shrink-0 border-l bg-slate-50 dark:bg-slate-800/50 h-full z-[60]">
+          <div className="w-64 lg:w-72 xl:w-80 flex-shrink-0 border-l bg-white/20 dark:bg-black/20 h-full z-[60]">
             <SidequestPlaylist
               sidequests={currentStep.sidequests}
               onOpenSidequest={handleOpenSidequest}
