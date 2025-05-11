@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
-import { X, Loader2, AlertCircle, ExternalLink } from 'lucide-react';
+import { X, Loader2, AlertCircle, ExternalLink, PanelRightIcon, XIcon } from 'lucide-react';
 import { useUserWizardStepsQuery } from '@/hooks/useUserWizardStepsQuery';
 import { useStepTypesQuery } from '@/hooks/useStepTypesQuery';
 import type { UserStepProgress } from '@/app/api/user/wizards/[id]/steps/route';
@@ -25,6 +25,7 @@ import { SidequestPlaylist } from '@/components/sidequests/SidequestPlaylist';
 import { YouTubeViewerModal } from '@/components/modals/YouTubeViewerModal';
 import { MarkdownViewerModal } from '@/components/modals/MarkdownViewerModal';
 import { StepInfoDisplay } from '@/components/onboarding/StepInfoDisplay';
+import { cn } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
@@ -52,6 +53,14 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
   open,
   onClose,
 }) => {
+  // Add state for sidebar visibility on mobile
+  const [isSidebarVisible, setIsSidebarVisible] = useState(false);
+  
+  // Function to toggle sidebar visibility
+  const toggleSidebar = useCallback(() => {
+    setIsSidebarVisible(prev => !prev);
+  }, []);
+  
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
   const [showSummary, setShowSummary] = useState<boolean>(false);
   const [hasTriedCompletion, setHasTriedCompletion] = useState<boolean>(false);
@@ -108,6 +117,13 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
      isLoading: isLoadingSocialProof 
   } = useWizardStepSocialProofQuery(wizardId, currentStep?.id);
   // --- End fetch --- 
+
+  // Reset sidebar visibility when modal closes
+  useEffect(() => {
+    if (!open) {
+      setIsSidebarVisible(false);
+    }
+  }, [open]);
 
   // Effect to determine the starting step index based on session or defaults
   useEffect(() => {
@@ -362,7 +378,7 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
 
     // Render StepDisplay component and SidequestPlaylist
     return (
-      <div className="flex-1 flex h-full overflow-hidden">
+      <div className="flex-1 flex h-full overflow-hidden relative">
         {/* StepDisplay takes up the main space */}
         <div className="flex-grow overflow-y-auto h-full">
            <StepDisplay 
@@ -371,32 +387,65 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
               onComplete={handleCompleteStep} 
            />
         </div>
-        {/* Right Sidebar: Always visible unless on summary screen */}
-        {!showSummary && (
-          <div className="w-64 lg:w-72 xl:w-80 flex-shrink-0 border-l border-border/30 
-                        bg-gradient-to-t from-slate-50/90 via-slate-50/50 to-slate-50/10 
-                        dark:from-slate-900/90 dark:via-slate-900/50 dark:to-slate-900/10 
-                        h-full z-[60] flex flex-col">
-            
-            {/* Sidequest Playlist Area (Scrollable, takes most space) */}
-            <div className="flex-grow overflow-y-auto p-1 min-h-[100px]">
-              <SidequestPlaylist
-                sidequests={currentStep.sidequests}
-                onOpenSidequest={handleOpenSidequest}
-              />
-            </div>
-
-            {/* Step Info Display Area (Fixed at bottom) */}
-            <div className="flex-shrink-0">
-              <StepInfoDisplay 
-                currentStep={currentStep}
-                currentStepType={currentStepType}
-                communityRoles={communityInfoResponse?.roles}
-                assignRolesPerStep={stepsData?.assignRolesPerStep}
-              />
-            </div>
-          </div>
+        
+        {/* Mobile sidebar toggle button - Only visible on small screens */}
+        <Button
+          onClick={toggleSidebar}
+          variant="secondary"
+          size="icon"
+          className="md:hidden absolute bottom-4 right-4 z-50 rounded-full w-12 h-12 shadow-lg flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90"
+        >
+          <PanelRightIcon className="h-5 w-5" />
+        </Button>
+        
+        {/* Backdrop for mobile - only visible when sidebar is open */}
+        {isSidebarVisible && (
+          <div 
+            className="md:hidden absolute inset-0 bg-black/20 z-40 animate-in fade-in duration-200" 
+            onClick={toggleSidebar}
+          />
         )}
+        
+        {/* Right Sidebar: Always visible on large screens, toggleable on mobile */}
+        <div className={cn(
+          "w-64 lg:w-72 xl:w-80 flex-shrink-0 border-l border-border/30 bg-gradient-to-t from-slate-50/90 via-slate-50/50 to-slate-50/10 dark:from-slate-900/90 dark:via-slate-900/50 dark:to-slate-900/10 h-full z-[60] flex flex-col overflow-hidden",
+          "md:relative", // Always relative positioning on desktop
+          "md:translate-x-0 transition-transform duration-300 ease-in-out", // Smooth transition
+          // Mobile styles - use absolute positioning within the content area
+          "md:h-full absolute inset-y-0 right-0",
+          !isSidebarVisible && "translate-x-full md:translate-x-0" // Hide off-screen when not visible on mobile only
+        )}>
+          {/* Mobile close button - only shown on mobile */}
+          <div className="md:hidden flex justify-between items-center px-4 py-3">
+            <h3 className="font-medium text-sm text-muted-foreground">Sidequests</h3>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={toggleSidebar}
+            >
+              <XIcon className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          {/* Sidequest Playlist Area (Scrollable, takes most space) */}
+          <div className="flex-grow overflow-y-auto p-1 min-h-[100px]">
+            <SidequestPlaylist
+              sidequests={currentStep.sidequests}
+              onOpenSidequest={handleOpenSidequest}
+            />
+          </div>
+
+          {/* Step Info Display Area (Fixed at bottom) */}
+          <div className="flex-shrink-0">
+            <StepInfoDisplay 
+              currentStep={currentStep}
+              currentStepType={currentStepType}
+              communityRoles={communityInfoResponse?.roles}
+              assignRolesPerStep={stepsData?.assignRolesPerStep}
+            />
+          </div>
+        </div>
       </div>
     );
   };
