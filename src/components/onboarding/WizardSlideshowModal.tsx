@@ -23,6 +23,7 @@ import { useAssignRoleAndRefresh } from '@/hooks/useAssignRoleAndRefresh';
 import { getStepPassStatus } from './wizardStepUtils';
 import { SidequestPlaylist } from '@/components/sidequests/SidequestPlaylist';
 import { YouTubeViewerModal } from '@/components/modals/YouTubeViewerModal';
+import { MarkdownViewerModal } from '@/components/modals/MarkdownViewerModal';
 
 // Define some type interfaces for better TypeScript support
 interface Role {
@@ -480,7 +481,16 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
           />
         )}
 
-        {/* TODO: Add MarkdownViewerModal here */}
+        {/* Render MarkdownViewerModal if a Markdown sidequest is active */}
+        {activeSidequest && activeSidequest.sidequest_type === 'markdown' && (
+          <MarkdownViewerModal
+            isOpen={true} // Controlled by the conditional render
+            onClose={handleCloseSidequestView}
+            markdownContent={activeSidequest.content_payload}
+            title={activeSidequest.title}
+          />
+        )}
+
         {/* TODO: Add Link Preview display here */}
 
       </div>
