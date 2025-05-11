@@ -1,4 +1,3 @@
-
 You've brought up some excellent points that significantly enhance the "Sidequests" feature by making them reusable and introducing a library concept, much like your `ImageLibraryModal`. This is a smart evolution of the feature!
 
 You're correct in your analysis:
@@ -273,4 +272,142 @@ Let's detail the type changes and new types needed.
 *   **`SidequestForm.tsx`:**
     *   `existingSidequest` prop would now be of type `Sidequest | null` (representing a global sidequest).
     *   Payloads it constructs will be `CreateGlobalSidequestPayload` or `UpdateGlobalSidequestPayload`.
+
+## 5. API Design (Refactored for Reusability)
+
+This section details the refactored API endpoints for managing sidequests, both as global library items and as attachments to specific wizard steps.
+
+### A. Global Sidequest Library Admin Endpoints
+
+These endpoints manage sidequests as reusable entities within a community library. They are typically located under a path like `/api/admin/library/sidequests/`.
+
+1.  **`POST /api/admin/library/sidequests`**
+    *   **Action:** Creates a new global sidequest in the admin's community library.
+    *   **Authentication:** Admin users only.
+    *   **Request Body:** `CreateGlobalSidequestPayload` (defined in `src/types/sidequests.ts`)
+        ```json
+        {
+          "title": "string (required)",
+          "description": "string | null",
+          "image_url": "string (url) | null",
+          "sidequest_type": "'youtube' | 'link' | 'markdown' (required)",
+          "content_payload": "string (required - URL for youtube/link, Markdown text for markdown)",
+          "is_public": "boolean (optional, default: false)"
+        }
+        ```
+    *   **Logic:** 
+        *   `creator_user_id` is set from `req.user.sub`.
+        *   `community_id` is set from `req.user.cid`.
+        *   Inserts a new record into the `sidequests` table.
+    *   **Response (201 Created):** The created `Sidequest` object.
+
+2.  **`GET /api/admin/library/sidequests`**
+    *   **Action:** Lists global sidequests from the library.
+    *   **Authentication:** Admin users only.
+    *   **Query Parameters:** 
+        *   `scope`: `'mine' | 'community' | 'all_in_community'` (string, optional, default: `'mine'`).
+            *   `mine`: Sidequests where `creator_user_id` matches the authenticated admin and `community_id` matches.
+            *   `community`: Sidequests where `community_id` matches and `is_public = true`.
+            *   `all_in_community`: All sidequests where `community_id` matches.
+    *   **Logic:** Fetches records from the `sidequests` table based on `community_id` (from JWT) and the `scope` parameter.
+    *   **Response (200 OK):** An array of `Sidequest` objects: `Sidequest[]`.
+
+3.  **`PUT /api/admin/library/sidequests/{sidequestId}`**
+    *   **Action:** Updates a specific global sidequest in the library.
+    *   **Authentication:** Admin users only.
+    *   **URL Parameters:** `sidequestId` (UUID of the global sidequest).
+    *   **Request Body:** `UpdateGlobalSidequestPayload` (defined in `src/types/sidequests.ts` - a partial `Sidequest` object).
+        ```json
+        {
+          "title": "string (optional)",
+          "description": "string | null (optional)",
+          // ... other updatable fields ...
+          "is_public": "boolean (optional)"
+        }
+        ```
+    *   **Logic:** 
+        *   Updates the specified `sidequest` in the `sidequests` table.
+        *   Ensures the `sidequestId` belongs to the admin's `community_id`. (Current policy: any admin of that community can update. Can be restricted to `creator_user_id` if needed).
+        *   Updates `updated_at` timestamp.
+    *   **Response (200 OK):** The updated `Sidequest` object.
+
+4.  **`DELETE /api/admin/library/sidequests/{sidequestId}`**
+    *   **Action:** Deletes a specific global sidequest from the library.
+    *   **Authentication:** Admin users only.
+    *   **URL Parameters:** `sidequestId` (UUID of the global sidequest).
+    *   **Logic:** 
+        *   Ensures the `sidequestId` belongs to the admin's `community_id`.
+        *   **Usage Check:** Before deletion, queries `onboarding_step_sidequests` to check if the sidequest is currently attached to any steps. If attached, the deletion is prevented.
+    *   **Response:** 
+        *   `200 OK`: `{ message: string, id: string }` on successful deletion.
+        *   `409 Conflict`: `{ error: string, code: 'SIDEQUEST_IN_USE' }` if the sidequest is in use.
+        *   `404 Not Found`: If sidequest doesn't exist or doesn't belong to the community.
+
+5.  **`PATCH /api/admin/library/sidequests/{sidequestId}/toggle-public`**
+    *   *(Implemented within `src/app/api/admin/library/sidequests/[sidequestId]/route.ts`)*
+    *   **Action:** Toggles the `is_public` status of a global sidequest.
+    *   **Authentication:** Admin users only.
+    *   **URL Parameters:** `sidequestId`.
+    *   **Request Body:** `{ "is_public": boolean }`.
+    *   **Logic:** Updates `is_public` and `updated_at` for the specified `sidequestId`. Ensures it belongs to the admin's `community_id`.
+    *   **Response (200 OK):** The updated `Sidequest` object.
+
+### B. Step-Specific Sidequest Attachment Admin Endpoints
+
+These endpoints manage the linkage of global sidequests to specific wizard steps. They are located under `/api/admin/steps/{stepId}/sidequests/`.
+
+1.  **`GET /api/admin/steps/{stepId}/sidequests`**
+    *   **Action:** Lists all sidequests currently attached to a specific `stepId`.
+    *   **Authentication:** Admin users only.
+    *   **URL Parameters:** `stepId`.
+    *   **Logic:** 
+        *   Verifies admin ownership of the `stepId` (i.e., step belongs to a wizard in the admin's community).
+        *   Joins `onboarding_step_sidequests` with the global `sidequests` table for the given `stepId`.
+        *   Orders results by `onboarding_step_sidequests.display_order`.
+    *   **Response (200 OK):** An array of `AttachedSidequest` objects (defined in `src/types/sidequests.ts`). Each object includes all global sidequest details plus `attachment_id`, `onboarding_step_id` (redundant here), `display_order`, and `attached_at` from the junction table.
+
+2.  **`POST /api/admin/steps/{stepId}/sidequests`**
+    *   **Action:** Attaches an existing global sidequest to the specified `stepId`.
+    *   **Authentication:** Admin users only.
+    *   **URL Parameters:** `stepId`.
+    *   **Request Body:** `AttachSidequestToStepPayload` (defined in `src/types/sidequests.ts`)
+        ```json
+        {
+          "sidequest_id": "string (UUID of global sidequest to attach, required)",
+          "display_order": "number (optional, defaults to end of list)"
+        }
+        ```
+    *   **Logic:**
+        *   Verifies admin ownership of `stepId`.
+        *   Verifies that the global `sidequest_id` exists and belongs to the same `community_id` as the step.
+        *   If `display_order` is not provided, calculates the next available order for the step.
+        *   Inserts a new record into the `onboarding_step_sidequests` junction table.
+    *   **Response (201 Created):** The new `onboarding_step_sidequests` record (as `AttachSidequestResponse`).
+
+3.  **`DELETE /api/admin/steps/{stepId}/sidequests/{attachmentId}`**
+    *   *(Path uses `attachmentId` which is the PK of the `onboarding_step_sidequests` record)*
+    *   **Action:** Detaches a sidequest from a specific step.
+    *   **Authentication:** Admin users only.
+    *   **URL Parameters:** `stepId`, `attachmentId`.
+    *   **Logic:** 
+        *   Verifies admin ownership of `stepId`.
+        *   Deletes the record from `onboarding_step_sidequests` where `id = attachmentId` AND `onboarding_step_id = stepId`.
+    *   **Response (200 OK):** `{ message: string, attachmentId: string }` or `204 No Content`.
+
+4.  **`POST /api/admin/steps/{stepId}/sidequests/reorder`**
+    *   **Action:** Reorders the sidequests attached to a specific `stepId`.
+    *   **Authentication:** Admin users only.
+    *   **URL Parameters:** `stepId`.
+    *   **Request Body:** `ReorderAttachedSidequestsPayload` (defined in `src/types/sidequests.ts` - an array of `{ attachment_id: string, display_order: number }`).
+    *   **Logic:**
+        *   Verifies admin ownership of `stepId`.
+        *   Within a database transaction, updates the `display_order` for each `attachment_id` in the `onboarding_step_sidequests` table for the given `stepId`.
+    *   **Response (200 OK):** `{ message: string, sidequests: AttachedSidequest[] }` (the newly reordered list).
+
+### C. User-Facing API Endpoint for Step Data (Impacted)
+
+1.  **`GET /api/user/wizards/{wizardId}/steps`**
+    *   **Action:** Fetches all steps for a given wizard, for end-user display.
+    *   **Logic Change:** The SQL query for this endpoint is modified to `LEFT JOIN` `onboarding_steps` with `onboarding_step_sidequests` and then `JOIN` with the global `sidequests` table. It uses `json_agg` to embed an array of attached global `Sidequest` details into each step object, ordered by `onboarding_step_sidequests.display_order`.
+    *   **Response Change:** Each `UserStepProgress` object (representing a step) in the response now includes a `sidequests: Sidequest[] | null` field. The `Sidequest` type here refers to the global sidequest entity.
 
