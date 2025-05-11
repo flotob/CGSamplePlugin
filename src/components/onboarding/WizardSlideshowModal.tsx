@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
-import { X, Loader2, AlertCircle } from 'lucide-react';
+import { X, Loader2, AlertCircle, ExternalLink } from 'lucide-react';
 import { useUserWizardStepsQuery } from '@/hooks/useUserWizardStepsQuery';
 import { useStepTypesQuery } from '@/hooks/useStepTypesQuery';
 import type { UserStepProgress } from '@/app/api/user/wizards/[id]/steps/route';
@@ -24,6 +24,14 @@ import { getStepPassStatus } from './wizardStepUtils';
 import { SidequestPlaylist } from '@/components/sidequests/SidequestPlaylist';
 import { YouTubeViewerModal } from '@/components/modals/YouTubeViewerModal';
 import { MarkdownViewerModal } from '@/components/modals/MarkdownViewerModal';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 // Define some type interfaces for better TypeScript support
 interface Role {
@@ -58,7 +66,7 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
   const { data: communityInfoResponse } = useCommunityInfoQuery();
 
   // Fetch UserInfo needed for the summary screen & role assignment
-  const { iframeUid } = useCgLib();
+  const { iframeUid, cgInstance } = useCgLib();
   const { data: userInfo, isLoading: isLoadingUserInfo } = useCgQuery<UserInfoResponsePayload, Error>(
     ['userInfo', iframeUid],
     async (instance) => (await instance.getUserInfo()).data,
@@ -491,7 +499,51 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
           />
         )}
 
-        {/* TODO: Add Link Preview display here */}
+        {/* Render Link Preview if a Link sidequest is active */}
+        {activeSidequest && activeSidequest.sidequest_type === 'link' && cgInstance && (
+          <Dialog open={true} onOpenChange={(open) => !open && handleCloseSidequestView()}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="truncate">{activeSidequest.title}</DialogTitle>
+                {activeSidequest.description && (
+                  <DialogDescription className="mt-1 text-sm text-muted-foreground max-h-20 overflow-y-auto">
+                    {activeSidequest.description}
+                  </DialogDescription>
+                )}
+              </DialogHeader>
+              <div className="py-4">
+                {activeSidequest.image_url && (
+                  <div className="mb-4 aspect-video bg-muted rounded overflow-hidden">
+                    <img 
+                      src={activeSidequest.image_url} 
+                      alt={activeSidequest.title} 
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground break-all">
+                  Link: {activeSidequest.content_payload}
+                </p>
+              </div>
+              <DialogFooter className="sm:justify-start">
+                <Button 
+                  type="button" 
+                  onClick={() => {
+                    if (cgInstance && activeSidequest) {
+                      cgInstance.navigate(activeSidequest.content_payload);
+                    }
+                    handleCloseSidequestView();
+                  }}
+                >
+                  <ExternalLink className="mr-2 h-4 w-4" /> Open Link
+                </Button>
+                <Button type="button" variant="outline" onClick={handleCloseSidequestView}>
+                  Close
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
 
       </div>
     </div>
