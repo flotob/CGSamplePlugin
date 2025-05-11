@@ -243,47 +243,51 @@ const SidequestAdminListItemComponent: React.FC<SidequestAdminListItemProps> = (
 
           {viewMode === 'myLibrary' && (
             <>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={handleTogglePublic}
-                      disabled={togglePublicMutation.isPending}
-                      className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                    >
-                      {togglePublicMutation.isPending ? 
-                        <Loader2 className="h-4 w-4 animate-spin" /> : 
-                        (currentSidequest.is_public ? <Lock className="h-4 w-4" /> : <Globe className="h-4 w-4" />)
-                      }
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">
-                    {currentSidequest.is_public ? "Make private" : "Make public"}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      onClick={handleDeleteGlobal}
-                      disabled={deleteGlobalMutation.isPending}
-                      className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" 
-                    >
-                      {deleteGlobalMutation.isPending ? 
-                        <Loader2 className="h-4 w-4 animate-spin" /> : 
-                        <Trash2 className="h-4 w-4" />
-                      }
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">Delete from library</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              {!isAttaching && (
+                <>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={handleTogglePublic}
+                          disabled={togglePublicMutation.isPending}
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                        >
+                          {togglePublicMutation.isPending ? 
+                            <Loader2 className="h-4 w-4 animate-spin" /> : 
+                            (currentSidequest.is_public ? <Lock className="h-4 w-4" /> : <Globe className="h-4 w-4" />)
+                          }
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        {currentSidequest.is_public ? "Make private" : "Make public"}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          onClick={handleDeleteGlobal}
+                          disabled={deleteGlobalMutation.isPending}
+                          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" 
+                        >
+                          {deleteGlobalMutation.isPending ? 
+                            <Loader2 className="h-4 w-4 animate-spin" /> : 
+                            <Trash2 className="h-4 w-4" />
+                          }
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">Delete from library</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </>
+              )}
             </>
           )}
         </div>
