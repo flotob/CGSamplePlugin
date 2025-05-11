@@ -56,9 +56,10 @@ export const GET = withAuth<WizardStepsParams>(async (req: AuthenticatedRequest,
         p.verified_data, 
         p.completed_at,
         (
-          SELECT json_agg(sq.* ORDER BY sq.display_order ASC)
-          FROM sidequests sq
-          WHERE sq.onboarding_step_id = s.id
+          SELECT json_agg(sq_details.* ORDER BY osq.display_order ASC)
+          FROM onboarding_step_sidequests osq
+          JOIN sidequests sq_details ON osq.sidequest_id = sq_details.id
+          WHERE osq.onboarding_step_id = s.id
         ) as sidequests
       FROM onboarding_steps s
       LEFT JOIN user_wizard_progress p ON s.id = p.step_id AND p.user_id = $1 AND p.wizard_id = s.wizard_id

@@ -6,6 +6,7 @@ import { X, Loader2, AlertCircle } from 'lucide-react';
 import { useUserWizardStepsQuery } from '@/hooks/useUserWizardStepsQuery';
 import { useStepTypesQuery } from '@/hooks/useStepTypesQuery';
 import type { UserStepProgress } from '@/app/api/user/wizards/[id]/steps/route';
+import type { Sidequest } from '@/types/sidequests';
 import { StepDisplay } from './steps/display/StepDisplay';
 import { useCompleteStepMutation } from '@/hooks/useCompleteStepMutation';
 import { WizardSummaryScreen } from './WizardSummaryScreen';
@@ -20,6 +21,7 @@ import { useCgLib } from '@/context/CgLibContext';
 import type { UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
 import { useAssignRoleAndRefresh } from '@/hooks/useAssignRoleAndRefresh';
 import { getStepPassStatus } from './wizardStepUtils';
+import { SidequestPlaylist } from '@/components/sidequests/SidequestPlaylist';
 
 // Define some type interfaces for better TypeScript support
 interface Role {
@@ -42,6 +44,7 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
   const [showSummary, setShowSummary] = useState<boolean>(false);
   const [hasTriedCompletion, setHasTriedCompletion] = useState<boolean>(false);
   const [isInitialIndexSet, setIsInitialIndexSet] = useState<boolean>(false);
+  const [activeSidequest, setActiveSidequest] = useState<Sidequest | null>(null);
   const { 
     data: stepsData,
     isLoading: isLoadingSteps,
@@ -249,6 +252,13 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
     setShowSummary(true);
   }, [credentialsQuery]);
 
+  // Callback to open a sidequest
+  const handleOpenSidequest = useCallback((sidequest: Sidequest) => {
+    setActiveSidequest(sidequest);
+    // TODO: Placeholder - Log the active sidequest for now
+    // console.log('Opening sidequest:', sidequest);
+  }, []);
+
   // --- Render Logic --- 
 
   const renderContent = () => {
@@ -328,18 +338,32 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
     }
 
     if (!currentStep) {
+        // console.log('[WizardSlideshowModal] Render: currentStep is undefined/null'); // Keep this one as it's part of an error path
         return <div className="flex-1 p-6">Invalid step index.</div>;
     }
+    // --- End of Initial Loading and Error Checks ---
 
-    // Render StepDisplay component, passing the completion handler
+    // Render StepDisplay component and SidequestPlaylist
     return (
-        <div className="flex-1 overflow-y-auto h-full" style={{height: '100%'}}>
+      <div className="flex-1 flex h-full overflow-hidden">
+        {/* StepDisplay takes up the main space */}
+        <div className="flex-grow overflow-y-auto h-full">
            <StepDisplay 
               step={currentStep} 
               stepType={currentStepType} 
               onComplete={handleCompleteStep} 
            />
         </div>
+        {/* SidequestPlaylist renders if there are sidequests and it's not summary view */}
+        {currentStep.sidequests && currentStep.sidequests.length > 0 && !showSummary && (
+          <div className="w-64 lg:w-72 xl:w-80 flex-shrink-0 border-l bg-slate-50 dark:bg-slate-800/50 h-full z-[60]">
+            <SidequestPlaylist
+              sidequests={currentStep.sidequests}
+              onOpenSidequest={handleOpenSidequest}
+            />
+          </div>
+        )}
+      </div>
     );
   };
 
