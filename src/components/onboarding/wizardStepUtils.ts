@@ -16,9 +16,9 @@ export const getStepPassStatus = (
     return false; // No step to evaluate
   }
 
-  // If the step is not mandatory, progression is allowed if it has been completed (attempted)
+  // If the step is not mandatory, progression is ALWAYS allowed, regardless of completion.
   if (!step.is_mandatory) {
-    return !!step.completed_at;
+    return true;
   }
 
   // For mandatory steps:
