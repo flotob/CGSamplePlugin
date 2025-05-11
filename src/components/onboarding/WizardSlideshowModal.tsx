@@ -486,13 +486,11 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
           if (!markCompleted.isSuccess && !hasTriedCompletion) {
             setHasTriedCompletion(true);
             markCompleted.mutate(wizardId, {
-              onSuccess: (data) => {
+              onSuccess: () => {
                 console.log('Wizard explicitly marked complete by button click.');
                 // Role assignment is handled by the hook's own onSuccess or the useEffect
                 // Ensure credentialsQuery.refetch() is called before showing summary, if needed by summary screen
-                credentialsQuery.refetch().then(() => {
-                    setShowSummary(true); // Proceed to show summary
-                });
+                handleViewSummary();
               },
               onError: (error) => {
                 console.error('Failed to mark wizard as completed from button:', error);
@@ -502,9 +500,7 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
             });
           } else {
             // If already completed or completion attempt is done (without error), just show summary
-            credentialsQuery.refetch().then(() => {
-                setShowSummary(true);
-            });
+            handleViewSummary();
           }
         }
       };
