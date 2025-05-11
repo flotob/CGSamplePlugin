@@ -29,7 +29,7 @@ import { useGetSidequestLibrary, sidequestLibraryQueryKeys, useDeleteGlobalSideq
 import type { Sidequest, AttachedSidequest } from '@/types/sidequests';
 // SidequestAdminListItem is used by ComposerTabView, not directly here after full refactor.
 // import { SidequestAdminListItem } from './SidequestAdminListItem'; 
-import { SidequestForm } from '../SidequestForm';
+import { SidequestFormWrapper } from '../SidequestFormWrapper';
 import { useAuth } from '@/context/AuthContext'; 
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -262,16 +262,8 @@ export const SidequestsLibraryModal: React.FC<SidequestsLibraryModalProps> = ({
     if (formMode === 'createGlobal' || formMode === 'editGlobal') {
       return (
         <div className="flex flex-col h-full animate-in slide-in-from-right-10 duration-300">
-          <div className="border-b mb-4 pb-4 flex items-center">
-            <Button variant="ghost" size="sm" onClick={handleCloseForm} className="mr-4">
-              <ArrowLeftIcon className="h-4 w-4 mr-1" /> Back to Library
-            </Button>
-            <h3 className="text-lg font-semibold">
-              {formMode === 'createGlobal' ? 'Create New Sidequest' : `Edit ${editingSidequestData?.title || 'Sidequest'}`}
-            </h3>
-          </div>
           <div className="flex-grow overflow-y-auto pr-2">
-            <SidequestForm
+            <SidequestFormWrapper
               stepId={stepId} 
               wizardId={wizardId}
               existingSidequest={editingSidequestData}
@@ -398,8 +390,14 @@ export const SidequestsLibraryModal: React.FC<SidequestsLibraryModalProps> = ({
   return (
     <Dialog open={isOpen} onOpenChange={(openState) => { if (!openState) onClose(); }}>
       <DialogContent className="sm:max-w-4xl md:max-w-5xl w-[95vw] h-[85vh] max-h-[900px] flex flex-col p-0">
-        <DialogHeader className="px-6 py-4 border-b">
+        <DialogHeader className="px-6 py-4 border-b flex flex-row items-center justify-between">
+          {formMode !== 'hidden' && (
+            <Button variant="ghost" size="sm" onClick={handleCloseForm} className="mr-2">
+              <ArrowLeftIcon className="h-4 w-4 mr-1" /> Back to Library
+            </Button>
+          )}
           <DialogTitle>{modalTitle}</DialogTitle>
+          {formMode !== 'hidden' && <div className="w-[120px]" />}
         </DialogHeader>
         <div className="flex-grow overflow-hidden p-6 flex flex-col">
           {renderMainContent()}
