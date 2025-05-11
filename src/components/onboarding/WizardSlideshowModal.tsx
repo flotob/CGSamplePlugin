@@ -22,6 +22,7 @@ import type { UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
 import { useAssignRoleAndRefresh } from '@/hooks/useAssignRoleAndRefresh';
 import { getStepPassStatus } from './wizardStepUtils';
 import { SidequestPlaylist } from '@/components/sidequests/SidequestPlaylist';
+import { YouTubeViewerModal } from '@/components/modals/YouTubeViewerModal';
 
 // Define some type interfaces for better TypeScript support
 interface Role {
@@ -79,6 +80,11 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
 
   // Instantiate role assignment hook here
   const assignRoleAndRefresh = useAssignRoleAndRefresh();
+
+  // Callback to close any active sidequest view
+  const handleCloseSidequestView = useCallback(() => {
+    setActiveSidequest(null);
+  }, []);
 
   // Find the StepType object for the current step
   const currentStepType = currentStep && stepTypesData
@@ -463,6 +469,20 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
              </div>
           </div>
         )}
+
+        {/* Render YouTubeViewerModal if a YouTube sidequest is active */}
+        {activeSidequest && activeSidequest.sidequest_type === 'youtube' && (
+          <YouTubeViewerModal
+            isOpen={true} // Controlled by the conditional render
+            onClose={handleCloseSidequestView}
+            videoUrl={activeSidequest.content_payload}
+            title={activeSidequest.title}
+          />
+        )}
+
+        {/* TODO: Add MarkdownViewerModal here */}
+        {/* TODO: Add Link Preview display here */}
+
       </div>
     </div>
   );
