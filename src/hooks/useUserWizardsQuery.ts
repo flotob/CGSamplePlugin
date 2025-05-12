@@ -32,6 +32,9 @@ export const useUserWizardsQuery = (options?: Omit<UseQueryOptions<UserWizardsRe
       const response = await authFetch<UserWizardsResponse>('/api/user/wizards');
       return response;
     },
+    refetchInterval: 3000,
+    refetchIntervalInBackground: false,
+    staleTime: 0,
     ...options,
   });
 }; 

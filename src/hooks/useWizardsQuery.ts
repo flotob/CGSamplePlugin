@@ -19,6 +19,9 @@ export function useWizardsQuery(options?: Omit<UseQueryOptions<{ wizards: Wizard
   return useQuery<{ wizards: Wizard[] }, Error>({
     queryKey: ['wizards'],
     queryFn: async () => await authFetch<{ wizards: Wizard[] }>('/api/wizards'),
+    refetchInterval: 3000,
+    refetchIntervalInBackground: false,
+    staleTime: 0,
     ...options,
   });
 } 
