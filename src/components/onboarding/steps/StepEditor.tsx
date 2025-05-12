@@ -503,7 +503,7 @@ export const StepEditor: React.FC<StepEditorProps> = ({
                   <SelectTrigger id="target_role_id">
                     <SelectValue placeholder="Select a role to grant" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="z-DROPDOWN">
                     {roleOptions.map(role => (
                       <SelectItem key={role.id} value={role.id}>
                         {role.title}

@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import { Z_INDEX } from "./src/lib/constants/z-index";
 
 export default {
     darkMode: ["class"],
@@ -57,6 +58,7 @@ export default {
   			sm: 'calc(var(--radius) - 4px)'
   		},
       zIndex: {
+        'DROPDOWN': Z_INDEX.DROPDOWN.toString(),
         '100': '100',
         '200': '200',
       },
