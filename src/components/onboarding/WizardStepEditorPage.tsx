@@ -13,7 +13,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { UseMutationResult } from '@tanstack/react-query';
-import { Menu, X, ArrowLeft } from 'lucide-react'; // Import menu and close icons
+import { Menu, X, ArrowLeft } from 'lucide-react'; // Removed SparklesIcon from here
 
 // Define CommunityRole based on assignableRoles prop structure
 // Ensure this matches the actual structure from CommunityInfoResponsePayload
@@ -104,7 +104,7 @@ export const WizardStepEditorPage: React.FC<WizardStepEditorPageProps> = ({
   // --- End Calculate Summary Data --- 
 
   return (
-    <div className="flex relative h-[80vh] border rounded-lg overflow-hidden bg-background">
+    <div className="flex relative h-[80vh] border rounded-lg bg-background">
       {/* Mobile sidebar toggle button */}
       <div className="absolute top-0 left-0 z-40 sm:hidden">
         <Button 

@@ -3,9 +3,10 @@
 import React from 'react';
 import Image from 'next/image'; // Re-add Image import
 import { Button } from "@/components/ui/button";
-import { BookOpen, Eye, Undo, Mail } from 'lucide-react'; // Removed Loader2 import
+import { BookOpen, Eye, Undo, Mail, SparklesIcon } from 'lucide-react'; // Removed Loader2 import
 // import { useQuery } from '@tanstack/react-query'; // Removed
 import { SidebarUserProfile } from './SidebarUserProfile';
+import { useAdminAIChatModalStore } from '@/stores/useAdminAIChatModalStore'; // Added store import
 
 // Define expected link structure
 interface SidebarLink {
@@ -53,6 +54,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   logoUrl, // Destructure new prop
   debugLink, // Destructure debugLink
 }) => {
+  const { openAdminAIChatModal } = useAdminAIChatModalStore(); // Get modal opener
 
   // --- REMOVE Logo Fetching Logic ---
   // const { data: logoData, isLoading: isLoadingLogo } = useQuery<CommunityLogoResponse, Error>({
@@ -138,6 +140,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {link.label}
               </Button>
             ))}
+            
+            {/* AI Assistant Link for Admins */}
+            {isAdmin && !isPreviewingAsUser && (
+              <Button
+                variant={activeSection === 'admin_ai_assistant' ? "secondary" : "ghost"} // Use a unique ID for active state if needed
+                className={`justify-start w-full transition-all duration-200 ${
+                  activeSection === 'admin_ai_assistant' 
+                    ? "bg-secondary text-secondary-foreground font-medium shadow-sm" 
+                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/40"
+                }`}
+                onClick={() => {
+                  // setActiveSection('admin_ai_assistant'); // Optional: if it should also be an "active section"
+                  openAdminAIChatModal();
+                }}
+              >
+                <SparklesIcon className={`h-4 w-4 mr-2 transition-transform duration-200 ${activeSection === 'admin_ai_assistant' ? 'text-primary' : ''}`} />
+                AI Assistant
+              </Button>
+            )}
           </nav>
         </div>
       </div>
