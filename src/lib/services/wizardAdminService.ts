@@ -223,4 +223,186 @@ export async function listWizardsService(
     console.error('[Service/listWizardsService] Error:', error);
     throw error; // Re-throw for the API layer to handle
   }
+}
+
+// --- Get Wizard Details Service ---
+
+// Re-using CreatedWizard as WizardDetails if the structure is identical/sufficient
+export type WizardDetails = CreatedWizard;
+
+export interface GetWizardDetailsServicePayload {
+  wizardId: string;
+  communityId: string;
+}
+
+export class WizardNotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'WizardNotFoundError';
+  }
+}
+
+/**
+ * Service function to fetch details for a specific wizard.
+ */
+export async function getWizardDetailsService(
+  payload: GetWizardDetailsServicePayload
+): Promise<WizardDetails> {
+  const { wizardId, communityId } = payload;
+
+  if (!wizardId) {
+    throw new Error('Wizard ID is required to fetch details.');
+  }
+  if (!communityId) {
+    throw new Error('Community ID is required for context when fetching wizard details.');
+  }
+
+  try {
+    const result = await query<WizardDetails>(
+      `SELECT * FROM onboarding_wizards WHERE id = $1 AND community_id = $2`,
+      [wizardId, communityId]
+    );
+
+    if (result.rows.length === 0) {
+      throw new WizardNotFoundError(`Wizard with ID '${wizardId}' not found in community '${communityId}'.`);
+    }
+    return result.rows[0];
+
+  } catch (error: any) {
+    // Re-throw WizardNotFoundError if it's already that type
+    if (error instanceof WizardNotFoundError) throw error;
+    
+    console.error('[Service/getWizardDetailsService] Error:', error);
+    // For other errors, wrap them or re-throw as a generic error
+    throw new Error(`Failed to fetch wizard details: ${error.message}`);
+  }
+}
+
+// --- Get Wizard Steps Service --- 
+
+// Re-using CreatedStep if the structure for listing steps is identical/sufficient
+export type WizardStepListItem = CreatedStep;
+
+export interface GetWizardStepsServicePayload {
+  wizardId: string;
+  // No communityId needed here, as wizardId implies the context and an admin should only query for wizards they have access to.
+  // The calling layer (e.g., AI tool execute) would ensure the wizardId is accessible to the admin.
+}
+
+/**
+ * Service function to fetch all steps for a specific wizard, ordered by step_order.
+ */
+export async function getWizardStepsService(
+  payload: GetWizardStepsServicePayload
+): Promise<WizardStepListItem[]> {
+  const { wizardId } = payload;
+
+  if (!wizardId) {
+    throw new Error('Wizard ID is required to fetch steps.');
+  }
+
+  try {
+    // It's good practice for the calling layer (AI tool / API route) to ensure the admin has access to this wizardId.
+    // This service function focuses on fetching the steps for a given wizardId.
+    const result = await query<WizardStepListItem>(
+      `SELECT * FROM onboarding_steps WHERE wizard_id = $1 ORDER BY step_order ASC`,
+      [wizardId]
+    );
+    return result.rows; // Can be an empty array if wizard has no steps
+
+  } catch (error: any) {
+    console.error('[Service/getWizardStepsService] Error:', error);
+    throw new Error(`Failed to fetch steps for wizard ${wizardId}: ${error.message}`);
+  }
+}
+
+// --- Update Wizard Details Service ---
+
+export interface UpdateWizardServicePayload {
+  wizardId: string;
+  communityId: string;
+  name?: string;
+  description?: string | null;
+  is_active?: boolean;
+  required_role_id?: string | null;
+  assign_roles_per_step?: boolean;
+}
+
+export type UpdatedWizard = CreatedWizard; // Re-use if structure is the same
+
+/**
+ * Service function to update details for a specific wizard.
+ * Does not handle quota checks for activating wizards - that is an API layer concern.
+ */
+export async function updateWizardDetailsService(
+  payload: UpdateWizardServicePayload
+): Promise<UpdatedWizard> {
+  const { 
+    wizardId, 
+    communityId, 
+    name,
+    description,
+    is_active,
+    required_role_id,
+    assign_roles_per_step
+  } = payload;
+
+  if (!wizardId) {
+    throw new Error('Wizard ID is required to update details.');
+  }
+  if (!communityId) {
+    throw new Error('Community ID is required for context when updating wizard details.');
+  }
+
+  const fieldsToUpdate: string[] = [];
+  const values: (string | boolean | null | undefined)[] = []; // Allow undefined to filter out easily
+
+  // Helper to add fields to update
+  const addField = (dbField: string, value: any) => {
+    if (value !== undefined) {
+      fieldsToUpdate.push(`${dbField} = $${values.length + 1}`);
+      values.push(value);
+    }
+  };
+
+  addField('name', name);
+  addField('description', description);
+  addField('is_active', is_active);
+  addField('required_role_id', required_role_id);
+  addField('assign_roles_per_step', assign_roles_per_step);
+
+  if (fieldsToUpdate.length === 0) {
+    throw new Error("No updatable fields provided.");
+  }
+
+  // Always update updated_at
+  fieldsToUpdate.push(`updated_at = NOW()`);
+
+  // Add wizardId and communityId for the WHERE clause, these must be the LAST elements in the values array
+  // for correct parameter indexing in the final query, after all SET parameters.
+  const whereClauseParamsStartIndex = values.length + 1;
+  values.push(wizardId);
+  values.push(communityId);
+
+  const sql = `UPDATE onboarding_wizards
+               SET ${fieldsToUpdate.join(', ')}
+               WHERE id = $${whereClauseParamsStartIndex} AND community_id = $${whereClauseParamsStartIndex + 1}
+               RETURNING *`;
+
+  try {
+    const result = await query<UpdatedWizard>(sql, values);
+
+    if (result.rows.length === 0) {
+      throw new WizardNotFoundError(`Wizard with ID '${wizardId}' not found in community '${communityId}', or no changes made.`);
+    }
+    return result.rows[0];
+
+  } catch (error: any) {
+    if (error instanceof WizardNotFoundError) throw error;
+    if (error.message && error.message.includes('uniq_wizard_name_per_community')) {
+      throw new DuplicateWizardNameError(`A wizard with the name '${name}' already exists in this community.`);
+    }
+    console.error('[Service/updateWizardDetailsService] Error:', error);
+    throw new Error(`Failed to update wizard details: ${error.message}`);
+  }
 } 

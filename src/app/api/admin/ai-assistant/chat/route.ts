@@ -7,6 +7,11 @@ import { Feature, enforceEventRateLimit, QuotaExceededError, logUsageEvent } fro
 import { createWizardInService, DuplicateWizardNameError, type CreatedWizard } from '@/lib/services/wizardAdminService'; // Import the new service
 import { addStepToWizardService, type AddStepServicePayload, type CreatedStep } from '@/lib/services/wizardAdminService'; // Import new step service items
 import { listWizardsService, type ListWizardsServicePayload, type WizardListItem } from '@/lib/services/wizardAdminService'; // Import listWizardsService
+import { 
+  getWizardDetailsService, type GetWizardDetailsServicePayload, type WizardDetails, WizardNotFoundError,
+  getWizardStepsService, type GetWizardStepsServicePayload, type WizardStepListItem,
+  updateWizardDetailsService, type UpdateWizardServicePayload, type UpdatedWizard // Import new update service items
+} from '@/lib/services/wizardAdminService'; // Import new services and types
 // Ensure OpenAI API key is configured in your environment variables
 // For example, process.env.OPENAI_API_KEY
 
@@ -228,6 +233,124 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
               return { 
                 success: false, 
                 errorForAI: `Failed to retrieve wizards: ${error.message || 'An unexpected error occurred.'}`
+              };
+            }
+          }
+        },
+        getWizardDetailsAndSteps: {
+          description: "Retrieves detailed information for a specific wizard, including its configuration and all its steps in their current order. Provide the Wizard ID.",
+          parameters: z.object({
+            wizardId: z.string().uuid().describe("The ID of the wizard to fetch details and steps for.")
+          }),
+          execute: async (params: { wizardId: string }) => {
+            const { wizardId } = params;
+            // communityId is from the adminUser context in the outer scope
+            console.log(`[Admin AI Tool - getWizardDetailsAndSteps] Fetching details for wizard ID: ${wizardId} in community: ${communityId}`);
+            try {
+              const wizardDetails = await getWizardDetailsService({
+                wizardId: wizardId,
+                communityId: communityId
+              });
+              
+              const steps = await getWizardStepsService({
+                wizardId: wizardId 
+                // communityId check for steps is implicitly handled by checking wizardDetails first
+              });
+              
+              const combinedResult = {
+                ...wizardDetails,
+                steps: steps
+              };
+
+              console.log(`[Admin AI Tool - getWizardDetailsAndSteps] Successfully fetched details and ${steps.length} steps.`);
+              return {
+                success: true,
+                messageForAI: `Details and ${steps.length} step(s) fetched successfully for wizard '${wizardDetails.name}' (ID: ${wizardId}).`,
+                wizardData: combinedResult 
+              };
+
+            } catch (error: any) {
+              console.error('[Admin AI Tool - getWizardDetailsAndSteps] Error:', error);
+              let errorMsg = 'An unexpected error occurred.';
+              if (error instanceof WizardNotFoundError) {
+                errorMsg = error.message;
+              } else if (error.message) {
+                errorMsg = error.message;
+              }
+              return { 
+                success: false, 
+                errorForAI: `Failed to retrieve wizard details and steps: ${errorMsg}`
+              };
+            }
+          }
+        },
+        updateWizardDetails: {
+          description: "Updates details of an existing wizard such as its name, description, active status, required role, or role assignment strategy. Provide the Wizard ID and only the fields you want to change.",
+          parameters: z.object({
+            wizardId: z.string().uuid().describe("The ID of the wizard to update."),
+            name: z.string().optional().describe("The new name for the wizard."),
+            description: z.string().optional().nullable().describe("The new description for the wizard. Send null to clear it."),
+            is_active: z.boolean().optional().describe("Set to true to activate the wizard, false to deactivate (make draft). Quota for active wizards will be checked by the system if activating."),
+            required_role_id: z.string().uuid().optional().nullable().describe("The ID of a role required to access this wizard. Send null to remove the requirement."),
+            assign_roles_per_step: z.boolean().optional().describe("Set to true if roles from steps are assigned immediately upon step completion, or false if assigned at the end of the wizard.")
+          }),
+          execute: async (params: UpdateWizardServicePayload) => {
+            // The communityId for the update operation is taken from the adminUser context (outer scope)
+            console.log(`[Admin AI Tool - updateWizardDetails] Attempting to update wizard ID: ${params.wizardId} in community: ${communityId} with payload:`, params);
+            
+            if (Object.keys(params).filter(k => k !== 'wizardId').length === 0) {
+                return {
+                  success: false,
+                  errorForAI: "No update fields were provided for the wizard. Please specify at least one field to change (e.g., name, description, is_active)."
+                };
+            }
+
+            // API Layer Quota Check (if activating)
+            if (params.is_active === true) {
+              try {
+                await enforceEventRateLimit(communityId, Feature.ActiveWizard);
+              } catch (error: any) {
+                if (error instanceof QuotaExceededError) {
+                  return { 
+                    success: false, 
+                    errorForAI: `QuotaExceeded: ${error.message}. Cannot activate the wizard.`,
+                    details: { feature: error.feature, limit: error.limit, currentCount: error.currentCount }
+                  };
+                }
+                console.error('[Admin AI Tool - updateWizardDetails] Quota check error:', error);
+                return { success: false, errorForAI: `Error during quota check before activating wizard: ${error.message}` };
+              }
+            }
+
+            try {
+              const updatedWizard = await updateWizardDetailsService({
+                wizardId: params.wizardId,         // From AI
+                communityId: communityId,          // From admin context
+                name: params.name,                 // From AI (optional)
+                description: params.description,     // From AI (optional)
+                is_active: params.is_active,         // From AI (optional)
+                required_role_id: params.required_role_id, // From AI (optional)
+                assign_roles_per_step: params.assign_roles_per_step // From AI (optional)
+              });
+              
+              console.log('[Admin AI Tool - updateWizardDetails] Service call successful:', updatedWizard);
+              return {
+                success: true,
+                messageForAI: `Wizard '${updatedWizard.name}' (ID: ${params.wizardId}) updated successfully.`,
+                wizardData: updatedWizard
+              };
+
+            } catch (error: any) {
+              console.error('[Admin AI Tool - updateWizardDetails] Error calling updateWizardDetailsService:', error);
+              let errorMsg = 'An unexpected error occurred while updating the wizard.';
+              if (error instanceof WizardNotFoundError || error instanceof DuplicateWizardNameError) {
+                errorMsg = error.message;
+              } else if (error.message) {
+                errorMsg = error.message;
+              }
+              return { 
+                success: false, 
+                errorForAI: `Failed to update wizard: ${errorMsg}`
               };
             }
           }
