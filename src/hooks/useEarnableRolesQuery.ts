@@ -35,8 +35,10 @@ export function useEarnableRolesQuery(): UseQueryResult<EarnableRolesResponse, E
       // Use authFetch to make the authenticated GET request
       return authFetch<EarnableRolesResponse>('/api/user/earnable-roles');
     },
-    // Keep data fresh for a short period, but refetch on window focus etc. is default
-    staleTime: 60 * 1000, // 1 minute
+    // Add refresh interval to match other queries
+    refetchInterval: 3000,
+    refetchIntervalInBackground: false,
+    staleTime: 0, // Consider data stale immediately to enable refetching
     // Enable query by default when hook is used
     enabled: true, 
   });
