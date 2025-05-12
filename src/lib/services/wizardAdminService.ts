@@ -78,8 +78,8 @@ export async function createWizardInService(
     }
     return result.rows[0];
 
-  } catch (error: any) {
-    if (error.message && error.message.includes('uniq_wizard_name_per_community')) {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message && error.message.includes('uniq_wizard_name_per_community')) {
       throw new DuplicateWizardNameError(`A wizard with the name '${name}' already exists in this community.`);
     }
     // Re-throw other errors for the calling API route to handle
@@ -166,7 +166,7 @@ export async function addStepToWizardService(
     }
     return result.rows[0];
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Handle potential foreign key violations or other DB errors
     console.error('[Service/addStepToWizardService] Error:', error);
     // Could add more specific error checks here if needed (e.g., for invalid wizardId or step_type_id FK violations)
@@ -220,7 +220,7 @@ export async function listWizardsService(
   try {
     const result = await query<WizardListItem>(queryString, queryParams);
     return result.rows;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Service/listWizardsService] Error:', error);
     throw error; // Re-throw for the API layer to handle
   }
@@ -269,13 +269,13 @@ export async function getWizardDetailsService(
     }
     return result.rows[0];
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Re-throw WizardNotFoundError if it's already that type
     if (error instanceof WizardNotFoundError) throw error;
     
     console.error('[Service/getWizardDetailsService] Error:', error);
     // For other errors, wrap them or re-throw as a generic error
-    throw new Error(`Failed to fetch wizard details: ${error.message}`);
+    throw new Error(`Failed to fetch wizard details: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -311,9 +311,9 @@ export async function getWizardStepsService(
     );
     return result.rows; // Can be an empty array if wizard has no steps
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Service/getWizardStepsService] Error:', error);
-    throw new Error(`Failed to fetch steps for wizard ${wizardId}: ${error.message}`);
+    throw new Error(`Failed to fetch steps for wizard ${wizardId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -359,6 +359,7 @@ export async function updateWizardDetailsService(
   const values: (string | boolean | null | undefined)[] = []; // Allow undefined to filter out easily
 
   // Helper to add fields to update
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const addField = (dbField: string, value: any) => {
     if (value !== undefined) {
       fieldsToUpdate.push(`${dbField} = $${values.length + 1}`);
@@ -398,13 +399,13 @@ export async function updateWizardDetailsService(
     }
     return result.rows[0];
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof WizardNotFoundError) throw error;
-    if (error.message && error.message.includes('uniq_wizard_name_per_community')) {
+    if (error instanceof Error && error.message && error.message.includes('uniq_wizard_name_per_community')) {
       throw new DuplicateWizardNameError(`A wizard with the name '${name}' already exists in this community.`);
     }
     console.error('[Service/updateWizardDetailsService] Error:', error);
-    throw new Error(`Failed to update wizard details: ${error.message}`);
+    throw new Error(`Failed to update wizard details: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -445,7 +446,7 @@ export async function updateStepInWizardService(
 
   // ENS domain validation if config.specific.domain_name is present
   if (config && typeof config === 'object' && config !== null && 'specific' in config) {
-    const specificConfig = (config as any).specific;
+    const specificConfig = (config as Record<string, unknown>).specific;
     if (specificConfig && typeof specificConfig === 'object' && specificConfig !== null && 'domain_name' in specificConfig) {
       const domainName = specificConfig.domain_name as string | null | undefined;
       const validationResult = validateEnsDomainOrPattern(domainName);
@@ -457,7 +458,7 @@ export async function updateStepInWizardService(
 
   // Only update provided fields
   const fields: string[] = [];
-  const values: any[] = [stepId];
+  const values: unknown[] = [stepId];
   let idx = 2;
   if (step_type_id !== undefined) { fields.push(`step_type_id = $${idx}`); values.push(step_type_id); idx++; }
   if (config !== undefined) { fields.push(`config = $${idx}`); values.push(JSON.stringify(config)); idx++; }
@@ -512,11 +513,11 @@ export async function deleteStepFromWizardService(
     }
 
     return deleteRes.rows[0];
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof StepNotFoundError) throw error;
     
     console.error('[Service/deleteStepFromWizardService] Error:', error);
-    throw new Error(`Failed to delete step: ${error.message}`);
+    throw new Error(`Failed to delete step: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -628,14 +629,14 @@ export async function reorderStepsInWizardService(
       throw dbError;
     }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Handle specific error types
     if (error instanceof StepCountMismatchError || error instanceof InvalidStepIdError) {
       throw error; // Re-throw these specific errors without modification
     }
     
     console.error('[Service/reorderStepsInWizardService] Error:', error);
-    throw new Error(`Failed to reorder steps: ${error.message}`);
+    throw new Error(`Failed to reorder steps: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -674,10 +675,10 @@ export async function deleteWizardService(
     }
 
     return deleteRes.rows[0];
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (error instanceof WizardNotFoundError) throw error;
     
     console.error('[Service/deleteWizardService] Error:', error);
-    throw new Error(`Failed to delete wizard: ${error.message}`);
+    throw new Error(`Failed to delete wizard: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 } 

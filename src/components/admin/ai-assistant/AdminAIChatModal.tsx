@@ -7,9 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button"; // For a potential close button in footer
 import { useAdminAIChatModalStore } from '@/stores/useAdminAIChatModalStore';
 import { AdminAIChatView } from './AdminAIChatView'; // Import the actual view
 

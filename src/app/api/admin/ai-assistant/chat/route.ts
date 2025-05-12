@@ -4,6 +4,7 @@ import { streamText, CoreMessage } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 import { Feature, enforceEventRateLimit, QuotaExceededError, logUsageEvent } from '@/lib/quotas'; // Import Quota utilities
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { createWizardInService, DuplicateWizardNameError, type CreatedWizard } from '@/lib/services/wizardAdminService'; // Import the new service
 import { addStepToWizardService, type AddStepServicePayload, type CreatedStep } from '@/lib/services/wizardAdminService'; // Import new step service items
 import { listWizardsService, type ListWizardsServicePayload, type WizardListItem } from '@/lib/services/wizardAdminService'; // Import listWizardsService
@@ -17,6 +18,8 @@ import {
   StepCountMismatchError, InvalidStepIdError,
   deleteWizardService, type DeleteWizardServicePayload, type DeletedWizard // Import delete wizard service
 } from '@/lib/services/wizardAdminService'; // Import services and types
+/* eslint-enable @typescript-eslint/no-unused-vars */
+
 // Ensure OpenAI API key is configured in your environment variables
 // For example, process.env.OPENAI_API_KEY
 
@@ -121,7 +124,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
                 communityId: newWizard.community_id
               };
 
-            } catch (error: any) {
+            } catch (error: unknown) {
               console.error('[Admin AI Tool - createWizard] Error calling createWizardInService:', error);
               let errorMessage = 'An unexpected error occurred while creating the wizard.';
               if (error instanceof DuplicateWizardNameError) {
@@ -165,11 +168,11 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
                 wizardId: newStep.wizard_id,
                 stepOrder: newStep.step_order
               };
-            } catch (error: any) {
+            } catch (error: unknown) {
               console.error('[Admin AI Tool - addWizardStep] Error calling addStepToWizardService:', error);
               return {
                 success: false,
-                errorForAI: `Failed to add step: ${error.message || 'An unexpected error occurred.'}`
+                errorForAI: `Failed to add step: ${error instanceof Error ? error.message : 'An unexpected error occurred.'}`
               };
             }
           }
@@ -202,11 +205,11 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
                 stepTypes: data.step_types // This is an array of objects
               };
 
-            } catch (error: any) {
+            } catch (error: unknown) {
               console.error('[Admin AI Tool - getAvailableStepTypes] Error:', error);
               return { 
                 success: false, 
-                errorForAI: `Failed to retrieve step types: ${error.message || 'An unexpected error occurred.'}`
+                errorForAI: `Failed to retrieve step types: ${error instanceof Error ? error.message : 'An unexpected error occurred.'}`
               };
             }
           }
@@ -233,11 +236,11 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
                 wizards: wizards // Array of wizard objects
               };
 
-            } catch (error: any) {
+            } catch (error: unknown) {
               console.error('[Admin AI Tool - getWizardsList] Error:', error);
               return { 
                 success: false, 
-                errorForAI: `Failed to retrieve wizards: ${error.message || 'An unexpected error occurred.'}`
+                errorForAI: `Failed to retrieve wizards: ${error instanceof Error ? error.message : 'An unexpected error occurred.'}`
               };
             }
           }
@@ -274,17 +277,18 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
                 wizardData: combinedResult 
               };
 
-            } catch (error: any) {
+            } catch (error: unknown) {
               console.error('[Admin AI Tool - getWizardDetailsAndSteps] Error:', error);
               let errorMsg = 'An unexpected error occurred.';
               if (error instanceof WizardNotFoundError) {
                 errorMsg = error.message;
-              } else if (error.message) {
+              } else if (error instanceof Error) {
                 errorMsg = error.message;
               }
               return { 
                 success: false, 
-                errorForAI: `Failed to retrieve wizard details and steps: ${errorMsg}`
+                errorForAI: `Failed to retrieve wizard details and steps: ${errorMsg}`,
+                // Optional return value, adjust as needed
               };
             }
           }
@@ -314,7 +318,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
             if (params.is_active === true) {
               try {
                 await enforceEventRateLimit(communityId, Feature.ActiveWizard);
-              } catch (error: any) {
+              } catch (error: unknown) {
                 if (error instanceof QuotaExceededError) {
                   return { 
                     success: false, 
@@ -323,7 +327,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
                   };
                 }
                 console.error('[Admin AI Tool - updateWizardDetails] Quota check error:', error);
-                return { success: false, errorForAI: `Error during quota check before activating wizard: ${error.message}` };
+                return { success: false, errorForAI: `Error during quota check before activating wizard: ${error instanceof Error ? error.message : 'An unknown error occurred.'}` };
               }
             }
 
@@ -345,12 +349,12 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
                 wizardData: updatedWizard
               };
 
-            } catch (error: any) {
+            } catch (error: unknown) {
               console.error('[Admin AI Tool - updateWizardDetails] Error calling updateWizardDetailsService:', error);
               let errorMsg = 'An unexpected error occurred while updating the wizard.';
               if (error instanceof WizardNotFoundError || error instanceof DuplicateWizardNameError) {
                 errorMsg = error.message;
-              } else if (error.message) {
+              } else if (error instanceof Error) {
                 errorMsg = error.message;
               }
               return { 
@@ -398,12 +402,12 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
                 stepData: updatedStep
               };
 
-            } catch (error: any) {
+            } catch (error: unknown) {
               console.error('[Admin AI Tool - updateWizardStepDetails] Error calling updateStepInWizardService:', error);
               let errorMsg = 'An unexpected error occurred while updating the step.';
               if (error instanceof StepNotFoundError) {
                 errorMsg = error.message;
-              } else if (error.message) { // Generic error (e.g., from ENS validation in service)
+              } else if (error instanceof Error) { // Generic error (e.g., from ENS validation in service)
                 errorMsg = error.message;
               }
               return { 
@@ -445,12 +449,12 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
                 deletedStepData: deletedStep
               };
               
-            } catch (error: any) {
+            } catch (error: unknown) {
               console.error('[Admin AI Tool - deleteWizardStep] Error calling deleteStepFromWizardService:', error);
               let errorMsg = 'An unexpected error occurred while deleting the step.';
               if (error instanceof StepNotFoundError) {
                 errorMsg = error.message;
-              } else if (error.message) {
+              } else if (error instanceof Error) {
                 errorMsg = error.message;
               }
               return { 
@@ -492,7 +496,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
                 reorderResult: result
               };
               
-            } catch (error: any) {
+            } catch (error: unknown) {
               console.error('[Admin AI Tool - reorderWizardSteps] Error calling reorderStepsInWizardService:', error);
               let errorMsg = 'An unexpected error occurred while reordering steps.';
               let details = {};
@@ -508,7 +512,7 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
                 details = {
                   invalidStepId: error.stepId
                 };
-              } else if (error.message) {
+              } else if (error instanceof Error) {
                 errorMsg = error.message;
               }
               
@@ -565,12 +569,12 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
                 deletedWizardData: deletedWizard
               };
               
-            } catch (error: any) {
+            } catch (error: unknown) {
               console.error('[Admin AI Tool - deleteWizard] Error:', error);
               let errorMsg = 'An unexpected error occurred while deleting the wizard.';
               if (error instanceof WizardNotFoundError) {
                 errorMsg = error.message;
-              } else if (error.message) {
+              } else if (error instanceof Error) {
                 errorMsg = error.message;
               }
               return { 
