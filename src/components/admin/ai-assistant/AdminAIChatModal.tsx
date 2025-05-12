@@ -2,12 +2,12 @@
 
 import React from 'react';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+  CustomDialog as Dialog,
+  CustomDialogContent as DialogContent,
+  CustomDialogHeader as DialogHeader,
+  CustomDialogTitle as DialogTitle,
+  CustomDialogDescription as DialogDescription,
+} from "@/components/ui/custom-dialog";
 import { useAdminAIChatModalStore } from '@/stores/useAdminAIChatModalStore';
 import { AdminAIChatView } from './AdminAIChatView'; // Import the actual view
 

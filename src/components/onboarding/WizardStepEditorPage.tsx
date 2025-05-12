@@ -5,7 +5,13 @@ import { useStepsQuery, useCreateStep, Step } from '@/hooks/useStepsQuery';
 import { MinimalCreateStepPayload } from '@/hooks/useStepsQuery';
 import { useStepTypesQuery, StepType } from '@/hooks/useStepTypesQuery';
 import { Button } from '@/components/ui/button';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { 
+  CustomDropdownMenu as DropdownMenu, 
+  CustomDropdownMenuContent as DropdownMenuContent, 
+  CustomDropdownMenuLabel as DropdownMenuLabel, 
+  CustomDropdownMenuSeparator as DropdownMenuSeparator, 
+  CustomDropdownMenuTrigger as DropdownMenuTrigger 
+} from '@/components/ui/custom-dropdown-menu';
 import {
   Accordion,
   AccordionContent,

@@ -23,7 +23,7 @@ export const WizardEditorModal: React.FC = () => {
   if (!editingWizardId) return null;
   
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
+    <div className="fixed inset-0 z-100 bg-black/40 flex items-center justify-center">
       <div className="bg-white dark:bg-slate-900 rounded-lg shadow-lg max-w-5xl w-full relative">
         {/* Close button */}
         <button
