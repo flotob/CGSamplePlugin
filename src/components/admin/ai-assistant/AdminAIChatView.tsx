@@ -6,7 +6,16 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Loader2, AlertCircle, MessageSquare, X, ChevronLeft } from 'lucide-react';
 import { useAuthFetch } from '@/lib/authFetch';
-import { WizardCreatedCard, StepAddedCard } from './function-cards';
+import { 
+  WizardCreatedCard, 
+  StepAddedCard,
+  WizardDeletedCard,
+  StepDeletedCard,
+  WizardUpdatedCard,
+  StepUpdatedCard,
+  StepsReorderedCard,
+  WizardsListCard
+} from './function-cards';
 import { useWizardEditorStore } from '@/stores/useWizardEditorStore';
 import { ConversationSidebar } from './ConversationSidebar';
 import { useAtom } from 'jotai';
@@ -315,6 +324,96 @@ export const AdminAIChatView: React.FC = () => {
                         onOpenStepEditor={handleOpenStepEditor}
                       />
                     );
+                  }
+                  
+                  // Check for deleteWizard successful result
+                  if (state === 'result' && toolName === 'deleteWizard' && 'result' in toolInvocation && toolInvocation.result?.success) {
+                    const { deletedWizardData } = toolInvocation.result;
+                    return (
+                      <WizardDeletedCard
+                        key={toolCallId}
+                        wizardId={deletedWizardData.id || ''}
+                        wizardName={deletedWizardData.name || 'Wizard'}
+                      />
+                    );
+                  }
+                  
+                  // Check for deleteWizardStep successful result
+                  if (state === 'result' && toolName === 'deleteWizardStep' && 'result' in toolInvocation && toolInvocation.result?.success) {
+                    const { deletedStepData } = toolInvocation.result;
+                    return (
+                      <StepDeletedCard
+                        key={toolCallId}
+                        stepId={deletedStepData.id || ''}
+                        wizardId={deletedStepData.wizard_id || ''}
+                        stepOrder={deletedStepData.step_order}
+                      />
+                    );
+                  }
+                  
+                  // Check for updateWizardDetails successful result
+                  if (state === 'result' && toolName === 'updateWizardDetails' && 'result' in toolInvocation && toolInvocation.result?.success) {
+                    const { wizardData } = toolInvocation.result;
+                    return (
+                      <WizardUpdatedCard
+                        key={toolCallId}
+                        wizardId={wizardData.id || ''}
+                        wizardName={wizardData.name || 'Wizard'}
+                        isActive={wizardData.is_active || false}
+                        onOpenEditor={handleOpenWizardEditor}
+                      />
+                    );
+                  }
+                  
+                  // Check for updateWizardStepDetails successful result
+                  if (state === 'result' && toolName === 'updateWizardStepDetails' && 'result' in toolInvocation && toolInvocation.result?.success) {
+                    const { stepData } = toolInvocation.result;
+                    return (
+                      <StepUpdatedCard
+                        key={toolCallId}
+                        stepId={stepData.id || ''}
+                        wizardId={stepData.wizard_id || ''}
+                        stepOrder={stepData.step_order || 0}
+                        isMandatory={stepData.is_mandatory !== false}
+                        isActive={stepData.is_active !== false}
+                        onOpenStepEditor={handleOpenStepEditor}
+                      />
+                    );
+                  }
+                  
+                  // Check for reorderWizardSteps successful result
+                  if (state === 'result' && toolName === 'reorderWizardSteps' && 'result' in toolInvocation && toolInvocation.result?.success) {
+                    const { reorderResult } = toolInvocation.result;
+                    // First try to extract wizard name and id from the message
+                    let wizardName = 'Wizard';
+                    const wizardId = reorderResult.wizardId || '';
+                    const stepCount = reorderResult.stepsReordered || 0;
+                    
+                    return (
+                      <StepsReorderedCard
+                        key={toolCallId}
+                        wizardId={wizardId}
+                        wizardName={wizardName}
+                        stepCount={stepCount}
+                        onOpenEditor={handleOpenWizardEditor}
+                      />
+                    );
+                  }
+                  
+                  // Check for getWizardsList successful result
+                  if (state === 'result' && toolName === 'getWizardsList' && 'result' in toolInvocation && toolInvocation.result?.success) {
+                    const { wizards, status = 'all' } = toolInvocation.result;
+                    
+                    if (Array.isArray(wizards)) {
+                      return (
+                        <WizardsListCard
+                          key={toolCallId}
+                          wizards={wizards}
+                          status={status}
+                          onOpenEditor={handleOpenWizardEditor}
+                        />
+                      );
+                    }
                   }
                   
                   // Default rendering for other tool invocations
