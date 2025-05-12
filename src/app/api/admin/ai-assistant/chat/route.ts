@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { Feature, enforceEventRateLimit, QuotaExceededError, logUsageEvent } from '@/lib/quotas'; // Import Quota utilities
 import { createWizardInService, DuplicateWizardNameError, type CreatedWizard } from '@/lib/services/wizardAdminService'; // Import the new service
 import { addStepToWizardService, type AddStepServicePayload, type CreatedStep } from '@/lib/services/wizardAdminService'; // Import new step service items
+import { listWizardsService, type ListWizardsServicePayload, type WizardListItem } from '@/lib/services/wizardAdminService'; // Import listWizardsService
 // Ensure OpenAI API key is configured in your environment variables
 // For example, process.env.OPENAI_API_KEY
 
@@ -159,6 +160,74 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
               return {
                 success: false,
                 errorForAI: `Failed to add step: ${error.message || 'An unexpected error occurred.'}`
+              };
+            }
+          }
+        },
+        getAvailableStepTypes: {
+          description: "Retrieves a list of all available step types that can be added to a wizard. Each step type includes its ID, unique name (for identification), display label, a general description, and a flag indicating if it requires credentials setup. Use this to help the admin choose a step type or to find the correct ID for a step type name.",
+          parameters: z.object({}), // No parameters needed
+          execute: async () => {
+            console.log('[Admin AI Tool - getAvailableStepTypes] Fetching step types...');
+            try {
+              // Construct the full URL for the API endpoint
+              // Assuming the chat API is running on the same host, construct a relative URL or use an env var for base URL.
+              // For server-side fetch, we need the absolute URL.
+              const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'; // Fallback for local dev
+              const response = await fetch(`${baseUrl}/api/step_types`);
+              
+              if (!response.ok) {
+                throw new Error(`Failed to fetch step types: ${response.status} ${response.statusText}`);
+              }
+              const data = await response.json();
+              
+              if (!data || !Array.isArray(data.step_types)) {
+                throw new Error('Invalid response structure from /api/step_types');
+              }
+              
+              console.log('[Admin AI Tool - getAvailableStepTypes] Successfully fetched step types:', data.step_types.length);
+              return {
+                success: true,
+                messageForAI: "Here are the available step types. Use the 'name' to discuss with the admin and the 'id' for API calls. The 'description' may offer configuration hints. If creating a step, I will still need the specific configuration details from the admin after the type is chosen.",
+                stepTypes: data.step_types // This is an array of objects
+              };
+
+            } catch (error: any) {
+              console.error('[Admin AI Tool - getAvailableStepTypes] Error:', error);
+              return { 
+                success: false, 
+                errorForAI: `Failed to retrieve step types: ${error.message || 'An unexpected error occurred.'}`
+              };
+            }
+          }
+        },
+        getWizardsList: {
+          description: "Retrieves a list of onboarding wizards for the admin's current community. You can filter by status: 'active', 'inactive' (for drafts), or 'all'. Default is 'all'.",
+          parameters: z.object({
+            status: z.enum(["active", "inactive", "all"]).optional().default("all")
+              .describe("Filter wizards by status. 'inactive' shows draft wizards.")
+          }),
+          execute: async (params: { status?: 'active' | 'inactive' | 'all' }) => {
+            // communityId is from the adminUser context in the outer scope
+            console.log(`[Admin AI Tool - getWizardsList] Fetching wizards with status: ${params.status || 'all'} for community: ${communityId}`);
+            try {
+              const wizards = await listWizardsService({
+                communityId: communityId,
+                status: params.status
+              });
+              
+              console.log(`[Admin AI Tool - getWizardsList] Successfully fetched ${wizards.length} wizards.`);
+              return {
+                success: true,
+                messageForAI: `Found ${wizards.length} wizards with status '${params.status || 'all'}'. ${wizards.length > 0 ? 'Here is the list.' : 'No wizards match this criteria.'}`,
+                wizards: wizards // Array of wizard objects
+              };
+
+            } catch (error: any) {
+              console.error('[Admin AI Tool - getWizardsList] Error:', error);
+              return { 
+                success: false, 
+                errorForAI: `Failed to retrieve wizards: ${error.message || 'An unexpected error occurred.'}`
               };
             }
           }

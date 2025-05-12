@@ -171,4 +171,56 @@ export async function addStepToWizardService(
     // Could add more specific error checks here if needed (e.g., for invalid wizardId or step_type_id FK violations)
     throw error; 
   }
+}
+
+// --- List Wizards Service ---
+
+// Use existing WizardSummary or CreatedWizard, or define a specific one if different columns are needed.
+// Assuming CreatedWizard is suitable for listing as well.
+export type WizardListItem = CreatedWizard; // Alias for clarity if needed
+
+export interface ListWizardsServicePayload {
+  communityId: string;
+  status?: 'active' | 'inactive' | 'all'; // 'inactive' for drafts
+}
+
+/**
+ * Service function to list wizards for a community, with status filtering.
+ */
+export async function listWizardsService(
+  payload: ListWizardsServicePayload
+): Promise<WizardListItem[]> {
+  const { communityId, status = 'all' } = payload;
+
+  if (!communityId) {
+    throw new Error('Community ID is required to list wizards.');
+  }
+
+  let queryString = `SELECT id, community_id, name, description, is_active, created_at, updated_at, required_role_id, assign_roles_per_step, is_hero 
+                     FROM onboarding_wizards 
+                     WHERE community_id = $1`;
+  const queryParams: (string | boolean)[] = [communityId];
+
+  let paramIndex = 2; // Start parameters for optional filters from $2
+
+  if (status === 'active') {
+    queryString += ` AND is_active = $${paramIndex}`;
+    queryParams.push(true);
+    paramIndex++;
+  } else if (status === 'inactive') {
+    queryString += ` AND is_active = $${paramIndex}`;
+    queryParams.push(false);
+    paramIndex++;
+  }
+  // If status is 'all', no additional is_active filter is added.
+
+  queryString += ` ORDER BY updated_at DESC`;
+
+  try {
+    const result = await query<WizardListItem>(queryString, queryParams);
+    return result.rows;
+  } catch (error: any) {
+    console.error('[Service/listWizardsService] Error:', error);
+    throw error; // Re-throw for the API layer to handle
+  }
 } 
