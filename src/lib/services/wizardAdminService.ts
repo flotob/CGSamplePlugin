@@ -1,4 +1,5 @@
 import { query } from '@/lib/db';
+import { validateEnsDomainOrPattern } from '@/lib/validationUtils';
 
 // Mirror or import WizardSummary type if it's defined globally and suitable
 // For now, defining a specific return type for clarity.
@@ -404,5 +405,236 @@ export async function updateWizardDetailsService(
     }
     console.error('[Service/updateWizardDetailsService] Error:', error);
     throw new Error(`Failed to update wizard details: ${error.message}`);
+  }
+}
+
+// --- Update Step Service ---
+
+export interface UpdateStepServicePayload {
+  wizardId: string;
+  stepId: string;
+  step_type_id?: string;
+  config?: object;
+  target_role_id?: string | null;
+  is_mandatory?: boolean;
+  is_active?: boolean;
+}
+
+export type UpdatedStep = CreatedStep;
+
+export class StepNotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'StepNotFoundError';
+  }
+}
+
+/**
+ * Service function to update a step in a wizard.
+ * Mirrors the logic of the API route, including ENS domain validation.
+ */
+export async function updateStepInWizardService(
+  payload: UpdateStepServicePayload
+): Promise<UpdatedStep> {
+  const { wizardId, stepId, step_type_id, config, target_role_id, is_mandatory, is_active } = payload;
+
+  if (!wizardId) throw new Error('Wizard ID is required to update a step.');
+  if (!stepId) throw new Error('Step ID is required to update a step.');
+
+  // Optional: Validate the step belongs to the wizard (security/context check should be done at API layer)
+
+  // ENS domain validation if config.specific.domain_name is present
+  if (config && typeof config === 'object' && config !== null && 'specific' in config) {
+    const specificConfig = (config as any).specific;
+    if (specificConfig && typeof specificConfig === 'object' && specificConfig !== null && 'domain_name' in specificConfig) {
+      const domainName = specificConfig.domain_name as string | null | undefined;
+      const validationResult = validateEnsDomainOrPattern(domainName);
+      if (!validationResult.isValid) {
+        throw new Error(validationResult.error || 'Invalid domain_name pattern provided.');
+      }
+    }
+  }
+
+  // Only update provided fields
+  const fields: string[] = [];
+  const values: any[] = [stepId];
+  let idx = 2;
+  if (step_type_id !== undefined) { fields.push(`step_type_id = $${idx}`); values.push(step_type_id); idx++; }
+  if (config !== undefined) { fields.push(`config = $${idx}`); values.push(JSON.stringify(config)); idx++; }
+  if (target_role_id !== undefined) { fields.push(`target_role_id = $${idx}`); values.push(target_role_id); idx++; }
+  if (is_mandatory !== undefined) { fields.push(`is_mandatory = $${idx}`); values.push(is_mandatory); idx++; }
+  if (is_active !== undefined) { fields.push(`is_active = $${idx}`); values.push(is_active); idx++; }
+  if (fields.length === 0) {
+    throw new Error('No fields to update');
+  }
+  const sql = `UPDATE onboarding_steps SET ${fields.join(', ')} WHERE id = $1 RETURNING *`;
+  const updateRes = await query<UpdatedStep>(sql, values);
+  if (updateRes.rows.length === 0) {
+    throw new StepNotFoundError('Step not updated or not found');
+  }
+  return updateRes.rows[0];
+}
+
+// --- Delete Step Service ---
+
+export interface DeleteStepServicePayload {
+  wizardId: string; // For context and potential verification
+  stepId: string;   // Primary key for deletion
+}
+
+export type DeletedStep = CreatedStep; // Re-use CreatedStep type for deleted step return
+
+/**
+ * Service function to delete a step from a wizard.
+ * Takes the step ID and wizard ID (for context), and returns the deleted step.
+ * Throws StepNotFoundError if the step doesn't exist.
+ */
+export async function deleteStepFromWizardService(
+  payload: DeleteStepServicePayload
+): Promise<DeletedStep> {
+  const { wizardId, stepId } = payload;
+
+  if (!wizardId) throw new Error('Wizard ID is required for context when deleting a step.');
+  if (!stepId) throw new Error('Step ID is required to delete a step.');
+
+  // Optional: We could verify the step belongs to the wizard here,
+  // but that's typically handled at the API layer authorization check.
+  // The service assumes proper authorization has been done.
+
+  try {
+    const deleteRes = await query<DeletedStep>(
+      `DELETE FROM onboarding_steps WHERE id = $1 RETURNING *`,
+      [stepId]
+    );
+
+    if (deleteRes.rows.length === 0) {
+      throw new StepNotFoundError(`Step with ID '${stepId}' not found or already deleted.`);
+    }
+
+    return deleteRes.rows[0];
+  } catch (error: any) {
+    if (error instanceof StepNotFoundError) throw error;
+    
+    console.error('[Service/deleteStepFromWizardService] Error:', error);
+    throw new Error(`Failed to delete step: ${error.message}`);
+  }
+}
+
+// --- Reorder Steps Service ---
+
+export interface ReorderStepsServicePayload {
+  wizardId: string;
+  stepIdsInOrder: string[]; // Array of step IDs in desired order
+}
+
+export interface ReorderStepsResult {
+  success: boolean;
+  message: string;
+  updatedStepCount: number;
+}
+
+export class StepCountMismatchError extends Error {
+  currentCount: number;
+  providedCount: number;
+
+  constructor(message: string, currentCount: number, providedCount: number) {
+    super(message);
+    this.name = 'StepCountMismatchError';
+    this.currentCount = currentCount;
+    this.providedCount = providedCount;
+  }
+}
+
+export class InvalidStepIdError extends Error {
+  stepId: string;
+  
+  constructor(message: string, stepId: string) {
+    super(message);
+    this.name = 'InvalidStepIdError';
+    this.stepId = stepId;
+  }
+}
+
+/**
+ * Service function to reorder steps in a wizard.
+ * Takes wizard ID and an array of step IDs in the desired order.
+ * Updates the step_order field for each step within a transaction.
+ * Throws errors for step count mismatch or invalid step IDs.
+ */
+export async function reorderStepsInWizardService(
+  payload: ReorderStepsServicePayload
+): Promise<ReorderStepsResult> {
+  const { wizardId, stepIdsInOrder } = payload;
+
+  if (!wizardId) {
+    throw new Error('Wizard ID is required to reorder steps.');
+  }
+  if (!Array.isArray(stepIdsInOrder) || stepIdsInOrder.length === 0) {
+    throw new Error('At least one step ID is required in the stepIdsInOrder array.');
+  }
+
+  try {
+    // Start transaction
+    await query('BEGIN');
+
+    try {
+      // 1. Verify step count matches
+      const countRes = await query<{ count: string }>(
+        'SELECT COUNT(*) FROM onboarding_steps WHERE wizard_id = $1', 
+        [wizardId]
+      );
+      const currentStepCount = parseInt(countRes.rows[0].count, 10);
+      
+      if (currentStepCount !== stepIdsInOrder.length) {
+        await query('ROLLBACK'); // Rollback before throwing error
+        throw new StepCountMismatchError(
+          `Step count mismatch: Database has ${currentStepCount} steps but ${stepIdsInOrder.length} were provided.`,
+          currentStepCount,
+          stepIdsInOrder.length
+        );
+      }
+
+      // 2. Update order for each step
+      for (let i = 0; i < stepIdsInOrder.length; i++) {
+        const stepId = stepIdsInOrder[i];
+        const updateRes = await query(
+          `UPDATE onboarding_steps SET step_order = $1 WHERE id = $2 AND wizard_id = $3`,
+          [i, stepId, wizardId] // Use 0-based index for order
+        );
+        
+        // Check if step was actually updated
+        if (updateRes.rowCount === 0) {
+          await query('ROLLBACK'); // Rollback before throwing error
+          throw new InvalidStepIdError(
+            `Failed to update step ${stepId}. It might not exist or not belong to wizard ${wizardId}.`,
+            stepId
+          );
+        }
+      }
+
+      // 3. Commit transaction
+      await query('COMMIT');
+
+      return {
+        success: true,
+        message: `Successfully reordered ${stepIdsInOrder.length} steps in wizard ${wizardId}.`,
+        updatedStepCount: stepIdsInOrder.length
+      };
+
+    } catch (dbError) {
+      // Rollback on any error during the update loop
+      await query('ROLLBACK');
+      // Re-throw to be caught by outer catch
+      throw dbError;
+    }
+
+  } catch (error: any) {
+    // Handle specific error types
+    if (error instanceof StepCountMismatchError || error instanceof InvalidStepIdError) {
+      throw error; // Re-throw these specific errors without modification
+    }
+    
+    console.error('[Service/reorderStepsInWizardService] Error:', error);
+    throw new Error(`Failed to reorder steps: ${error.message}`);
   }
 } 

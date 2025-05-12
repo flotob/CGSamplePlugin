@@ -10,8 +10,12 @@ import { listWizardsService, type ListWizardsServicePayload, type WizardListItem
 import { 
   getWizardDetailsService, type GetWizardDetailsServicePayload, type WizardDetails, WizardNotFoundError,
   getWizardStepsService, type GetWizardStepsServicePayload, type WizardStepListItem,
-  updateWizardDetailsService, type UpdateWizardServicePayload, type UpdatedWizard // Import new update service items
-} from '@/lib/services/wizardAdminService'; // Import new services and types
+  updateWizardDetailsService, type UpdateWizardServicePayload, type UpdatedWizard,
+  updateStepInWizardService, type UpdateStepServicePayload, type UpdatedStep, StepNotFoundError,
+  deleteStepFromWizardService, type DeleteStepServicePayload, type DeletedStep,
+  reorderStepsInWizardService, type ReorderStepsServicePayload, type ReorderStepsResult,
+  StepCountMismatchError, InvalidStepIdError // Import reorder steps service and types
+} from '@/lib/services/wizardAdminService'; // Import services and types
 // Ensure OpenAI API key is configured in your environment variables
 // For example, process.env.OPENAI_API_KEY
 
@@ -351,6 +355,166 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
               return { 
                 success: false, 
                 errorForAI: `Failed to update wizard: ${errorMsg}`
+              };
+            }
+          }
+        },
+        updateWizardStepDetails: {
+          description: "Updates details of an existing step within a wizard. Provide the Wizard ID, Step ID, and only the fields you want to change (e.g., step_type_id, config, target_role_id, is_mandatory, is_active). ENS domain_name in specific config will be validated if provided.",
+          parameters: z.object({
+            wizardId: z.string().uuid().describe("The ID of the wizard containing the step to update."),
+            stepId: z.string().uuid().describe("The ID of the step to update."),
+            step_type_id: z.string().uuid().optional().describe("Optional: The new type ID for the step."),
+            config: z.object({
+              presentation: z.record(z.any()).optional().describe("Object for presentation settings like headline, subtitle, backgroundType, backgroundValue."),
+              specific: z.record(z.any()).optional().describe("Object for type-specific settings. The structure depends on the step_type_id. ENS domain_name in specific config will be validated if provided.")
+            }).optional().describe("Optional: The new configuration object for the step. Include 'presentation' and/or 'specific' parts as needed."),
+            target_role_id: z.string().uuid().optional().nullable().describe("Optional: The new target role ID to be granted upon step completion. Send null to clear it."),
+            is_mandatory: z.boolean().optional().describe("Optional: Set to true if the step is mandatory, false otherwise."),
+            is_active: z.boolean().optional().describe("Optional: Set to true to activate the step, false to deactivate it.")
+          }),
+          execute: async (params: UpdateStepServicePayload) => {
+            // communityId is from the adminUser context in the outer scope,
+            // but updateStepInWizardService primarily uses wizardId and stepId.
+            // The wizardId context implies the community.
+            console.log(`[Admin AI Tool - updateWizardStepDetails] Attempting to update step ID: ${params.stepId} in wizard ID: ${params.wizardId} with payload:`, params);
+
+            if (Object.keys(params).filter(k => k !== 'wizardId' && k !== 'stepId').length === 0) {
+              return {
+                success: false,
+                errorForAI: "No update fields were provided for the step. Please specify at least one field to change (e.g., config, is_mandatory)."
+              };
+            }
+
+            try {
+              // The service function updateStepInWizardService expects all params directly
+              const updatedStep = await updateStepInWizardService(params);
+              
+              console.log('[Admin AI Tool - updateWizardStepDetails] Service call successful:', updatedStep);
+              return {
+                success: true,
+                messageForAI: `Step ID '${params.stepId}' in wizard '${params.wizardId}' updated successfully.`,
+                stepData: updatedStep
+              };
+
+            } catch (error: any) {
+              console.error('[Admin AI Tool - updateWizardStepDetails] Error calling updateStepInWizardService:', error);
+              let errorMsg = 'An unexpected error occurred while updating the step.';
+              if (error instanceof StepNotFoundError) {
+                errorMsg = error.message;
+              } else if (error.message) { // Generic error (e.g., from ENS validation in service)
+                errorMsg = error.message;
+              }
+              return { 
+                success: false, 
+                errorForAI: `Failed to update step: ${errorMsg}`
+              };
+            }
+          }
+        },
+        deleteWizardStep: {
+          description: "Deletes a step from a wizard. This is a destructive operation and cannot be undone. You must specify both wizard ID and step ID. Consider checking if this is the right step first using getWizardDetailsAndSteps.",
+          parameters: z.object({
+            wizardId: z.string().uuid().describe("The ID of the wizard containing the step to delete."),
+            stepId: z.string().uuid().describe("The ID of the step to delete."),
+            confirm_deletion: z.boolean().describe("Must be set to true to confirm this destructive operation.")
+          }),
+          execute: async (params: { wizardId: string; stepId: string; confirm_deletion: boolean }) => {
+            const { wizardId, stepId, confirm_deletion } = params;
+            
+            console.log(`[Admin AI Tool - deleteWizardStep] Attempting to delete step ID: ${stepId} from wizard ID: ${wizardId}`);
+            
+            if (!confirm_deletion) {
+              return {
+                success: false,
+                errorForAI: "Deletion not confirmed. Set confirm_deletion to true to proceed with this destructive operation."
+              };
+            }
+            
+            try {
+              const deletedStep = await deleteStepFromWizardService({
+                wizardId,
+                stepId
+              });
+              
+              console.log('[Admin AI Tool - deleteWizardStep] Service call successful, step deleted:', deletedStep);
+              return {
+                success: true,
+                messageForAI: `Step ID '${stepId}' has been successfully deleted from wizard '${wizardId}'.`,
+                deletedStepData: deletedStep
+              };
+              
+            } catch (error: any) {
+              console.error('[Admin AI Tool - deleteWizardStep] Error calling deleteStepFromWizardService:', error);
+              let errorMsg = 'An unexpected error occurred while deleting the step.';
+              if (error instanceof StepNotFoundError) {
+                errorMsg = error.message;
+              } else if (error.message) {
+                errorMsg = error.message;
+              }
+              return { 
+                success: false, 
+                errorForAI: `Failed to delete step: ${errorMsg}`
+              };
+            }
+          }
+        },
+        reorderWizardSteps: {
+          description: "Changes the order of steps within a wizard. You must provide the wizard ID and an array of step IDs in the new desired order. The array must include all step IDs that belong to the wizard, no more and no less.",
+          parameters: z.object({
+            wizardId: z.string().uuid().describe("The ID of the wizard whose steps will be reordered."),
+            stepIdsInOrder: z.array(z.string().uuid()).min(1).describe("Array of step IDs in the desired order. MUST include all steps from the wizard.")
+          }),
+          execute: async (params: { wizardId: string; stepIdsInOrder: string[] }) => {
+            const { wizardId, stepIdsInOrder } = params;
+            
+            console.log(`[Admin AI Tool - reorderWizardSteps] Attempting to reorder steps for wizard ID: ${wizardId}`);
+            console.log(`[Admin AI Tool - reorderWizardSteps] New order:`, stepIdsInOrder);
+            
+            if (!stepIdsInOrder || stepIdsInOrder.length === 0) {
+              return {
+                success: false,
+                errorForAI: "The stepIdsInOrder array must contain at least one step ID."
+              };
+            }
+            
+            try {
+              const result = await reorderStepsInWizardService({
+                wizardId,
+                stepIdsInOrder
+              });
+              
+              console.log('[Admin AI Tool - reorderWizardSteps] Service call successful:', result);
+              return {
+                success: true,
+                messageForAI: result.message,
+                reorderResult: result
+              };
+              
+            } catch (error: any) {
+              console.error('[Admin AI Tool - reorderWizardSteps] Error calling reorderStepsInWizardService:', error);
+              let errorMsg = 'An unexpected error occurred while reordering steps.';
+              let details = {};
+              
+              if (error instanceof StepCountMismatchError) {
+                errorMsg = error.message;
+                details = {
+                  currentStepCount: error.currentCount,
+                  providedStepCount: error.providedCount
+                };
+              } else if (error instanceof InvalidStepIdError) {
+                errorMsg = error.message;
+                details = {
+                  invalidStepId: error.stepId
+                };
+              } else if (error.message) {
+                errorMsg = error.message;
+              }
+              
+              return { 
+                success: false, 
+                errorForAI: `Failed to reorder steps: ${errorMsg}`,
+                errorDetails: details
               };
             }
           }
