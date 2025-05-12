@@ -4,6 +4,7 @@ import { streamText, CoreMessage } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 import { Feature, enforceEventRateLimit, QuotaExceededError, logUsageEvent } from '@/lib/quotas'; // Import Quota utilities
+import { createWizardInService, DuplicateWizardNameError, type CreatedWizard } from '@/lib/services/wizardAdminService'; // Import the new service
 // Ensure OpenAI API key is configured in your environment variables
 // For example, process.env.OPENAI_API_KEY
 
@@ -82,62 +83,44 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
             required_role_id: z.string().optional().describe("Optional: ID of a role the user must have to access this wizard."),
             assign_roles_per_step: z.boolean().optional().default(false).describe("Optional: If true, roles from steps are assigned immediately after step completion. Default is false (roles assigned at wizard completion).")
           }),
-          execute: async ({ name, description, required_role_id, assign_roles_per_step }: {
+          execute: async (params: { // Destructure params directly
             name: string;
             description?: string;
             required_role_id?: string;
             assign_roles_per_step?: boolean;
           }) => {
-            const wizardPayload = {
-              name,
-              description: description || null,
-              is_active: false, // Wizards are created as drafts
-              required_role_id: required_role_id || null,
-              assign_roles_per_step: assign_roles_per_step || false,
-              // community_id is implicitly handled by the /api/wizards backend route using the admin's token if called with admin context
-            };
-
-            console.log('[Admin AI Tool - createWizard] Payload for POST /api/wizards:', wizardPayload);
-            console.log('[Admin AI Tool - createWizard] Admin User Context Community ID:', communityId);
+            // communityId is from the outer scope (adminUser.cid)
+            console.log('[Admin AI Tool - createWizard] Attempting to create wizard with params:', params);
+            console.log('[Admin AI Tool - createWizard] Using Community ID:', communityId);
 
             try {
-              // TODO: Implement actual admin-authenticated API call to POST /api/wizards
-              // This would require an admin-level authFetch or similar mechanism.
-              // For example:
-              // const adminApi = getAdminApiClient(adminUserToken); // Hypothetical function to get authenticated client
-              // const response = await adminApi.post('/api/wizards', wizardPayload);
-              // const newWizard = response.data.wizard;
-
-              // Simulate a successful API response for this example
-              const simulatedNewWizard = {
-                id: `wizard_admin_${Date.now()}`,
-                name: wizardPayload.name,
-                description: wizardPayload.description,
-                is_active: wizardPayload.is_active,
-                required_role_id: wizardPayload.required_role_id,
-                assign_roles_per_step: wizardPayload.assign_roles_per_step,
-                community_id: communityId, // Using admin's current community context
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-                is_hero: false,
-              };
-              console.log('[Admin AI Tool - createWizard] Simulated success:', simulatedNewWizard);
+              const newWizard = await createWizardInService({
+                ...params, // Spread AI provided params
+                communityId: communityId, // Pass admin's community context
+                // is_active will default to false in the service if not provided by AI
+              });
               
+              console.log('[Admin AI Tool - createWizard] Service call successful:', newWizard);
               return { 
                 success: true, 
-                messageForAI: `Wizard '${simulatedNewWizard.name}' (ID: ${simulatedNewWizard.id}) created successfully as a draft in community ${communityId}.`,
-                wizardId: simulatedNewWizard.id,
-                wizardName: simulatedNewWizard.name,
-                communityId: communityId
+                messageForAI: `Wizard '${newWizard.name}' (ID: ${newWizard.id}) created successfully as a draft in community ${communityId}.`,
+                wizardId: newWizard.id,
+                wizardName: newWizard.name,
+                communityId: newWizard.community_id
               };
 
             } catch (error: any) {
-              console.error('[Admin AI Tool - createWizard] Error during simulated API call:', error);
-              const errorMessage = error.response?.data?.error || error.message || 'An unexpected error occurred while creating the wizard.';
+              console.error('[Admin AI Tool - createWizard] Error calling createWizardInService:', error);
+              let errorMessage = 'An unexpected error occurred while creating the wizard.';
+              if (error instanceof DuplicateWizardNameError) {
+                errorMessage = error.message;
+              } else if (error instanceof Error) {
+                errorMessage = error.message; // Generic error message
+              }
               return { 
                 success: false, 
                 errorForAI: `Failed to create wizard: ${errorMessage}`,
-                details: error.response?.data?.details 
+                // No details to return for now, could add error.name or error.code if available/useful
               };
             }
           }
