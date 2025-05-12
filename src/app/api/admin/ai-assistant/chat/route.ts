@@ -14,7 +14,8 @@ import {
   updateStepInWizardService, type UpdateStepServicePayload, type UpdatedStep, StepNotFoundError,
   deleteStepFromWizardService, type DeleteStepServicePayload, type DeletedStep,
   reorderStepsInWizardService, type ReorderStepsServicePayload, type ReorderStepsResult,
-  StepCountMismatchError, InvalidStepIdError // Import reorder steps service and types
+  StepCountMismatchError, InvalidStepIdError,
+  deleteWizardService, type DeleteWizardServicePayload, type DeletedWizard // Import delete wizard service
 } from '@/lib/services/wizardAdminService'; // Import services and types
 // Ensure OpenAI API key is configured in your environment variables
 // For example, process.env.OPENAI_API_KEY
@@ -515,6 +516,66 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
                 success: false, 
                 errorForAI: `Failed to reorder steps: ${errorMsg}`,
                 errorDetails: details
+              };
+            }
+          }
+        },
+        deleteWizard: {
+          description: "Deletes a wizard and all its steps. This is a destructive operation and cannot be undone. You must confirm deletion. Only inactive (draft) wizards can be deleted. Active wizards must first be deactivated using updateWizardDetails.",
+          parameters: z.object({
+            wizardId: z.string().uuid().describe("The ID of the wizard to delete."),
+            confirm_deletion: z.boolean().describe("Must be set to true to confirm this destructive operation.")
+          }),
+          execute: async (params: { wizardId: string; confirm_deletion: boolean }) => {
+            const { wizardId, confirm_deletion } = params;
+            
+            console.log(`[Admin AI Tool - deleteWizard] Attempting to delete wizard ID: ${wizardId}`);
+            
+            if (!confirm_deletion) {
+              return {
+                success: false,
+                errorForAI: "Deletion not confirmed. Set confirm_deletion to true to proceed with this destructive operation."
+              };
+            }
+            
+            try {
+              // First check if the wizard is active
+              const wizardDetails = await getWizardDetailsService({
+                wizardId,
+                communityId // From admin user context
+              });
+              
+              if (wizardDetails.is_active) {
+                return {
+                  success: false,
+                  errorForAI: "Cannot delete an active wizard. Please deactivate the wizard first using updateWizardDetails with is_active: false, then try again."
+                };
+              }
+              
+              // If inactive, proceed with deletion
+              const deletedWizard = await deleteWizardService({
+                wizardId,
+                communityId // From admin user context
+              });
+              
+              console.log('[Admin AI Tool - deleteWizard] Service call successful, wizard deleted:', deletedWizard);
+              return {
+                success: true,
+                messageForAI: `Wizard '${deletedWizard.name}' (ID: ${wizardId}) has been successfully deleted.`,
+                deletedWizardData: deletedWizard
+              };
+              
+            } catch (error: any) {
+              console.error('[Admin AI Tool - deleteWizard] Error:', error);
+              let errorMsg = 'An unexpected error occurred while deleting the wizard.';
+              if (error instanceof WizardNotFoundError) {
+                errorMsg = error.message;
+              } else if (error.message) {
+                errorMsg = error.message;
+              }
+              return { 
+                success: false, 
+                errorForAI: `Failed to delete wizard: ${errorMsg}`
               };
             }
           }

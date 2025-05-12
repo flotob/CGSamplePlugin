@@ -637,4 +637,47 @@ export async function reorderStepsInWizardService(
     console.error('[Service/reorderStepsInWizardService] Error:', error);
     throw new Error(`Failed to reorder steps: ${error.message}`);
   }
+}
+
+// --- Delete Wizard Service ---
+
+export interface DeleteWizardServicePayload {
+  wizardId: string;
+  communityId: string; // For security context/ownership verification
+}
+
+export type DeletedWizard = CreatedWizard; // Re-use CreatedWizard type for deleted wizard return
+
+/**
+ * Service function to delete a wizard.
+ * Takes wizard ID and community ID (for context/security), and returns the deleted wizard.
+ * Throws WizardNotFoundError if the wizard doesn't exist or doesn't belong to the community.
+ * Note: This is a destructive operation and will cascade delete all steps within the wizard.
+ */
+export async function deleteWizardService(
+  payload: DeleteWizardServicePayload
+): Promise<DeletedWizard> {
+  const { wizardId, communityId } = payload;
+
+  if (!wizardId) throw new Error('Wizard ID is required to delete a wizard.');
+  if (!communityId) throw new Error('Community ID is required for context when deleting a wizard.');
+
+  try {
+    // Delete the wizard and return its data in a single operation
+    const deleteRes = await query<DeletedWizard>(
+      `DELETE FROM onboarding_wizards WHERE id = $1 AND community_id = $2 RETURNING *`,
+      [wizardId, communityId]
+    );
+
+    if (deleteRes.rows.length === 0) {
+      throw new WizardNotFoundError(`Wizard with ID '${wizardId}' not found in community '${communityId}' or already deleted.`);
+    }
+
+    return deleteRes.rows[0];
+  } catch (error: any) {
+    if (error instanceof WizardNotFoundError) throw error;
+    
+    console.error('[Service/deleteWizardService] Error:', error);
+    throw new Error(`Failed to delete wizard: ${error.message}`);
+  }
 } 
