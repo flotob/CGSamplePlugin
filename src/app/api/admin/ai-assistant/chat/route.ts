@@ -5,6 +5,7 @@ import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 import { Feature, enforceEventRateLimit, QuotaExceededError, logUsageEvent } from '@/lib/quotas'; // Import Quota utilities
 import { createWizardInService, DuplicateWizardNameError, type CreatedWizard } from '@/lib/services/wizardAdminService'; // Import the new service
+import { addStepToWizardService, type AddStepServicePayload, type CreatedStep } from '@/lib/services/wizardAdminService'; // Import new step service items
 // Ensure OpenAI API key is configured in your environment variables
 // For example, process.env.OPENAI_API_KEY
 
@@ -121,6 +122,43 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
                 success: false, 
                 errorForAI: `Failed to create wizard: ${errorMessage}`,
                 // No details to return for now, could add error.name or error.code if available/useful
+              };
+            }
+          }
+        },
+        addWizardStep: {
+          description: "Adds a new step to an existing wizard. You need to provide the wizard ID, the step type ID, and the full configuration object for the step (which includes 'presentation' and 'specific' parts).",
+          parameters: z.object({
+            wizardId: z.string().describe("The ID of the wizard to which this step will be added."),
+            step_type_id: z.string().uuid().describe("The UUID of the step type (e.g., for Content, AI Quiz, ENS Verification). Obtain this from a list of available step types if unsure."),
+            config: z.object({
+              presentation: z.record(z.any()).optional().describe("Object for presentation settings like headline, subtitle, backgroundType, backgroundValue."),
+              specific: z.record(z.any()).optional().describe("Object for type-specific settings. The structure depends on the step_type_id.")
+            }).optional().default({}).describe("Configuration for the step. Defaults to empty if not provided, but most steps will require specific configuration."),
+            target_role_id: z.string().uuid().optional().nullable().describe("Optional: ID of a role to grant upon completing this step."),
+            is_mandatory: z.boolean().optional().default(true).describe("Optional: Whether this step is mandatory. Defaults to true."),
+            is_active: z.boolean().optional().default(true).describe("Optional: Whether this step is active. Defaults to true.")
+          }),
+          execute: async (params: AddStepServicePayload) => { // Use the service payload type directly
+            // wizardId and other params come directly from the AI
+            // communityId is not directly used by addStepToWizardService, as wizardId provides context,
+            // and authorization for wizard access would have been done by the admin calling this AI tool.
+            console.log('[Admin AI Tool - addWizardStep] Attempting to add step with params:', params);
+            try {
+              const newStep = await addStepToWizardService(params);
+              console.log('[Admin AI Tool - addWizardStep] Service call successful:', newStep);
+              return {
+                success: true,
+                messageForAI: `Step of type ID '${newStep.step_type_id}' added successfully to wizard ${newStep.wizard_id} with order ${newStep.step_order}. Step ID: ${newStep.id}.`,
+                stepId: newStep.id,
+                wizardId: newStep.wizard_id,
+                stepOrder: newStep.step_order
+              };
+            } catch (error: any) {
+              console.error('[Admin AI Tool - addWizardStep] Error calling addStepToWizardService:', error);
+              return {
+                success: false,
+                errorForAI: `Failed to add step: ${error.message || 'An unexpected error occurred.'}`
               };
             }
           }
