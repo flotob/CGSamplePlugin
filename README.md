@@ -22,6 +22,7 @@ This plugin allows community admins to create step-by-step flows (Wizards) to gu
 - [9. Usage & Deployment](#9-usage--deployment)
 - [10. Key Features & Implementation Notes](#10-key-features--implementation-notes)
   - [Authentication (`withAuth`)](#authentication-withauth)
+  - [JWT Refresh & Role Updates](#jwt-refresh--role-updates)
   - [ENS Verification](#ens-verification)
   - [Stripe Integration (Subscription Billing)](#stripe-integration-subscription-billing)
   - [AI Image Library & Background Generation](#ai-image-library--background-generation)
@@ -215,6 +216,55 @@ This plugin uses a custom JWT-based system (`src/lib/withAuth.ts`) to secure API
     *   `picture?`: User's profile picture URL (optional)
 *   **Profile Sync:** `withAuth` automatically performs a best-effort `UPSERT` to the `user_profiles` table using the `sub`, `name`, and `picture` claims on every authenticated request.
 *   **Security:** Ensure `JWT_SECRET` is strong and kept private. Use HTTPS.
+
+### JWT Refresh & Role Updates
+
+The plugin implements a JWT refresh mechanism to ensure users get immediate access to wizards when they earn new roles. This is critical for a seamless experience with role-gated wizards.
+
+*   **Purpose:** When a user completes a step or wizard that grants a role, the JWT needs to be refreshed to include the new role. Without a refresh, the user would need to reload the page to see newly accessible wizards.
+
+*   **Implementation:** 
+    *   Role assignment happens in two hooks: `useAssignRoleAndRefresh` for individual steps and `useMarkWizardCompleted` for whole wizard completion.
+    *   Both hooks call the Common Ground library's `giveRole` function to assign the role on the backend.
+    *   After successful assignment, the hooks call `logout()` and `login()` from `useAuth` to refresh the JWT.
+    *   After the refresh, queries are invalidated to update the UI with newly accessible wizards.
+
+*   **Infinite Loop Prevention:** 
+    *   Early implementations of this refresh mechanism caused infinite loops when multiple role assignments triggered cascading refreshes.
+    *   This was solved by implementing a **cooldown system** using a shared timestamp variable:
+        ```typescript
+        // Module-level variable shared across all hook instances
+        let lastRefreshTimestamp = 0;
+        const REFRESH_COOLDOWN_MS = 5000; // 5 second cooldown
+        
+        // Before refreshing JWT, check the cooldown
+        const now = Date.now();
+        if (now - lastRefreshTimestamp > REFRESH_COOLDOWN_MS) {
+          lastRefreshTimestamp = now; // Update timestamp
+          // Proceed with refresh
+          logout();
+          await new Promise(resolve => setTimeout(resolve, 50));
+          await login();
+        } else {
+          // Skip refresh but still invalidate queries
+          queryClient.invalidateQueries({ queryKey: ['userWizards'] });
+        }
+        ```
+    *   This cooldown ensures that even if multiple role assignments happen in quick succession (e.g., completing several steps that each grant a role), the JWT is refreshed at most once every 5 seconds, preventing the infinite loop.
+    *   Queries are still invalidated on each assignment, so the UI stays up-to-date.
+
+*   **File Locations:**
+    *   `src/hooks/useAssignRoleAndRefresh.ts`: Role assignment and JWT refresh for step completion.
+    *   `src/hooks/useMarkWizardCompleted.ts`: Role assignment and JWT refresh for wizard completion.
+    *   `src/context/AuthContext.tsx`: Contains the login/logout logic for JWT management.
+    *   `src/components/onboarding/WizardSlideshowModal.tsx`: Contains the logic for calling the hooks during wizard/step completion.
+
+*   **Automatic Polling:** To complement the JWT refresh mechanism, user wizards (accessible wizards list) and earnable roles are polled every 3 seconds using React Query's `refetchInterval`, ensuring the UI stays updated even if the JWT refresh doesn't trigger immediately.
+
+*   **Future Considerations:**
+    *   If implementing a similar feature, consider centralizing the cooldown mechanism in a shared utility.
+    *   Another approach would be to implement a more complex state management system to track pending refreshes and coalesce them.
+    *   The 5-second cooldown is a conservative setting; adjust based on your application's specific needs.
 
 ### ENS Verification
 
