@@ -130,7 +130,7 @@ export const ImageLibraryModal: React.FC<ImageLibraryModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[800px] h-[80vh] flex flex-col">
+      <DialogContent className="sm:max-w-[800px] h-[80vh] flex flex-col z-[200]">
         <DialogHeader>
           <DialogTitle>Image Library</DialogTitle>
           <DialogDescription>

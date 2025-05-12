@@ -10,7 +10,6 @@ import { useToast } from "@/hooks/use-toast";
 import type { CommunityInfoResponsePayload, UserInfoResponsePayload } from '@common-ground-dao/cg-plugin-lib';
 // Icons
 import { Shield, BadgeCheck, Cog, Plug, Building } from 'lucide-react';
-import { WizardStepEditorPage } from './onboarding/WizardStepEditorPage';
 import { WizardList } from './onboarding/WizardList';
 import { NewWizardButton } from './onboarding/NewWizardButton';
 // Hooks & Libs
@@ -18,7 +17,8 @@ import { QuotaUsageDisplay } from './admin/QuotaUsageDisplay';
 import { DashboardStatsSection } from './admin/DashboardStatsSection';
 import { useAssignRoleAndRefresh } from '@/hooks/useAssignRoleAndRefresh';
 import { useWizardEditorStore } from '@/stores/useWizardEditorStore';
-import { WizardEditorModal } from './admin/WizardEditorModal';
+// import { WizardEditorModal } from '@/components/admin/wizard/WizardEditorModal';
+// import { WizardStepEditorPage } from '@/components/admin/wizard/WizardStepEditorPage';
 
 // Define Role type based on CommunityInfoResponsePayload for clarity
 type CommunityRole = NonNullable<CommunityInfoResponsePayload['roles']>[number];

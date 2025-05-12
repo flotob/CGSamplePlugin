@@ -1,9 +1,8 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { ListFilter, Wand2, ExternalLink } from 'lucide-react';
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Wizard {
   id: string;

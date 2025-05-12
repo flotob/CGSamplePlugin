@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useChat, type Message } from 'ai/react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Loader2, AlertCircle, MessageSquare, X, ChevronLeft } from 'lucide-react';
+import { Loader2, AlertCircle, MessageSquare, ChevronLeft } from 'lucide-react';
 import { useAuthFetch } from '@/lib/authFetch';
 import { 
   WizardCreatedCard, 
@@ -19,7 +19,6 @@ import {
 import { useWizardEditorStore } from '@/stores/useWizardEditorStore';
 import { ConversationSidebar } from './ConversationSidebar';
 import { useAtom } from 'jotai';
-import { v4 as uuidv4 } from 'uuid';
 import { 
   conversationsAtom,
   activeConversationIdAtom,
@@ -385,7 +384,7 @@ export const AdminAIChatView: React.FC = () => {
                   if (state === 'result' && toolName === 'reorderWizardSteps' && 'result' in toolInvocation && toolInvocation.result?.success) {
                     const { reorderResult } = toolInvocation.result;
                     // First try to extract wizard name and id from the message
-                    let wizardName = 'Wizard';
+                    const wizardName = reorderResult.wizardName || 'Wizard';
                     const wizardId = reorderResult.wizardId || '';
                     const stepCount = reorderResult.stepsReordered || 0;
                     

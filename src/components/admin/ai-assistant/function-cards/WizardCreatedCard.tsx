@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle, Edit, Wand2, ExternalLink, ListChecks } from 'lucide-react';
+import { CheckCircle, Wand2, ExternalLink, ListChecks } from 'lucide-react';
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

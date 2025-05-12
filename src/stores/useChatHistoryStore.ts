@@ -14,8 +14,8 @@ export interface ChatMessage {
 export interface ToolInvocation {
   toolName: string;
   toolCallId: string;
-  args: Record<string, any>;
-  result?: any;
+  args: Record<string, unknown>;
+  result?: unknown;
   state: 'pending' | 'result' | 'error';
 }
 
@@ -184,6 +184,7 @@ export const deleteConversationAtom = atom(
   null,
   (get, set, conversationId: string) => {
     const conversations = get(conversationsAtom);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { [conversationId]: _, ...rest } = conversations;
     
     set(conversationsAtom, rest);
@@ -229,7 +230,7 @@ export const updateToolInvocationAtom = atom(
     conversationId: string, 
     messageId: string, 
     toolCallId: string, 
-    result: any,
+    result: unknown,
     state: 'result' | 'error'
   }) => {
     const { conversationId, messageId, toolCallId, result, state } = payload;

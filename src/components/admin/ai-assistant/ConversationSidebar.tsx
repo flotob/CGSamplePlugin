@@ -6,7 +6,6 @@ import {
   createConversationAtom,
   deleteConversationAtom,
   clearAllConversationsAtom,
-  type Conversation
 } from '@/stores/useChatHistoryStore';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Trash2, TrashIcon, MessageSquare, AlertTriangle } from 'lucide-react';

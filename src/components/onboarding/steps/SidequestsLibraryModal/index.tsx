@@ -389,7 +389,7 @@ export const SidequestsLibraryModal: React.FC<SidequestsLibraryModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(openState) => { if (!openState) onClose(); }}>
-      <DialogContent className="sm:max-w-4xl md:max-w-5xl w-[95vw] h-[85vh] max-h-[900px] flex flex-col p-0">
+      <DialogContent className="sm:max-w-4xl md:max-w-5xl w-[95vw] h-[85vh] max-h-[900px] flex flex-col p-0 z-[200]">
         <DialogHeader className="px-6 py-4 border-b flex flex-row items-center justify-between">
           {formMode !== 'hidden' && (
             <Button variant="ghost" size="sm" onClick={handleCloseForm} className="mr-2">
