@@ -2,16 +2,28 @@
 
 import React from 'react';
 import { useChat, type Message } from 'ai/react';
-import { Input } from '@/components/ui/input'; // Using Input for simplicity, can be Textarea
+import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Loader2, AlertCircle } from 'lucide-react';
-import { useAuthFetch } from '@/lib/authFetch'; // Import useAuthFetch
-
-// Placeholder for AdminAIChatMessage and AdminAIChatInput if we split them further
-// For now, keeping input and message rendering inline for initial setup.
+import { useAuthFetch } from '@/lib/authFetch';
+import { WizardCreatedCard, StepAddedCard } from './function-cards';
+import { useWizardEditorStore } from '@/stores/useWizardEditorStore';
 
 export const AdminAIChatView: React.FC = () => {
-  const { authFetch } = useAuthFetch(); // Get authFetch instance
+  const { authFetch } = useAuthFetch();
+  const { openEditor } = useWizardEditorStore();
+  
+  // Function to handle opening the wizard step editor
+  const handleOpenWizardEditor = (wizardId: string) => {
+    console.log(`Opening step editor for wizard ID: ${wizardId}`);
+    openEditor(wizardId);
+  };
+
+  // Function to handle opening a specific step editor
+  const handleOpenStepEditor = (stepId: string, wizardId: string) => {
+    console.log(`Opening step editor for step ID: ${stepId} in wizard: ${wizardId}`);
+    openEditor(wizardId, stepId);
+  };
 
   const {
     messages,
@@ -20,29 +32,16 @@ export const AdminAIChatView: React.FC = () => {
     handleSubmit,
     isLoading,
     error,
-    // reload, // Function to reload the last AI response
-    // stop, // Function to stop the AI response generation
   } = useChat({
-    api: '/api/admin/ai-assistant/chat', // This URL is passed as `input` to the custom fetch
+    api: '/api/admin/ai-assistant/chat',
     fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
-      // authFetch will handle adding the Authorization header internally.
-      // It expects the URL as the first argument and options (like method, body, headers) as the second.
-      // We must ensure authFetch returns a raw Promise<Response> for useChat.
       return authFetch<Response>(input.toString(), {
-        ...(init || {}), // Spread the init options from useChat
-        parseJson: false, // Tell authFetch to return the raw Response object
+        ...(init || {}),
+        parseJson: false,
       });
     },
-    // initialMessages: [], // Optional: any initial messages
-    // id: 'admin-ai-chat', // Optional unique ID for the chat instance if needed
-    // body: {}, // Optional: any additional body params to send with each request
     onError: (err) => {
-      // TODO: Implement more user-friendly error display (e.g., toast)
       console.error("[AdminAIChatView] Chat error:", err);
-      // TODO: Implement more user-friendly error display (e.g., toast)
-      // Consider if specific error messages (like 401/403) need different handling here
-      // For instance, if err.message includes "Forbidden" or "Unauthorized", 
-      // it could indicate a deeper auth issue not just a chat processing error.
     },
   });
 
@@ -65,16 +64,63 @@ export const AdminAIChatView: React.FC = () => {
               }
             >
               <span className="text-xs font-semibold capitalize pb-1 block border-b border-current/20 mb-1">{m.role}</span>
-              {/* Naive way to display content, including potential tool calls/results as strings for now */}
-              {/* More sophisticated rendering would parse m.toolInvocations or m.content if it contains structured data */}
               <pre className="whitespace-pre-wrap text-sm leading-relaxed">{typeof m.content === 'string' ? m.content : JSON.stringify(m.content, null, 2)}</pre>
-              {m.toolInvocations && m.toolInvocations.map((toolInvocation, index: number) => (
-                <div key={index} className="mt-2 p-2 border border-blue-500/30 bg-blue-500/10 rounded">
-                  Tool Call (ID: {toolInvocation.toolCallId}): {toolInvocation.toolName}
-                  Args: <pre className="text-xs whitespace-pre-wrap">{JSON.stringify(toolInvocation.args, null, 2)}</pre>
-                  {/* Result would typically be in a subsequent assistant message or a dedicated 'tool' role message */} 
-                </div>
-              ))}
+              
+              {/* Render tool invocations with custom components */}
+              {m.toolInvocations && m.toolInvocations.map((toolInvocation, index: number) => {
+                const { toolName, toolCallId, state } = toolInvocation;
+                
+                // Check for createWizard successful result
+                if (state === 'result' && toolName === 'createWizard' && toolInvocation.result?.success) {
+                  const { wizardId, wizardName, communityId } = toolInvocation.result;
+                  return (
+                    <WizardCreatedCard
+                      key={toolCallId}
+                      wizardId={wizardId}
+                      wizardName={wizardName}
+                      communityId={communityId}
+                      onOpenEditor={handleOpenWizardEditor}
+                    />
+                  );
+                }
+                
+                // Check for addWizardStep successful result
+                if (state === 'result' && toolName === 'addWizardStep' && toolInvocation.result?.success) {
+                  const { stepId, wizardId, stepOrder } = toolInvocation.result;
+                  return (
+                    <StepAddedCard
+                      key={toolCallId}
+                      stepId={stepId}
+                      wizardId={wizardId}
+                      stepOrder={stepOrder}
+                      stepTypeId={toolInvocation.result.stepTypeId || toolInvocation.result.step_type_id || ''}
+                      onOpenStepEditor={handleOpenStepEditor}
+                    />
+                  );
+                }
+                
+                // Default rendering for other tool invocations
+                return (
+                  <div key={index} className="mt-2 p-2 border border-blue-500/30 bg-blue-500/10 rounded">
+                    {state === 'result' ? (
+                      <>
+                        <div className="text-xs text-muted-foreground mb-1">Tool Result: {toolName}</div>
+                        <pre className="text-xs whitespace-pre-wrap">{JSON.stringify(toolInvocation.result, null, 2)}</pre>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <div className="animate-spin h-4 w-4 border-2 border-blue-500 rounded-full border-t-transparent"></div>
+                          <span>Executing {toolName}...</span>
+                        </div>
+                        <div className="mt-1">
+                          Args: <pre className="text-xs whitespace-pre-wrap">{JSON.stringify(toolInvocation.args, null, 2)}</pre>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         ))}

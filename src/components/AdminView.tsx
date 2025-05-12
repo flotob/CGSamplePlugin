@@ -17,6 +17,8 @@ import { NewWizardButton } from './onboarding/NewWizardButton';
 import { QuotaUsageDisplay } from './admin/QuotaUsageDisplay';
 import { DashboardStatsSection } from './admin/DashboardStatsSection';
 import { useAssignRoleAndRefresh } from '@/hooks/useAssignRoleAndRefresh';
+import { useWizardEditorStore } from '@/stores/useWizardEditorStore';
+import { WizardEditorModal } from './admin/WizardEditorModal';
 
 // Define Role type based on CommunityInfoResponsePayload for clarity
 type CommunityRole = NonNullable<CommunityInfoResponsePayload['roles']>[number];
@@ -47,7 +49,7 @@ export const AdminView: React.FC<AdminViewProps> = ({
   authError,
 }) => {
   const { toast } = useToast();
-  const [editingWizardId, setEditingWizardId] = React.useState<string | null>(null);
+  const { openEditor } = useWizardEditorStore();
 
   const assignRoleMutation = useAssignRoleAndRefresh();
 
@@ -257,7 +259,10 @@ export const AdminView: React.FC<AdminViewProps> = ({
                    <NewWizardButton assignableRoles={selectableRolesForWizardConfig} />
                </div>
                <div className="px-1 sm:px-0 pt-2 sm:pt-0">
-                 <WizardList setEditingWizardId={setEditingWizardId} assignableRoles={selectableRolesForWizardConfig} />
+                 <WizardList 
+                   setEditingWizardId={(id) => openEditor(id)} 
+                   assignableRoles={selectableRolesForWizardConfig} 
+                 />
                </div>
            </div>
          </div>
@@ -296,29 +301,6 @@ export const AdminView: React.FC<AdminViewProps> = ({
           {/* For now, I am assuming the QuotaUsageDisplay above replaces the old BillingManagementSection AND the old QuotaUsageDisplay in this spot. */}
           {/* If there was another QuotaUsageDisplay instance intended for other purposes, that needs clarification. */}
           {/* Based on the request, it seems one consolidated component is desired. */}
-        </div>
-      )}
-
-      {editingWizardId && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
-          <div className="bg-white dark:bg-slate-900 rounded-lg shadow-lg max-w-5xl w-full relative">
-            {/* Close button - updated visibility and mobile friendliness */}
-            <button
-              className="absolute top-3 right-3 z-50 text-lg p-2.5 rounded-full bg-background/80 backdrop-blur-sm shadow-sm hover:bg-muted text-foreground flex items-center justify-center"
-              onClick={() => setEditingWizardId(null)}
-              aria-label="Close step editor"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 6 6 18"></path>
-                <path d="m6 6 12 12"></path>
-              </svg>
-            </button>
-            <WizardStepEditorPage 
-              wizardId={editingWizardId} 
-              assignableRoles={selectableRolesForWizardConfig} 
-              onClose={() => setEditingWizardId(null)}
-            />
-          </div>
         </div>
       )}
     </>

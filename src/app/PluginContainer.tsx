@@ -24,6 +24,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { useWizardSlideshow } from '../context/WizardSlideshowContext';
 import { WizardSlideshowModal } from '../components/onboarding/WizardSlideshowModal';
 import { StripeWaitingModal } from '../components/billing/StripeWaitingModal';
+import { WizardEditorModal } from '../components/admin/WizardEditorModal';
 import { useUserWizardCompletionsQuery } from '@/hooks/useUserWizardCompletionsQuery';
 import { useUserWizardsQuery } from '@/hooks/useUserWizardsQuery';
 
@@ -459,7 +460,7 @@ const PluginContent = () => {
         <Toaster />
       </AppLayout>
 
-      {/* Conditionally render the modal outside the layout but within the plugin root */}
+      {/* Global modals */}
       {activeSlideshowWizardId && (
         <WizardSlideshowModal
           wizardId={activeSlideshowWizardId}
@@ -468,7 +469,10 @@ const PluginContent = () => {
         />
       )}
 
-      {/* Conditionally render the Stripe waiting modal */}
+      {/* Wizard Editor Modal */}
+      <WizardEditorModal />
+
+      {/* Stripe Modal */}
       {isWaitingModalOpen && (
          <StripeWaitingModal communityId={communityId} />
       )}
