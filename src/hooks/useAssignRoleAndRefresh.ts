@@ -69,10 +69,12 @@ export function useAssignRoleAndRefresh(): UseAssignRoleAndRefreshResult {
         
         // After login refresh, invalidate userWizards to show newly accessible wizards
         queryClient.invalidateQueries({ queryKey: ['userWizards'] });
+        queryClient.invalidateQueries({ queryKey: ['earnableRoles'] });
       } else {
         console.log('JWT refresh skipped due to cooldown. Just invalidating queries.');
         // Still invalidate queries to update UI
         queryClient.invalidateQueries({ queryKey: ['userWizards'] });
+        queryClient.invalidateQueries({ queryKey: ['earnableRoles'] });
       }
     },
     onError: (error, variables) => {

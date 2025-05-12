@@ -92,6 +92,7 @@ export function useMarkWizardCompleted() {
       queryClient.invalidateQueries({ queryKey: ['userWizardCompletions'] });
       queryClient.invalidateQueries({ queryKey: ['userWizards'] });
       queryClient.invalidateQueries({ queryKey: ['userInfo', iframeUid] });
+      queryClient.invalidateQueries({ queryKey: ['earnableRoles'] });
     },
     onError: (error) => {
       console.error('Failed to mark wizard as completed:', error);
