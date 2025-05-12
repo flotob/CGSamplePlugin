@@ -20,20 +20,16 @@ export const AdminAIChatModal: React.FC = () => {
         closeAdminAIChatModal();
       }
     }}>
-      <DialogContent className="sm:max-w-[600px] h-[70vh] flex flex-col p-0">
-        <DialogHeader className="p-6 pb-2">
-          <DialogTitle>Admin AI Assistant</DialogTitle>
-          <DialogDescription>
-            Interact with the administrative AI to manage platform resources.
+      <DialogContent className="sm:max-w-[600px] lg:max-w-[750px] h-[70vh] flex flex-col p-0 bg-gradient-to-br from-background to-background/95">
+        <DialogHeader className="p-3 pb-2 mb-0 border-b bg-gradient-to-b from-background/90 to-background/70">
+          <DialogTitle className="text-base">Admin AI Assistant</DialogTitle>
+          <DialogDescription className="text-xs">
+            Chat with the AI to manage platform resources
           </DialogDescription>
         </DialogHeader>
-        <div className="flex-1 overflow-y-auto p-6 pt-0">
-          <AdminAIChatView /> {/* Use the actual component */}
+        <div className="flex-1 overflow-hidden">
+          <AdminAIChatView />
         </div>
-        {/* Optional Footer if needed for actions outside the chat view itself */}
-        {/* <DialogFooter className="p-6 pt-2">
-          <Button variant="outline" onClick={closeAdminAIChatModal}>Close</Button>
-        </DialogFooter> */}
       </DialogContent>
     </Dialog>
   );
