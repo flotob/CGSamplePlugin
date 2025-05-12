@@ -1,9 +1,3 @@
 {
-  "extends": "next/core-web-vitals",
-  "rules": {
-    "@typescript-eslint/no-unused-vars": ["error", {
-      "varsIgnorePattern": "CreatedWizard|CreatedStep|ListWizardsServicePayload|WizardListItem|GetWizardDetailsServicePayload|WizardDetails|GetWizardStepsServicePayload|WizardStepListItem|UpdatedWizard|UpdatedStep|DeleteStepServicePayload|DeletedStep|ReorderStepsServicePayload|ReorderStepsResult|DeleteWizardServicePayload|DeletedWizard"
-    }],
-    "@typescript-eslint/no-explicit-any": "off"
-  }
+  "extends": "next/core-web-vitals"
 } 

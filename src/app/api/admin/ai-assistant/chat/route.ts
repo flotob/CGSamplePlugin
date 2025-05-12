@@ -4,21 +4,19 @@ import { streamText, CoreMessage } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
 import { Feature, enforceEventRateLimit, QuotaExceededError, logUsageEvent } from '@/lib/quotas'; // Import Quota utilities
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import { createWizardInService, DuplicateWizardNameError, type CreatedWizard } from '@/lib/services/wizardAdminService'; // Import the new service
-import { addStepToWizardService, type AddStepServicePayload, type CreatedStep } from '@/lib/services/wizardAdminService'; // Import new step service items
-import { listWizardsService, type ListWizardsServicePayload, type WizardListItem } from '@/lib/services/wizardAdminService'; // Import listWizardsService
+import { createWizardInService, DuplicateWizardNameError } from '@/lib/services/wizardAdminService'; // Import the new service
+import { addStepToWizardService, type AddStepServicePayload } from '@/lib/services/wizardAdminService'; // Import new step service items
+import { listWizardsService } from '@/lib/services/wizardAdminService'; // Import listWizardsService
 import { 
-  getWizardDetailsService, type GetWizardDetailsServicePayload, type WizardDetails, WizardNotFoundError,
-  getWizardStepsService, type GetWizardStepsServicePayload, type WizardStepListItem,
-  updateWizardDetailsService, type UpdateWizardServicePayload, type UpdatedWizard,
-  updateStepInWizardService, type UpdateStepServicePayload, type UpdatedStep, StepNotFoundError,
-  deleteStepFromWizardService, type DeleteStepServicePayload, type DeletedStep,
-  reorderStepsInWizardService, type ReorderStepsServicePayload, type ReorderStepsResult,
+  getWizardDetailsService, WizardNotFoundError,
+  getWizardStepsService,
+  updateWizardDetailsService, type UpdateWizardServicePayload,
+  updateStepInWizardService, type UpdateStepServicePayload, StepNotFoundError,
+  deleteStepFromWizardService,
+  reorderStepsInWizardService,
   StepCountMismatchError, InvalidStepIdError,
-  deleteWizardService, type DeleteWizardServicePayload, type DeletedWizard // Import delete wizard service
+  deleteWizardService
 } from '@/lib/services/wizardAdminService'; // Import services and types
-/* eslint-enable @typescript-eslint/no-unused-vars */
 
 // Ensure OpenAI API key is configured in your environment variables
 // For example, process.env.OPENAI_API_KEY

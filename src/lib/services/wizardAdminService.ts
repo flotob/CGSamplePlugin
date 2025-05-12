@@ -356,11 +356,10 @@ export async function updateWizardDetailsService(
   }
 
   const fieldsToUpdate: string[] = [];
-  const values: (string | boolean | null | undefined)[] = []; // Allow undefined to filter out easily
+  const values: (string | boolean | null | undefined | object)[] = []; // Allow undefined to filter out easily
 
   // Helper to add fields to update
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const addField = (dbField: string, value: any) => {
+  const addField = (dbField: string, value: string | boolean | null | undefined | object) => {
     if (value !== undefined) {
       fieldsToUpdate.push(`${dbField} = $${values.length + 1}`);
       values.push(value);
