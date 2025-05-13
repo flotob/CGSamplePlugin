@@ -1,52 +1,30 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import Onboard from '@web3-onboard/core';
-import injectedModule from '@web3-onboard/injected-wallets';
-import luksoModule from '@lukso/web3-onboard-config'; // Confirmed package name
 import { Button } from '@/components/ui/button';
 import { UserStepProgress } from '@/app/api/user/wizards/[id]/steps/route';
-import { LuksoConnectProfileSpecificConfig, LuksoConnectProfileVerifiedData } from '@/types/onboarding-steps'; // Assuming types will be here
-import { Loader2, CheckCircle } from 'lucide-react';
+import { LuksoConnectProfileSpecificConfig, LuksoConnectProfileVerifiedData } from '@/types/onboarding-steps';
+import { LSP3Profile, LSP3ProfileMetadataJSON, LSP3Image } from '@/types/lukso-types';
+import { Loader2, CheckCircle, ExternalLinkIcon, UserCircle } from 'lucide-react';
+import { ethers, keccak256 } from 'ethers';
+import { ERC725, ERC725JSONSchema } from '@erc725/erc725.js';
+import LSP3ProfileSchema from '@erc725/erc725.js/schemas/LSP3ProfileMetadata.json';
+import { ERC725YDataKeys } from '@lukso/lsp-smart-contracts';
+import NextImage from 'next/image';
+import onboardInstance from '@/lib/onboard';
+import { useLinkCredential, type LinkCredentialPayload } from '@/hooks/useLinkCredential';
 
 interface LuksoConnectProfileDisplayProps {
   step: UserStepProgress;
   onComplete: (verifiedData?: LuksoConnectProfileVerifiedData) => void;
 }
 
-// Initialize Onboard outside the component to avoid re-initialization on re-renders
-// Consider moving this to a shared utility or React Context if used elsewhere
-const lukso = luksoModule();
-const injected = injectedModule({ custom: [lukso] });
-
-const chains = [
-  {
-    id: process.env.NEXT_PUBLIC_LUKSO_MAINNET_CHAIN_ID!,
-    token: 'LYX',
-    label: 'LUKSO Mainnet',
-    rpcUrl: process.env.NEXT_PUBLIC_LUKSO_MAINNET_RPC_URL!,
-  },
-  {
-    id: process.env.NEXT_PUBLIC_LUKSO_TESTNET_CHAIN_ID!,
-    token: 'LYXt',
-    label: 'LUKSO Testnet',
-    rpcUrl: process.env.NEXT_PUBLIC_LUKSO_TESTNET_RPC_URL!,
-  },
-];
-
-const onboard = Onboard({
-  wallets: [injected],
-  chains,
-  appMetadata: {
-    name: 'Your App Name', // TODO: Replace with your actual app name from a constant or env var
-    description: 'Connect your Universal Profile to proceed.',
-    // TODO: Add other app metadata like icons, logo, etc.
-  },
-  accountCenter: {
-    desktop: { enabled: false }, // Keeping it simple for now
-    mobile: { enabled: false },
+const resolveIpfsUrl = (url: string): string => {
+  if (url.startsWith('ipfs://')) {
+    return `https://api.universalprofile.cloud/ipfs/${url.substring(7)}`;
   }
-});
+  return url;
+};
 
 const LuksoConnectProfileDisplay: React.FC<LuksoConnectProfileDisplayProps> = ({ step, onComplete }) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -55,25 +33,110 @@ const LuksoConnectProfileDisplay: React.FC<LuksoConnectProfileDisplayProps> = ({
     (step.verified_data as LuksoConnectProfileVerifiedData)?.upAddress || null
   );
 
+  const [profileData, setProfileData] = useState<LSP3Profile | null>(null);
+  const [isLoadingMetadata, setIsLoadingMetadata] = useState(false);
+  const [metadataError, setMetadataError] = useState<string | null>(null);
+
+  const { mutateAsync: linkCredential, isPending: isLinkingCredential } = useLinkCredential();
+
   const specificConfig = step.config?.specific as LuksoConnectProfileSpecificConfig | undefined;
   const promptText = specificConfig?.customPrompt || 'Please connect your LUKSO Universal Profile to continue.';
+  
+  const handleFinalizeConnectionAndLink = useCallback(async (upAddress: string, fetchedProfileData: LSP3Profile | null) => {
+    try {
+      const payload: LinkCredentialPayload = {
+        platform: 'LUKSO_UP',
+        external_id: upAddress,
+        username: fetchedProfileData?.name || upAddress,
+      };
+      await linkCredential(payload);
+      onComplete({ upAddress }); 
+    } catch (linkingError) {
+      console.error("LUKSO UP credential linking failed (toast shown by hook):", linkingError);
+      onComplete({ upAddress }); 
+    }
+  }, [linkCredential, onComplete]);
+
+  const fetchProfileMetadata = useCallback(async (upAddress: string, connectedChainIdHex: string) => {
+    setIsLoadingMetadata(true);
+    setProfileData(null);
+    setMetadataError(null);
+    let fetchedProfileForFinalize: LSP3Profile | null = null;
+
+    console.log(`[LUKSO Profile Fetch] Starting for UP: ${upAddress} on Chain ID (hex): ${connectedChainIdHex}`);
+
+    try {
+      const mainnetChainIdDecimalString = process.env.NEXT_PUBLIC_LUKSO_MAINNET_CHAIN_ID!;
+      let rpcUrl = "";
+      const connectedChainIdDecimal = parseInt(connectedChainIdHex, 16);
+
+      if (connectedChainIdDecimal.toString() === mainnetChainIdDecimalString) {
+        rpcUrl = process.env.NEXT_PUBLIC_LUKSO_MAINNET_RPC_URL!;
+        console.log("[LUKSO Profile Fetch] Using MAINNET RPC:", rpcUrl);
+      } else {
+        setMetadataError(`Profile data lookup is configured for LUKSO Mainnet. Your wallet is connected to chain ID ${connectedChainIdHex}.`);
+        setIsLoadingMetadata(false);
+        handleFinalizeConnectionAndLink(upAddress, null);
+        return;
+      }
+      
+      const erc725Instance = new ERC725(
+        LSP3ProfileSchema as ERC725JSONSchema[],
+        upAddress,
+        rpcUrl,
+        { ipfsGateway: 'https://api.universalprofile.cloud/ipfs/' }
+      );
+      
+      const fetchDataResult = await erc725Instance.fetchData('LSP3Profile');
+
+      if (fetchDataResult && typeof fetchDataResult.value === 'object' && fetchDataResult.value !== null && 'LSP3Profile' in fetchDataResult.value) {
+        const metadata = fetchDataResult.value as LSP3ProfileMetadataJSON;
+        if (metadata.LSP3Profile) {
+          fetchedProfileForFinalize = metadata.LSP3Profile;
+          setProfileData(fetchedProfileForFinalize);
+        } else {
+          setMetadataError('LSP3Profile field missing in fetched metadata JSON.');
+        }
+      } else {
+        setMetadataError('LSP3Profile data key not found, data is empty, or returned an unexpected structure.');
+        console.log('[LUKSO Profile Fetch] Raw fetchData result:', fetchDataResult);
+      }
+    } catch (e) {
+      console.error("Error fetching LUKSO profile metadata:", e);
+      setMetadataError(e instanceof Error ? e.message : 'Failed to load profile details.');
+    } finally {
+      setIsLoadingMetadata(false);
+      handleFinalizeConnectionAndLink(upAddress, fetchedProfileForFinalize);
+    }
+  }, [handleFinalizeConnectionAndLink]);
 
   useEffect(() => {
-    // If step is already completed and we have the address, reflect it.
-    if (step.completed_at && (step.verified_data as LuksoConnectProfileVerifiedData)?.upAddress) {
-      setConnectedUPAddress((step.verified_data as LuksoConnectProfileVerifiedData).upAddress);
+    if (step.completed_at && connectedUPAddress) {
+      if (!profileData && !isLoadingMetadata && !metadataError && !isLinkingCredential) {
+        const [primaryWallet] = onboardInstance.state.get().wallets;
+        if (primaryWallet && primaryWallet.provider && primaryWallet.accounts[0]?.address === connectedUPAddress) {
+          const connectedChainIdHex = primaryWallet.chains[0].id;
+          fetchProfileMetadata(connectedUPAddress, connectedChainIdHex);
+        } else {
+          console.warn("LuksoConnectProfileDisplay: Could not auto-trigger metadata fetch/link on load for previously completed step. Wallet provider/chain not ready or address mismatch.");
+        }
+      }
     }
-  }, [step.completed_at, step.verified_data]);
+  }, [connectedUPAddress, step.completed_at, profileData, isLoadingMetadata, metadataError, isLinkingCredential, fetchProfileMetadata]);
 
   const handleConnect = async () => {
     setIsLoading(true);
     setError(null);
+    setProfileData(null);
+    setMetadataError(null);
     try {
-      const wallets = await onboard.connectWallet();
-      if (wallets[0] && wallets[0].accounts[0]) {
+      const wallets = await onboardInstance.connectWallet(); 
+      if (wallets[0] && wallets[0].accounts[0] && wallets[0].provider) {
         const upAddress = wallets[0].accounts[0].address;
+        const connectedChainIdHex = wallets[0].chains[0].id;
+        
         setConnectedUPAddress(upAddress);
-        onComplete({ upAddress });
+        fetchProfileMetadata(upAddress, connectedChainIdHex);
       } else {
         setError('Connection cancelled or no Universal Profile selected.');
       }
@@ -86,14 +149,82 @@ const LuksoConnectProfileDisplay: React.FC<LuksoConnectProfileDisplayProps> = ({
   };
 
   if (step.completed_at && connectedUPAddress) {
+    const profileImg = profileData?.profileImage?.find(img => img.url);
+    const profileImgUrl = profileImg ? resolveIpfsUrl(profileImg.url) : null;
+
     return (
-      <div className="p-6 bg-green-50 border border-green-200 rounded-lg text-center shadow-sm">
-        <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-3" />
-        <h3 className="text-lg font-semibold text-green-700">Profile Connected!</h3>
-        <p className="text-sm text-green-600 mt-1">
-          Universal Profile: <span className="font-mono bg-green-100 px-1 py-0.5 rounded">{connectedUPAddress}</span>
-        </p>
-        <p className="text-xs text-muted-foreground mt-3">
+      <div className="p-6 bg-card border rounded-lg shadow-sm text-center max-w-md mx-auto">
+        <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
+        <h3 className="text-xl font-semibold text-green-700">Profile Connected!</h3>
+        
+        {isLoadingMetadata && (
+          <div className="my-4">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mx-auto" />
+            <p className="text-sm text-muted-foreground mt-2">Loading profile details...</p>
+          </div>
+        )}
+
+        {metadataError && !isLoadingMetadata && (
+          <div className="my-4 p-3 bg-destructive/10 border border-destructive/30 rounded-md text-sm text-destructive">
+            <p>Could not load profile details: {metadataError}</p>
+          </div>
+        )}
+
+        {profileData && !isLoadingMetadata && (
+          <div className="my-4 space-y-3 text-left">
+            {profileImgUrl ? (
+              <NextImage 
+                src={profileImgUrl} 
+                alt={profileData.name || 'Profile Image'} 
+                width={80} 
+                height={80} 
+                className="rounded-full mx-auto border-2 border-border shadow-md"
+                unoptimized 
+              />
+            ) : (
+              <UserCircle className="h-20 w-20 text-muted-foreground mx-auto" />
+            )}
+            <div className="text-center">
+              <h4 className="text-lg font-semibold text-foreground">{profileData.name || 'Unnamed Profile'}</h4>
+              <p className="text-sm text-muted-foreground font-mono bg-muted/50 px-2 py-1 rounded inline-block mt-1">{connectedUPAddress}</p>
+            </div>
+            {profileData.description && (
+              <p className="text-sm text-muted-foreground text-center whitespace-pre-wrap break-words">
+                {profileData.description}
+              </p>
+            )}
+            {profileData.tags && profileData.tags.length > 0 && (
+              <div className="flex flex-wrap gap-2 justify-center">
+                {profileData.tags.map(tag => (
+                  <span key={tag} className="text-xs bg-secondary text-secondary-foreground px-2 py-0.5 rounded-full">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
+            {profileData.links && profileData.links.length > 0 && (
+              <div className="mt-3 pt-3 border-t">
+                <h5 className="text-xs font-semibold uppercase text-muted-foreground mb-2 text-center">Links</h5>
+                <ul className="space-y-1">
+                  {profileData.links.map(link => (
+                    <li key={link.url} className="text-center">
+                      <a 
+                        href={link.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-sm text-primary hover:underline inline-flex items-center"
+                      >
+                        {link.title || link.url} <ExternalLinkIcon className="ml-1 h-3 w-3" />
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
+        <p className="text-xs text-muted-foreground mt-4">
           You can proceed to the next step.
         </p>
       </div>
@@ -103,7 +234,6 @@ const LuksoConnectProfileDisplay: React.FC<LuksoConnectProfileDisplayProps> = ({
   return (
     <div className="p-6 bg-card border rounded-lg shadow-sm text-center max-w-md mx-auto">
       <div className="mb-4">
-        {/* You might want to add a LUKSO logo or an icon here */}
         <h3 className="text-xl font-semibold text-foreground">Connect your Universal Profile</h3>
         <p className="text-sm text-muted-foreground mt-2">
           {promptText}
@@ -116,9 +246,9 @@ const LuksoConnectProfileDisplay: React.FC<LuksoConnectProfileDisplayProps> = ({
         </div>
       )}
 
-      <Button onClick={handleConnect} disabled={isLoading} className="w-full">
-        {isLoading ? (
-          <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Connecting...</>
+      <Button onClick={handleConnect} disabled={isLoading || isLinkingCredential} className="w-full">
+        {isLoading || isLinkingCredential ? (
+          <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Processing...</>
         ) : (
           'Connect with LUKSO UP'
         )}
