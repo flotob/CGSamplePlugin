@@ -155,18 +155,17 @@ export const PATCH = withAuth<WizardParams>(async (req: AuthenticatedRequest, co
 
   } catch (error) {
     if (error instanceof QuotaExceededError) {
-      // Specific structured error for quota limits
-      const structuredErrorBody = {
-        error: 'ResourceLimitExceeded',
-        message: 'Maximum number of active wizards reached for the current plan.',
+      // Standardized Quota Exceeded Response
+      return NextResponse.json({
+        error: "QuotaExceeded", // Machine-readable code
+        message: error.message, // User-friendly message from the error object
         details: {
           feature: error.feature,
           limit: error.limit,
-          currentCount: Number(error.currentCount),
-          limitType: 'resource',
-        },
-      };
-      return NextResponse.json(structuredErrorBody, { status: 402 });
+          currentCount: Number(error.currentCount), // Ensure currentCount is a number
+          window: error.window, // 'static' for resource limits
+        }
+      }, { status: 402 });
     } else if (error instanceof Error && error.message.includes('uniq_wizard_name_per_community')) {
       // Handle specific DB constraint errors, like unique name violation
       return NextResponse.json(

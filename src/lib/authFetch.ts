@@ -1,6 +1,23 @@
 import { useAuth } from '../context/AuthContext';
 import { useCallback } from 'react';
 
+// Define a custom HttpError class
+export class HttpError extends Error {
+  status: number;
+  statusText: string;
+  body: unknown; // Can be parsed JSON object or raw text
+
+  constructor(status: number, statusText: string, body: unknown, message?: string) {
+    super(message || `HTTP error ${status} ${statusText}`);
+    this.name = 'HttpError';
+    this.status = status;
+    this.statusText = statusText;
+    this.body = body;
+    // Set the prototype explicitly.
+    Object.setPrototypeOf(this, HttpError.prototype);
+  }
+}
+
 // Define a generic type for fetch options
 interface AuthFetchOptions extends RequestInit {
     parseJson?: boolean; // New option to control JSON parsing
@@ -58,9 +75,23 @@ export function useAuthFetch(): UseAuthFetchReturn {
 
         if (!response.ok) {
             // Handle other HTTP errors
-            const errorBody = await response.text(); // Attempt to get error body
-            console.error(`HTTP error! status: ${response.status}, body: ${errorBody}`);
-            throw new Error(`HTTP error! status: ${response.status}`);
+            let errorBody: unknown;
+            try {
+                // Clone the response before reading the body, so it can be potentially read again if needed,
+                // though for throwing an error it might not be strictly necessary.
+                errorBody = await response.clone().json();
+            } catch (e) {
+                // If JSON parsing fails, try to get the raw text body
+                try {
+                    errorBody = await response.text();
+                } catch (textError) {
+                    // If even text parsing fails, use a generic message
+                    errorBody = 'Could not retrieve error body';
+                }
+            }
+            // Log the detailed error
+            console.error(`HTTP error! status: ${response.status} ${response.statusText}, body:`, errorBody);
+            throw new HttpError(response.status, response.statusText, errorBody);
         }
 
         if (!parseJson) {

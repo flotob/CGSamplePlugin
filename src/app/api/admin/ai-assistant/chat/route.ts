@@ -48,11 +48,17 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
     await enforceEventRateLimit(communityId, Feature.AIChatMessage);
   } catch (error) {
     if (error instanceof QuotaExceededError) {
-      return NextResponse.json({ 
-        error: error.message, 
-        quotaError: true, 
-        details: { feature: error.feature, limit: error.limit, currentCount: error.currentCount }
-      }, { status: 429 });
+      // Standardized Quota Exceeded Response
+      return NextResponse.json({
+        error: "QuotaExceeded", // Machine-readable code
+        message: error.message, // User-friendly message from the error object
+        details: {
+          feature: error.feature,
+          limit: error.limit,
+          currentCount: Number(error.currentCount), // Ensure currentCount is a number
+          window: error.window,
+        }
+      }, { status: 402 }); // Payment Required
     }
     console.error('[Admin AI Chat] Error checking quota:', error);
     return NextResponse.json({ error: 'Internal server error during quota check.' }, { status: 500 });

@@ -49,7 +49,17 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
     await enforceEventRateLimit(communityId, Feature.ImageGeneration);
   } catch (error) {
     if (error instanceof QuotaExceededError) {
-      return NextResponse.json({ error: error.message, quotaError: true }, { status: 429 }); // Too Many Requests
+      // Standardized Quota Exceeded Response
+      return NextResponse.json({
+        error: "QuotaExceeded", // Machine-readable code
+        message: error.message, // User-friendly message from the error object
+        details: {
+          feature: error.feature,
+          limit: error.limit,
+          currentCount: Number(error.currentCount), // Ensure currentCount is a number
+          window: error.window,
+        }
+      }, { status: 402 }); // Payment Required
     }
     console.error('Error checking quota:', error);
     return NextResponse.json({ error: 'Internal server error checking quota' }, { status: 500 });
@@ -129,10 +139,17 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
 
     // Handle specific Quota Exceeded error
     if (error instanceof QuotaExceededError) {
-      return NextResponse.json(
-        { error: 'Quota Exceeded', message: 'Image generation quota reached for your plan.' },
-        { status: 402 } // Payment Required
-      );
+      // Standardized Quota Exceeded Response
+      return NextResponse.json({
+        error: "QuotaExceeded", // Machine-readable code
+        message: error.message, // User-friendly message from the error object
+        details: {
+          feature: error.feature,
+          limit: error.limit,
+          currentCount: Number(error.currentCount), // Ensure currentCount is a number
+          window: error.window,
+        }
+      }, { status: 402 }); // Payment Required
     }
     
     // Handle potential OpenAI errors (e.g., content policy)

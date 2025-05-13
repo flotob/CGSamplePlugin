@@ -27,6 +27,7 @@ import { StripeWaitingModal } from '../components/billing/StripeWaitingModal';
 import { WizardEditorModal } from '../components/admin/WizardEditorModal';
 import { useUserWizardCompletionsQuery } from '@/hooks/useUserWizardCompletionsQuery';
 import { useUserWizardsQuery } from '@/hooks/useUserWizardsQuery';
+import { UpgradeModal } from '@/components/billing/UpgradeModal';
 
 // Removed targetRoleIdFromEnv constant
 // const targetRoleIdFromEnv = process.env.NEXT_PUBLIC_TARGET_ROLE_ID;
@@ -476,6 +477,9 @@ const PluginContent = () => {
       {isWaitingModalOpen && (
          <StripeWaitingModal communityId={communityId} />
       )}
+
+      {/* == Render Global Upgrade Modal == */}
+      <UpgradeModal />
     </>
   );
 }

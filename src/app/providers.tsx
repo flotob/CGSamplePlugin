@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, MutationCache } from '@tanstack/react-query';
 import { WagmiProvider } from 'wagmi';
 import { TransactionProvider } from 'ethereum-identity-kit';
 import { config } from '../lib/wagmi';
@@ -14,15 +14,36 @@ import { ThemeProvider } from '../components/ThemeProvider';
 import { WizardSlideshowProvider } from '../context/WizardSlideshowContext';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
-
-// Create a client
-const queryClient = new QueryClient();
+import { HttpError } from '@/lib/authFetch';
+import { openUpgradeModalAtom } from '@/stores/upgradeModalStore';
+import { useSetAtom } from 'jotai';
+import { UpgradeModal } from '@/components/billing/UpgradeModal';
 
 // Extracted component that uses useSearchParams
 function ThemeAndCgLibLoader({ children }: { children: React.ReactNode }) {
   const searchParams = useSearchParams();
   const cgThemeParam = searchParams.get('cg_theme');
   const forcedTheme = (cgThemeParam === 'light' || cgThemeParam === 'dark') ? cgThemeParam : undefined;
+
+  const openUpgradeModal = useSetAtom(openUpgradeModalAtom);
+
+  const [queryClient] = React.useState(() => new QueryClient({
+    mutationCache: new MutationCache({
+      onError: (error, _variables, _context, mutation) => {
+        if (error instanceof HttpError && error.status === 402) {
+          const errorBody = error.body as { error?: string; details?: unknown };
+          if (errorBody?.error === 'QuotaExceeded') {
+            console.log('Global onError: QuotaExceeded error detected, opening modal.', errorBody);
+            if (mutation.options.onError) {
+            }
+            openUpgradeModal(errorBody);
+            return;
+          }
+        }
+        console.warn('Global onError: Unhandled or non-quota error', error);
+      },
+    })
+  }));
 
   return (
     <ThemeProvider
