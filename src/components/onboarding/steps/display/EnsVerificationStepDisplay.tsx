@@ -11,6 +11,7 @@ import { useEnsAddress } from 'wagmi';
 import { normalize } from 'viem/ens';
 import { useCredentialVerification } from '@/hooks/useCredentialVerification';
 import { CredentialVerificationBase } from '@/components/onboarding/steps/CredentialVerificationBase';
+import { useLinkCredential, type LinkCredentialPayload } from '@/hooks/useLinkCredential';
 
 // Define interface for ENS specific config
 interface EnsStepSpecificConfig {
@@ -95,6 +96,8 @@ export const EnsVerificationStepDisplay: React.FC<EnsVerificationStepDisplayProp
     }
     return null;
   }, [step.config?.specific]);
+
+  const { mutate: linkEnsCredential } = useLinkCredential();
 
   // ---------- 1. Pure calculation of validation state ----------
   const validationError = useMemo<PolicyValidationErrorState | null>(() => {
@@ -195,13 +198,33 @@ export const EnsVerificationStepDisplay: React.FC<EnsVerificationStepDisplayProp
         ensName: ensDetails.name, // Send the verified name
         address: address
       }).then(() => {
-        // Only call onComplete if verification succeeded
-        console.log('Verification side effect succeeded, calling onComplete.');
-        onComplete();
+        console.log('ENS step verification successful (via useCredentialVerification), proceeding to link credential and call onComplete.');
+        if (ensDetails?.name && address) {
+          const payload: LinkCredentialPayload = {
+            platform: 'ENS',
+            external_id: ensDetails.name,
+            username: ensDetails.name 
+          };
+          linkEnsCredential(payload, {
+            onSuccess: () => {
+              console.log('ENS credential successfully saved to user_linked_credentials via useLinkCredential.');
+              onComplete(); // Call original onComplete for wizard UI update
+            },
+            onError: (linkError: Error) => {
+              console.error('Failed to save ENS to user_linked_credentials:', linkError);
+              // Still call onComplete because the primary step verification was successful.
+              onComplete(); 
+            }
+          });
+        } else {
+          console.error('Missing ensName or address at the point of trying to link ENS credential persistently.');
+          onComplete(); // Proceed with step completion even if we can't link due to missing data here
+        }
       }).catch((error) => {
-        // Error is handled internally by useCredentialVerification (sets its own error state)
-        // We could potentially set a local state here too if needed for UI feedback
-        console.error("Verification side effect promise rejected:", error); 
+        console.error("Verification side effect promise (from useCredentialVerification) rejected:", error); 
+        // If verifyCredential itself fails, we might not want to call onComplete, 
+        // as the step itself wasn't successfully verified for wizard_progress.
+        // The useCredentialVerification hook sets its own error state (credentialHookError).
       }).finally(() => {
         // Always reset the ref after operation finishes
         verifyingRef.current = false;
@@ -217,7 +240,8 @@ export const EnsVerificationStepDisplay: React.FC<EnsVerificationStepDisplayProp
     ensDetails?.name,     // User's ENS name (needed for the API call)
     verifyCredential,     // Verification function (assume stable or apply useRef fix)
     onComplete,            // Completion callback (assume stable)
-    configuredDomainPattern
+    configuredDomainPattern,
+    linkEnsCredential
     // Note: `step.id`, `step.wizard_id` are implicitly handled by `verifyCredential`
   ]);
 
