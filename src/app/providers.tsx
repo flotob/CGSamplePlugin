@@ -17,7 +17,6 @@ import { Suspense } from 'react';
 import { HttpError } from '@/lib/authFetch';
 import { openUpgradeModalAtom } from '@/stores/upgradeModalStore';
 import { useSetAtom } from 'jotai';
-import { UpgradeModal } from '@/components/billing/UpgradeModal';
 
 // Extracted component that uses useSearchParams
 function ThemeAndCgLibLoader({ children }: { children: React.ReactNode }) {

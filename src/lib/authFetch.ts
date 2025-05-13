@@ -80,11 +80,11 @@ export function useAuthFetch(): UseAuthFetchReturn {
                 // Clone the response before reading the body, so it can be potentially read again if needed,
                 // though for throwing an error it might not be strictly necessary.
                 errorBody = await response.clone().json();
-            } catch (e) {
+            } catch {
                 // If JSON parsing fails, try to get the raw text body
                 try {
                     errorBody = await response.text();
-                } catch (textError) {
+                } catch {
                     // If even text parsing fails, use a generic message
                     errorBody = 'Could not retrieve error body';
                 }

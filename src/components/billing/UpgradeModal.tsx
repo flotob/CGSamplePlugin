@@ -45,7 +45,7 @@ const detailedPlanFeatures: DetailedPlanFeature[] = [
 ];
 
 export const UpgradeModal: React.FC = () => {
-  const [isOpen, setIsOpen] = useAtom(isUpgradeModalOpenAtom);
+  const [isOpen] = useAtom(isUpgradeModalOpenAtom);
   const [errorBody] = useAtom(upgradeModalErrorBodyAtom);
   const [, closeModal] = useAtom(closeUpgradeModalAtom);
 
