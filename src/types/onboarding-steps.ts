@@ -82,5 +82,5 @@ export interface LuksoConnectProfileSpecificConfig {
 
 export interface LuksoConnectProfileVerifiedData {
   upAddress: string;
-  [key: string]: any; // Add index signature
+  [key: string]: unknown; // Changed from any to unknown
 } 

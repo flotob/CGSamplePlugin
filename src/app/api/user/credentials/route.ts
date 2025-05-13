@@ -51,7 +51,8 @@ export const POST = withAuth(async (req) => {
   let payload: LinkCredentialPayload;
   try {
     payload = await req.json();
-  } catch (error) {
+  } catch (jsonParseError) {
+    console.error("Failed to parse JSON body for POST /api/user/credentials:", jsonParseError);
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
@@ -92,17 +93,17 @@ export const POST = withAuth(async (req) => {
       return NextResponse.json({ error: 'Failed to save credential, no record returned.' }, { status: 500 });
     }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error saving user credential:', error);
     // Check for unique constraint violation on (platform, external_id) if that's a global constraint you have
     // The current ON CONFLICT handles (user_id, platform)
-    if (error.code === '23505') { // Unique violation PostgreSQL error code
+    if (error && typeof error === 'object' && 'code' in error && error.code === '23505') { // Type guard for error object
         // Check if the constraint name indicates the (platform, external_id) conflict
-        if (error.constraint === 'uniq_platform_id') { 
+        if (error && typeof error === 'object' && 'constraint' in error && error.constraint === 'uniq_platform_id') { 
              return NextResponse.json({ error: `This ${platform} account is already linked by another user.` }, { status: 409 }); // 409 Conflict
         }
-        // Handle other unique violations if necessary, or fall through to generic error
     }
-    return NextResponse.json({ error: 'Failed to save credential', details: error.message }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'An unknown database error occurred.';
+    return NextResponse.json({ error: 'Failed to save credential', details: errorMessage }, { status: 500 });
   }
 }, false); // false = requires authentication, but not admin 

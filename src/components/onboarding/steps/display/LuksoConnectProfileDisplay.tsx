@@ -6,10 +6,10 @@ import { UserStepProgress } from '@/app/api/user/wizards/[id]/steps/route';
 import { LuksoConnectProfileSpecificConfig, LuksoConnectProfileVerifiedData } from '@/types/onboarding-steps';
 import { LSP3Profile, LSP3ProfileMetadataJSON, LSP3Image } from '@/types/lukso-types';
 import { Loader2, CheckCircle, ExternalLinkIcon, UserCircle } from 'lucide-react';
-import { ethers, keccak256 } from 'ethers';
+// import { ethers, keccak256 } from 'ethers'; // Keep for hash verification, but comment if not strictly needed now
 import { ERC725, ERC725JSONSchema } from '@erc725/erc725.js';
 import LSP3ProfileSchema from '@erc725/erc725.js/schemas/LSP3ProfileMetadata.json';
-import { ERC725YDataKeys } from '@lukso/lsp-smart-contracts';
+// import { ERC725YDataKeys } from '@lukso/lsp-smart-contracts'; // Not used if fetching by schema name 'LSP3Profile'
 import NextImage from 'next/image';
 import onboardInstance from '@/lib/onboard';
 import { useLinkCredential, type LinkCredentialPayload } from '@/hooks/useLinkCredential';
@@ -87,19 +87,38 @@ const LuksoConnectProfileDisplay: React.FC<LuksoConnectProfileDisplayProps> = ({
         { ipfsGateway: 'https://api.universalprofile.cloud/ipfs/' }
       );
       
-      const fetchDataResult = await erc725Instance.fetchData('LSP3Profile');
+      const fetchedDataOutput = await erc725Instance.fetchData('LSP3Profile') as { key: string, name: string, value: LSP3ProfileMetadataJSON | null } | null;
+      
+      let actualMetadataValue: LSP3ProfileMetadataJSON | null = null;
 
-      if (fetchDataResult && typeof fetchDataResult.value === 'object' && fetchDataResult.value !== null && 'LSP3Profile' in fetchDataResult.value) {
-        const metadata = fetchDataResult.value as LSP3ProfileMetadataJSON;
-        if (metadata.LSP3Profile) {
-          fetchedProfileForFinalize = metadata.LSP3Profile;
-          setProfileData(fetchedProfileForFinalize);
-        } else {
-          setMetadataError('LSP3Profile field missing in fetched metadata JSON.');
-        }
+      if (fetchedDataOutput && fetchedDataOutput.value) {
+         actualMetadataValue = fetchedDataOutput.value;
       } else {
-        setMetadataError('LSP3Profile data key not found, data is empty, or returned an unexpected structure.');
-        console.log('[LUKSO Profile Fetch] Raw fetchData result:', fetchDataResult);
+        console.warn('[LUKSO Profile Fetch] fetchData did not return the expected structure or value is null:', fetchedDataOutput);
+      }
+
+      if (actualMetadataValue && actualMetadataValue.LSP3Profile) {
+        fetchedProfileForFinalize = actualMetadataValue.LSP3Profile;
+        setProfileData(fetchedProfileForFinalize);
+        
+        // Optional: Hash verification (uncomment ethers and keccak256 imports if used)
+        /*
+        const verifiableURI = fetchedDataOutput?.value; // This would be the VerifiableURI object if getData was used.
+                                                       // With fetchData, the value is the resolved JSON.
+                                                       // To verify hash with fetchData, you would need to get the on-chain VerifiableURI separately with getData first.
+        if (verifiableURI && (verifiableURI as any).hash && actualMetadataValue) { // Basic check
+          const jsonString = JSON.stringify(actualMetadataValue); 
+          const calculatedHash = keccak256(ethers.toUtf8Bytes(jsonString));
+          if (calculatedHash.toLowerCase() !== (verifiableURI as any).hash.toLowerCase()) {
+            console.warn(
+              `LSP3Profile JSON hash mismatch. Expected: ${(verifiableURI as any).hash}, Calculated: ${calculatedHash}.`
+            );
+          }
+        }
+        */
+      } else {
+        setMetadataError('LSP3Profile data not found or in unexpected format after fetch.');
+        console.log('[LUKSO Profile Fetch] Processed fetchedDataOutput (was null or invalid structure):', fetchedDataOutput);
       }
     } catch (e) {
       console.error("Error fetching LUKSO profile metadata:", e);
@@ -149,7 +168,7 @@ const LuksoConnectProfileDisplay: React.FC<LuksoConnectProfileDisplayProps> = ({
   };
 
   if (step.completed_at && connectedUPAddress) {
-    const profileImg = profileData?.profileImage?.find(img => img.url);
+    const profileImg: LSP3Image | undefined = profileData?.profileImage?.find(img => img.url);
     const profileImgUrl = profileImg ? resolveIpfsUrl(profileImg.url) : null;
 
     return (
