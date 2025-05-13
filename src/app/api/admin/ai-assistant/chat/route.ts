@@ -3,7 +3,7 @@ import { withAuth, AuthenticatedRequest } from '@/lib/withAuth';
 import { streamText, CoreMessage } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { z } from 'zod';
-import { Feature, enforceEventRateLimit, QuotaExceededError, logUsageEvent } from '@/lib/quotas'; // Import Quota utilities
+import { Feature, enforceResourceLimit, enforceEventRateLimit, QuotaExceededError, logUsageEvent } from '@/lib/quotas'; // Import Quota utilities
 import { createWizardInService, DuplicateWizardNameError } from '@/lib/services/wizardAdminService'; // Import the new service
 import { addStepToWizardService, type AddStepServicePayload } from '@/lib/services/wizardAdminService'; // Import new step service items
 import { listWizardsService } from '@/lib/services/wizardAdminService'; // Import listWizardsService
@@ -102,21 +102,27 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
             required_role_id: z.string().optional().describe("Optional: ID of a role the user must have to access this wizard."),
             assign_roles_per_step: z.boolean().optional().default(false).describe("Optional: If true, roles from steps are assigned immediately after step completion. Default is false (roles assigned at wizard completion).")
           }),
-          execute: async (params: { // Destructure params directly
+          execute: async (params: { 
             name: string;
             description?: string;
             required_role_id?: string;
             assign_roles_per_step?: boolean;
           }) => {
-            // communityId is from the outer scope (adminUser.cid)
             console.log('[Admin AI Tool - createWizard] Attempting to create wizard with params:', params);
             console.log('[Admin AI Tool - createWizard] Using Community ID:', communityId);
 
             try {
+              // --- Quota Check for creating a new wizard (counts towards active wizard limit if made active) ---
+              // Even if created as inactive, it's a step towards an active wizard. 
+              // The service defaults to is_active: false. If the AI were to pass is_active: true, this would be more critical.
+              // For now, we check the general resource limit for ActiveWizard.
+              await enforceResourceLimit(communityId, Feature.ActiveWizard);
+              // --- End Quota Check ---
+
               const newWizard = await createWizardInService({
-                ...params, // Spread AI provided params
-                communityId: communityId, // Pass admin's community context
-                // is_active will default to false in the service if not provided by AI
+                ...params,
+                communityId: communityId,
+                // is_active defaults to false in the service if not specified by AI
               });
               
               console.log('[Admin AI Tool - createWizard] Service call successful:', newWizard);
@@ -129,17 +135,27 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
               };
 
             } catch (error: unknown) {
-              console.error('[Admin AI Tool - createWizard] Error calling createWizardInService:', error);
+              console.error('[Admin AI Tool - createWizard] Error:', error);
+              if (error instanceof QuotaExceededError) {
+                return { 
+                  success: false, 
+                  errorForAI: `QuotaExceeded: ${error.message}. Cannot create the wizard due to plan limits.`,
+                  details: { 
+                    feature: error.feature,
+                    limit: error.limit,
+                    currentCount: Number(error.currentCount) 
+                  }
+                };
+              }
               let errorMessage = 'An unexpected error occurred while creating the wizard.';
               if (error instanceof DuplicateWizardNameError) {
                 errorMessage = error.message;
               } else if (error instanceof Error) {
-                errorMessage = error.message; // Generic error message
+                errorMessage = error.message;
               }
               return { 
                 success: false, 
                 errorForAI: `Failed to create wizard: ${errorMessage}`,
-                // No details to return for now, could add error.name or error.code if available/useful
               };
             }
           }
@@ -308,7 +324,6 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
             assign_roles_per_step: z.boolean().optional().describe("Set to true if roles from steps are assigned immediately upon step completion, or false if assigned at the end of the wizard.")
           }),
           execute: async (params: UpdateWizardServicePayload) => {
-            // The communityId for the update operation is taken from the adminUser context (outer scope)
             console.log(`[Admin AI Tool - updateWizardDetails] Attempting to update wizard ID: ${params.wizardId} in community: ${communityId} with payload:`, params);
             
             if (Object.keys(params).filter(k => k !== 'wizardId').length === 0) {
@@ -318,16 +333,21 @@ export const POST = withAuth(async (req: AuthenticatedRequest) => {
                 };
             }
 
-            // API Layer Quota Check (if activating)
+            // Quota Check if activating the wizard
             if (params.is_active === true) {
               try {
-                await enforceEventRateLimit(communityId, Feature.ActiveWizard);
+                // Corrected to use enforceResourceLimit for ActiveWizard
+                await enforceResourceLimit(communityId, Feature.ActiveWizard);
               } catch (error: unknown) {
                 if (error instanceof QuotaExceededError) {
                   return { 
                     success: false, 
-                    errorForAI: `QuotaExceeded: ${error.message}. Cannot activate the wizard.`,
-                    details: { feature: error.feature, limit: error.limit, currentCount: error.currentCount }
+                    errorForAI: `QuotaExceeded: ${error.message}. Cannot activate the wizard due to plan limits.`,
+                    details: { 
+                      feature: error.feature, 
+                      limit: error.limit, 
+                      currentCount: Number(error.currentCount) 
+                    }
                   };
                 }
                 console.error('[Admin AI Tool - updateWizardDetails] Quota check error:', error);
