@@ -53,6 +53,12 @@
     --chart-5: 27 87% 67%;
     
     --radius: 0.5rem;
+    
+    /* Web3-Onboard z-index customization */
+    --onboard-modal-z-index: 10100; /* Value from Z_INDEX.WALLET_CONNECT */
+    /* Optional: Consider setting for other Onboard modals if you use them */
+    /* --onboard-account-select-modal-z-index: 10100; */
+    /* --onboard-login-modal-z-index: 10100; */
   }
   
   .dark {

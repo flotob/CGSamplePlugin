@@ -412,7 +412,7 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
           onClick={toggleSidebar}
           variant="secondary"
           size="icon"
-          className="md:hidden absolute bottom-4 right-4 z-50 rounded-full w-12 h-12 shadow-lg flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90"
+          className="md:hidden absolute bottom-4 right-4 z-[1050] rounded-full w-12 h-12 shadow-lg flex items-center justify-center bg-primary text-primary-foreground hover:bg-primary/90"
         >
           <PanelRightIcon className="h-5 w-5" />
         </Button>
@@ -420,14 +420,14 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
         {/* Backdrop for mobile - only visible when sidebar is open */}
         {isSidebarVisible && (
           <div 
-            className="md:hidden absolute inset-0 bg-black/20 z-40 animate-in fade-in duration-200" 
+            className="md:hidden absolute inset-0 bg-black/20 z-[1040] animate-in fade-in duration-200"
             onClick={toggleSidebar}
           />
         )}
         
         {/* Right Sidebar: Always visible on large screens, toggleable on mobile */}
         <div className={cn(
-          "w-64 lg:w-72 xl:w-80 flex-shrink-0 border-l border-border/30 bg-gradient-to-t from-slate-50/90 via-slate-50/50 to-slate-50/10 dark:from-slate-900/90 dark:via-slate-900/50 dark:to-slate-900/10 h-full z-[60] flex flex-col overflow-hidden",
+          "w-64 lg:w-72 xl:w-80 flex-shrink-0 border-l border-border/30 bg-gradient-to-t from-slate-50/90 via-slate-50/50 to-slate-50/10 dark:from-slate-900/90 dark:via-slate-900/50 dark:to-slate-900/10 h-full z-[1050] flex flex-col overflow-hidden",
           "md:relative", // Always relative positioning on desktop
           "md:translate-x-0 transition-transform duration-300 ease-in-out", // Smooth transition
           // Mobile styles - use absolute positioning within the content area
@@ -521,13 +521,13 @@ export const WizardSlideshowModal: React.FC<WizardSlideshowModalProps> = ({
     <div className="wizard-slideshow-modal">
       {/* Custom overlay */}
       <div 
-        className="absolute inset-0 bg-black/60 z-50" 
+        className="absolute inset-0 bg-black/60 z-[999]"
         onClick={(e) => e.preventDefault()}
       />
       
       {/* Custom modal content */}
       <div 
-        className="absolute inset-0 z-50 flex flex-col w-full h-full bg-background text-foreground overflow-hidden"
+        className="absolute inset-0 z-[1000] flex flex-col w-full h-full bg-background text-foreground overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header Area - Optimize for mobile */}
