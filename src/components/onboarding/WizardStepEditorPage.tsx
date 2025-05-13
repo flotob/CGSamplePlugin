@@ -198,7 +198,7 @@ export const WizardStepEditorPage: React.FC<WizardStepEditorPageProps> = ({
                           <AccordionContent className="pt-0 pb-1">
                             {category.types.map(type => {
                               // Restore specific enabled logic, reverting to 'ens'
-                              const isEnabled = ['ens', 'content', 'quizmaster_basic', 'quizmaster_ai'].includes(type.name);
+                              const isEnabled = ['ens', 'content', 'quizmaster_basic', 'quizmaster_ai', 'lukso_connect_profile'].includes(type.name);
 
                               return (
                                 <button

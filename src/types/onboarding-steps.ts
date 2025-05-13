@@ -74,4 +74,13 @@ export interface QuizmasterAiVerifiedData {
   attemptTimestamp: string; // ISO 8601 string for when the attempt was finalized
 }
 
-// TODO: Add AI Quizmaster types here later (QuizmasterAiSpecificConfig, QuizmasterAiVerifiedData etc.) 
+// TODO: Add AI Quizmaster types here later (QuizmasterAiSpecificConfig, QuizmasterAiVerifiedData etc.)
+
+export interface LuksoConnectProfileSpecificConfig {
+  customPrompt?: string | null;
+}
+
+export interface LuksoConnectProfileVerifiedData {
+  upAddress: string;
+  [key: string]: any; // Add index signature
+} 

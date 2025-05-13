@@ -34,9 +34,11 @@ Adding a new step type typically involves the following stages:
 
 ### 3.2. Backend Implementation (API Routes)
 
-1.  **Step Config Saving (`PUT/PATCH /api/wizards/[id]/steps/[stepId]`):**
-    *   Usually **no changes needed**. The frontend `StepEditor` sends the complete `config` object (`{ presentation: {...}, specific: {...} }`), and the backend simply updates the JSONB column.
-    *   Add backend validation *only if* complex server-side checks are required for the specific config *before* saving.
+1.  **Step Creation & Config Saving:**
+    *   **Creation (`POST /api/wizards/[id]/steps`):** When a step is first added via the admin UI (typically from `WizardStepEditorPage.tsx`), initially only the `step_type_id` might be sent if the creation logic is separate from the full configuration UI. The backend creates the step record, often with a default or empty `config`.
+    *   **Configuration Update (`PUT /api/wizards/[id]/steps/[stepId]`):** The `StepEditor.tsx` component in the admin UI allows editing the step's `config`. When an admin saves changes, `StepEditor.tsx` sends the complete `config` object (structured as `{ "presentation": {...common settings...}, "specific": {...type-specific settings...} }`) to this PUT endpoint. The backend then updates the JSONB column in the `onboarding_steps` table.
+    *   For most new step types, **no backend code changes are typically needed** for these core configuration saving mechanisms, as they generically handle the JSON `config` object.
+    *   Add backend validation logic to the PUT endpoint *only if* complex server-side checks are required for the `specific` config *before* saving (e.g., validating a unique field or an external ID format).
 2.  **Step Completion Handling (`POST /api/user/wizards/[id]/steps/[stepId]/complete`):**
     *   This route handles `INSERT/UPDATE` into `user_wizard_progress`.
     *   **Modify IF:**
@@ -72,14 +74,14 @@ Adding a new step type typically involves the following stages:
         };
         ```
 
-2.  **Update `StepEditor.tsx`:**
+2.  **Update `StepEditor.tsx` (to render your config component):**
     *   **File:** `src/components/onboarding/steps/StepEditor.tsx`.
     *   **Import:** Import your new `YourStepNameConfig` component.
-    *   **Locate Rendering Logic:** Find the section with conditional rendering based on `stepTypeInfo?.name` (likely inside the main `Accordion`).
+    *   **Locate Rendering Logic:** Find the section with conditional rendering based on `stepTypeInfo?.name` (likely inside an `Accordion` for specific configurations).
     *   **Add Condition:** Add a new block for your step type:
         ```jsx
         {stepTypeInfo?.name === 'your_step_name' && (
-          <AccordionItem value="specific-config">
+          <AccordionItem value="specific-config-your_step_name"> {/* Ensure unique value for AccordionItem */}
             <AccordionTrigger>Your Step Configuration</AccordionTrigger>
             <AccordionContent>
               <YourStepNameConfig 
@@ -90,14 +92,20 @@ Adding a new step type typically involves the following stages:
           </AccordionItem>
         )}
         ```
-    *   **`handleSpecificConfigChange`:** This existing callback in `StepEditor` already handles updating the main `stepConfig.specific` state, so it usually doesn't need changes:
+    *   **`handleSpecificConfigChange`:** This existing callback in `StepEditor.tsx` already handles updating the main `stepConfig.specific` state, so it usually doesn't need changes:
         ```typescript
-        const handleSpecificConfigChange = useCallback((newSpecificConfig: Record<string, unknown>) => {
-          setStepConfig(prev => ({ ...prev, specific: newSpecificConfig }));
+        const handleSpecificConfigChange = useCallback((newSpecificConfig: Record<string, unknown> | ...) => { // Type might be more specific
+          setStepConfig(prev => ({ ...prev, specific: newSpecificConfig as Record<string, unknown> }));
         }, []);
         ```
 
-3.  **Verify Step Type Selection:** Check `StepSidebar.tsx` or related components to ensure the query fetching `/api/step_types` is working; your new type should appear automatically.
+3.  **Enable Step Type in Admin Dropdown (Crucial):**
+    *   **File:** `src/components/onboarding/WizardStepEditorPage.tsx`.
+    *   **Locate Logic:** In the "+ Add Step" dropdown menu logic (likely within `WizardStepEditorPage.tsx`), find where step types are listed or filtered for display in the dropdown. This might involve an `isEnabled` check or a hardcoded array of enabled type names (e.g., `const isEnabled = ['ens', 'content', ...].includes(type.name);`).
+    *   **Update Check:** Add your new `'your_step_name'` to this list or adjust the condition to include it. Without this, your newly defined step type (from the database) will not be selectable by admins in the UI.
+
+4.  **Verify Step Type Data Fetching:**
+    *   The list of available step types (including your new one from the database) is typically fetched by `useStepTypesQuery` within `WizardStepEditorPage.tsx` or a similar admin-facing component. Ensure this data is loading correctly. Step 3 makes it *selectable*.
 
 ### 3.4. Frontend Implementation - User Display & Interaction
 
@@ -134,8 +142,9 @@ Adding a new step type typically involves the following stages:
 
 ### 3.5. TypeScript Definitions
 
-*   Define interfaces for your specific configuration (`YourStepSpecificConfig`) and any `verified_data` structure.
-*   Place shared types potentially in `src/types/`. Ensure imports are correct.
+*   Define interfaces for your specific configuration (e.g., `YourStepNameSpecificConfig`) and any `verified_data` structure your step might produce if it passes data upon completion.
+*   **Location:** A good practice is to place these in the `src/types/` directory. Look for existing relevant files (e.g., `onboarding-steps.ts` or `index.d.ts` within a specific step type's folder if you co-locate types) or create a new, appropriately named file (e.g., `your-step-name-types.ts`).
+*   Ensure these types are correctly imported and used in your new `*Config.tsx` and `*Display.tsx` components, as well as any related backend processing if `verified_data` is complex.
 
 ## 4. Example: Adding a "Video Embed" Step (Refined)
 
@@ -156,6 +165,7 @@ Adding a new step type typically involves the following stages:
 *   [ ] Run migration.
 *   [ ] Create Admin configuration component (`*Config.tsx`) accepting `initialData` and `onChange`.
 *   [ ] Update `StepEditor.tsx` to render new config component based on `stepType.name`.
+*   [ ] Enable new step type in `WizardStepEditorPage.tsx` dropdown/selection logic.
 *   [ ] Create User display component (`*Display.tsx`) accepting `step` and `onComplete`.
 *   [ ] Implement step logic (display, interaction) in display component.
 *   [ ] Implement `onComplete(verified_data?)` call in display component.

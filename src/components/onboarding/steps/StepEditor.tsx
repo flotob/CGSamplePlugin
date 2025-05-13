@@ -9,6 +9,7 @@ import QuizmasterBasicConfig from './QuizmasterBasicConfig';
 import type { QuizmasterBasicSpecificConfig } from '@/types/onboarding-steps';
 import QuizmasterAiConfig from './QuizmasterAiConfig';
 import type { QuizmasterAiSpecificConfig } from '@/types/onboarding-steps';
+import LuksoConnectProfileConfig, { LuksoConnectProfileSpecificConfig } from './LuksoConnectProfileConfig';
 import {
   Accordion,
   AccordionContent,
@@ -140,7 +141,7 @@ export const StepEditor: React.FC<StepEditorProps> = ({
     });
   }
 
-  const handleSpecificConfigChange = useCallback((newSpecificConfig: Record<string, unknown> | ContentSpecificConfigType | EnsSpecificConfig | QuizmasterBasicSpecificConfig | QuizmasterAiSpecificConfig) => {
+  const handleSpecificConfigChange = useCallback((newSpecificConfig: Record<string, unknown> | ContentSpecificConfigType | EnsSpecificConfig | QuizmasterBasicSpecificConfig | QuizmasterAiSpecificConfig | LuksoConnectProfileSpecificConfig) => {
     setStepConfig(prev => ({ ...prev, specific: newSpecificConfig as Record<string, unknown> }));
   }, []);
 
@@ -567,6 +568,21 @@ export const StepEditor: React.FC<StepEditorProps> = ({
               <QuizmasterAiConfig 
                 initialData={stepConfig.specific as Partial<QuizmasterAiSpecificConfig>} 
                 onChange={handleSpecificConfigChange}
+              />
+            </AccordionContent>
+          </AccordionItem>
+        )}
+
+        {stepTypeInfo?.name === 'lukso_connect_profile' && (
+          <AccordionItem value="specific-config-lukso-connect">
+            <AccordionTrigger className="text-sm font-medium text-muted-foreground uppercase tracking-wide hover:no-underline py-2">
+               LUKSO Connect Configuration
+            </AccordionTrigger>
+            <AccordionContent className="pt-1">
+              <LuksoConnectProfileConfig
+                initialData={stepConfig.specific as Partial<LuksoConnectProfileSpecificConfig>}
+                onChange={handleSpecificConfigChange}
+                disabled={currentMutation.isPending}
               />
             </AccordionContent>
           </AccordionItem>
