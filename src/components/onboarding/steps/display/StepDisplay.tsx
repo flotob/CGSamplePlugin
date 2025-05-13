@@ -137,7 +137,7 @@ export const StepDisplay: React.FC<StepDisplayProps> = ({
       
       {/* Content container - improved styles for better height and scrolling */}
       <div className="absolute inset-0 overflow-y-auto z-10 flex flex-col" style={{height: "100%"}}>
-        <div className="flex-1 flex flex-col items-center py-4 px-4 md:py-6 md:px-6 min-h-[100%]">
+        <div className="flex-1 flex flex-col items-center justify-center py-4 px-4 md:py-6 md:px-6 min-h-[100%]">
           {stepContentElement}
         </div>
       </div>
