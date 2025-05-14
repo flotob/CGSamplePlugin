@@ -28,6 +28,7 @@ import { WizardEditorModal } from '../components/admin/WizardEditorModal';
 import { useUserWizardCompletionsQuery } from '@/hooks/useUserWizardCompletionsQuery';
 import { useUserWizardsQuery } from '@/hooks/useUserWizardsQuery';
 import { UpgradeModal } from '@/components/billing/UpgradeModal';
+import { useSearchParams } from 'next/navigation';
 
 // Removed targetRoleIdFromEnv constant
 // const targetRoleIdFromEnv = process.env.NEXT_PUBLIC_TARGET_ROLE_ID;
@@ -52,280 +53,201 @@ const debugLink = { id: 'debug', label: 'Debug Settings', icon: Terminal };
 //   logo_url: string | null;
 // }
 
-// Inner component to access StripeWaitContext after provider
-const PluginContent = () => {
-  const { isInitializing, initError, iframeUid } = useCgLib();
-  const { isAdmin, isLoading: isLoadingAdminStatus, error: adminStatusError } = useAdminStatus();
-  const { jwt, login, isAuthenticating, authError, pluginContextAssignableRoleIds } = useAuth();
-  const { authFetch } = useAuthFetch();
-  const { activeSlideshowWizardId, setActiveSlideshowWizardId } = useWizardSlideshow();
-  const [isPending, startTransition] = useTransition();
-  const { isWaitingModalOpen } = useStripeWaitContext();
+// Define props for AppCore
+interface AppCoreProps {
+  isUidCheckLogicComplete: boolean;
+  uidFromParams: string | null;
+  isCgLibInitializing: boolean;
+  cgLibError: Error | null;
+  cgLibIframeUid: string | null;
+  isAdmin: boolean | null;
+  isLoadingAdminStatus: boolean;
+  adminStatusError: Error | null;
+  jwt: string | null;
+  login: () => Promise<void>;
+  isAuthenticating: boolean;
+  authError: Error | null;
+  pluginContextAssignableRoleIds: string[] | undefined;
+  authFetch: (url: string, options?: RequestInit) => Promise<Response>;
+  activeSlideshowWizardId: string | null;
+  setActiveSlideshowWizardId: (id: string | null) => void;
+  isWaitingModalOpen: boolean;
+  activeSection: string | null;
+  setActiveSectionState: (section: string | null) => void;
+  previousSection: string | null;
+  setPreviousSectionState: (section: string | null) => void;
+  isPreviewingAsUser: boolean;
+  setIsPreviewingAsUserState: (value: boolean) => void;
+  userInfo: UserInfoResponsePayload | undefined;
+  isLoadingUserInfo: boolean;
+  userInfoError: Error | null;
+  communityInfo: CommunityInfoResponsePayload | undefined;
+  isLoadingCommunityInfo: boolean;
+  communityInfoError: Error | null;
+  friends: UserFriendsResponsePayload | undefined;
+  isLoadingFriends: boolean;
+  friendsError: Error | null;
+  pluginControlledDisplayRoles: DisplayRole[];
+  otherDisplayRoles: DisplayRole[];
+  selectableRolesForWizardConfig: DisplayRole[];
+  assignRole: (variables: { roleId: string; userId: string }) => void;
+  isAssigningRole: boolean;
+  assignRoleError: Error | null;
+  userWizardsData: WizardData | undefined;
+  isLoadingUserWizards: boolean;
+  userWizardsError: Error | null;
+  completionsData: CompletionData | undefined;
+  isLoadingCompletions: boolean;
+  hasCheckedHero: boolean;
+}
 
-  // State for current active section
-  const [activeSection, setActiveSection] = useState<string | null>(null);
-  const [previousSection, setPreviousSection] = useState<string | null>(null);
-  // Add state for preview mode
-  const [isPreviewingAsUser, setIsPreviewingAsUser] = useState<boolean>(false);
-  const [hasCheckedHero, setHasCheckedHero] = useState(false); // State to prevent re-checking
+// Define the interface for DisplayRole
+interface DisplayRole {
+  id: string;
+  title: string;
+  type: string;
+  permissions: string[];
+  assignmentRules: { 
+    type: "free"; 
+  } | { 
+    type: "token"; 
+    rules: object; 
+  } | null;
+}
 
-  // Custom section setter with transition
-  const handleSetActiveSection = (section: string) => {
-    if (section !== activeSection) {
-      setPreviousSection(activeSection);
-      startTransition(() => {
-        setActiveSection(section);
-      });
-    }
-  };
+// Define the interfaces for WizardData and CompletionData
+interface WizardData {
+  heroWizardId?: string | null;
+  // Add other properties as needed
+}
 
-  // Determine sidebar links based on admin status AND preview mode
-  const linksToShow = React.useMemo(() => {
-    if (isAdmin && !isPreviewingAsUser) {
-      return adminLinks; // Admin mode shows only admin links
-    } else {
-      return userLinks; // User mode (or admin previewing as user) shows only user links
-    }
-    // Debug link is passed separately to Sidebar and rendered in its own section
-  }, [isAdmin, isPreviewingAsUser]);
+interface CompletionData {
+  completed_wizard_ids?: string[];
+  // Add other properties as needed
+}
 
-  // Effect to set initial active section once admin status is known
-  React.useEffect(() => {
-    // Only set initial section if one isn't already active
-    if (!isLoadingAdminStatus && !activeSection) {
-      startTransition(() => {
-        // Default to user view if previewing, otherwise normal logic
-        const defaultView = isPreviewingAsUser ? 'wizards' : (isAdmin ? 'dashboard' : 'wizards');
-        setActiveSection(defaultView);
-      });
-    }
-    // Reset to default admin/user view if preview mode changes
-    // Or handle navigation more explicitly if needed
-    if (!isLoadingAdminStatus && activeSection) {
-       const currentViewIsAdminOnly = adminLinks.some(link => link.id === activeSection);
-       const currentViewIsUserOnly = userLinks.some(link => link.id === activeSection);
-
-       if (isPreviewingAsUser && currentViewIsAdminOnly) {
-           startTransition(() => setActiveSection('wizards')); // Go to user default
-       } else if (!isPreviewingAsUser && isAdmin && currentViewIsUserOnly) {
-           startTransition(() => setActiveSection('dashboard')); // Go to admin default
-       }
-    }
-  }, [isAdmin, isLoadingAdminStatus, activeSection, isPreviewingAsUser]); // Add isPreviewingAsUser dependency
-
-  const { data: userInfoResponse, isLoading: isLoadingUserInfo, error: userInfoError } = useCgQuery<
-    UserInfoResponsePayload,
-    Error
-  >(
-    ['userInfo', iframeUid],
-    async (instance) => (await instance.getUserInfo()).data,
-    { enabled: !!iframeUid }
-  );
-  const userInfo = userInfoResponse;
-
-  const { data: communityInfoResponse, isLoading: isLoadingCommunityInfo, error: communityInfoError } = useCgQuery<
-    CommunityInfoResponsePayload,
-    Error
-  >(
-    ['communityInfo', iframeUid],
-    async (instance) => (await instance.getCommunityInfo()).data,
-    { enabled: !!iframeUid }
-  );
-  const communityInfo = communityInfoResponse;
-  const communityId = communityInfo?.id;
-  const communityTitle = communityInfo?.title;
-
-  // Fetch Community Logo URL -- THIS ENTIRE useQuery BLOCK CAN BE REMOVED
-  // const { data: logoData, isLoading: isLoadingLogo, error: logoError } = useQuery<CommunityLogoResponse, Error>({
-  //   queryKey: ['communityLogo', communityId],
-  //   queryFn: async () => {
-  //     const res = await fetch(`/api/community/settings?communityId=${communityId}`);
-  //     if (!res.ok) {
-  //       if (res.status === 404) return { logo_url: null }; 
-  //       throw new Error('Failed to fetch community logo');
-  //     }
-  //     return res.json();
-  //   },
-  //   enabled: !!communityId,
-  //   staleTime: 15 * 60 * 1000,
-  //   retry: 1
-  // });
-
-  // Sync Community Data Mutation
-  const { mutate: syncCommunity } = useMutation<unknown, Error, { communityTitle: string }>({
-    mutationFn: async (payload) => {
-      return await authFetch('/api/community/sync', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-    },
-    onError: (error) => {
-      console.error('Failed to sync community data:', error);
-    },
-  });
-
-  // --- Effect to Trigger Community Sync --- 
-  useEffect(() => {
-      // Check if we have the necessary data and are authenticated
-      if (communityId && communityTitle && jwt && !isAuthenticating) {
-          // console.log('Triggering community sync...');
-          syncCommunity({ communityTitle });
-      }
-      // Depend on the specific pieces of data needed to trigger the sync.
-  }, [communityId, communityTitle, jwt, isAuthenticating, syncCommunity]);
-
-  // Effect to trigger JWT login once CG Lib and user/community/admin status are ready
-  useEffect(() => {
-    // Only attempt login if CG is initialized, basic info is loaded, and not already authenticated/authenticating
-    if (!isInitializing && !isLoadingUserInfo && !isLoadingCommunityInfo && !isLoadingAdminStatus && userInfo && communityInfo && !jwt && !isAuthenticating) {
-        console.log('Attempting JWT login for user:', userInfo.id);
-        login(); // login function already uses the correct isAdmin status internally
-    }
-    // Add dependencies including userInfo and communityInfo now
-  }, [isInitializing, isLoadingUserInfo, isLoadingCommunityInfo, isLoadingAdminStatus, userInfo, communityInfo, jwt, isAuthenticating, login]);
-
-  const { data: friendsResponse, isLoading: isLoadingFriends, error: friendsError } = useCgQuery<
-    UserFriendsResponsePayload,
-    Error
-  >(
-    ['userFriends', iframeUid, 10, 0],
-    async (instance) => (await instance.getUserFriends(10, 0)).data,
-    { enabled: !!iframeUid }
-  );
-  const friends = friendsResponse;
-
-  const { mutate: assignRole, isPending: isAssigningRole, error: assignRoleError } = useCgMutation<
-    unknown,
-    Error,
-    { roleId: string; userId: string }
-  >(
-    async (instance, { roleId, userId }) => {
-      if (!roleId) throw new Error("Role ID is missing or invalid.");
-      await instance.giveRole(roleId, userId);
-    },
-    {
-      invalidateQueryKeys: [['userInfo', iframeUid], ['communityInfo', iframeUid]]
-    }
-  );
-
-  // Env var is named _IDS, but we treat its content as titles
-  const ignoredRoleTitlesFromEnv = process.env.NEXT_PUBLIC_IGNORED_ROLE_IDS || '';
-  // Split the string from env var (which contains titles) into an array of titles
-  const titlesToIgnore = ignoredRoleTitlesFromEnv.split(',').map(title => title.trim().toLowerCase()).filter(title => title);
-
-  // Calculate the two groups of roles
-  const { pluginControlledDisplayRoles, otherDisplayRoles } = React.useMemo(() => {
-    if (!communityInfo?.roles || pluginContextAssignableRoleIds === undefined) {
-      return { pluginControlledDisplayRoles: [], otherDisplayRoles: [] };
-    }
-
-    const actualIdsToFilterOutByTitle = new Set<string>();
-    if (titlesToIgnore.length > 0) {
-      communityInfo.roles.forEach(role => {
-        if (titlesToIgnore.includes(role.title.toLowerCase())) {
-          actualIdsToFilterOutByTitle.add(role.id);
-        }
-      });
-    }
-
-    const allNonIgnoredRoles = communityInfo.roles.filter(role => !actualIdsToFilterOutByTitle.has(role.id));
-    
-    const group1_pluginControlledAndDisplayable = allNonIgnoredRoles.filter(role => 
-      pluginContextAssignableRoleIds.includes(role.id) &&
-      (
-        (role.assignmentRules?.type === 'free' || role.assignmentRules === null) ||
-        role.type === 'CUSTOM_AUTO_ASSIGN'
-      )
-    );
-
-    const group1Ids = new Set(group1_pluginControlledAndDisplayable.map(r => r.id));
-
-    const group2_otherCommunityRoles = allNonIgnoredRoles.filter(role => !group1Ids.has(role.id));
-
-    return {
-      pluginControlledDisplayRoles: group1_pluginControlledAndDisplayable,
-      otherDisplayRoles: group2_otherCommunityRoles
-    };
-  }, [communityInfo, titlesToIgnore, pluginContextAssignableRoleIds]);
-
-  // Create a list of roles specifically for selection in wizard/step configuration dropdowns
-  const selectableRolesForWizardConfig = React.useMemo(() => {
-    return pluginControlledDisplayRoles.filter(role => role.type === 'CUSTOM_MANUAL_ASSIGN');
-  }, [pluginControlledDisplayRoles]);
-
-  // --- Fetch Data needed for Hero Logic ---
-  // Fetch USER wizards and completions (require JWT)
-  const { data: userWizardsData, isLoading: isLoadingUserWizards, error: userWizardsError } = useUserWizardsQuery(
-      { enabled: !!jwt } // Enable once JWT is available
-  );
-  const { data: completionsData, isLoading: isLoadingCompletions } = useUserWizardCompletionsQuery(
-      { enabled: !!jwt } // Enable once JWT is available
-  );
-  
-  // --- Effect for Hero Wizard Auto-Launch --- 
-  useEffect(() => {
-    // Conditions to run:
-    // - Not loading essential data (admin status, *user* wizards, completions)
-    // - User is definitively NOT an admin
-    // - We haven't already checked/launched the hero wizard
-    // - Slideshow isn't already open
-    // - User wizards data is loaded
-    if (
-      !isLoadingAdminStatus && 
-      !isLoadingUserWizards && 
-      !isLoadingCompletions && 
-      (!isAdmin || isPreviewingAsUser) && // MODIFIED: Allow if !isAdmin OR isPreviewingAsUser
-      !hasCheckedHero && 
-      !activeSlideshowWizardId &&
-      userWizardsData // Ensure user wizard data is present
-    ) {
-      console.log("Checking for Hero Wizard...");
-      setHasCheckedHero(true); // Mark as checked
-
-      // Get hero ID directly from user wizard data
-      const heroWizardId = userWizardsData.heroWizardId;
-      const completedIds = completionsData?.completed_wizard_ids ?? [];
-
-      if (heroWizardId) {
-          console.log(`Found active Hero Wizard ID: ${heroWizardId}`);
-          if (!completedIds.includes(heroWizardId)) {
-              console.log(`User has not completed Hero Wizard. Auto-launching...`);
-              // Need a slight delay to ensure initial render completes before modal opens
-              setTimeout(() => {
-                 setActiveSlideshowWizardId(heroWizardId);
-              }, 100); 
-          } else {
-              console.log('User has already completed Hero Wizard.');
-          }
-      } else {
-          console.log('No active Hero Wizard found for this community.');
-      }
-    }
-  }, [
-    isAdmin, isLoadingAdminStatus, 
-    userWizardsData, isLoadingUserWizards, 
-    completionsData, isLoadingCompletions, 
-    hasCheckedHero, activeSlideshowWizardId,
+const AppCore: React.FC<AppCoreProps> = (props) => {
+  const {
+    isUidCheckLogicComplete,
+    uidFromParams,
+    isCgLibInitializing,
+    cgLibError,
+    cgLibIframeUid,
+    isAdmin,
+    isLoadingAdminStatus,
+    adminStatusError,
+    jwt,
+    login,
+    isAuthenticating,
+    authError,
+    pluginContextAssignableRoleIds,
+    authFetch,
+    activeSlideshowWizardId,
     setActiveSlideshowWizardId,
-    isPreviewingAsUser // Add isPreviewingAsUser to dependency array
-  ]);
+    isWaitingModalOpen,
+    activeSection,
+    setActiveSectionState,
+    previousSection,
+    setPreviousSectionState,
+    isPreviewingAsUser,
+    setIsPreviewingAsUserState,
+    userInfo,
+    isLoadingUserInfo,
+    userInfoError,
+    communityInfo,
+    isLoadingCommunityInfo,
+    communityInfoError,
+    friends,
+    isLoadingFriends,
+    friendsError,
+    pluginControlledDisplayRoles,
+    otherDisplayRoles,
+    selectableRolesForWizardConfig,
+    assignRole,
+    isAssigningRole,
+    assignRoleError,
+    userWizardsData,
+    completionsData,
+    isLoadingUserWizards,
+    userWizardsError,
+    isLoadingCompletions,
+    hasCheckedHero,
+  } = props;
 
-  // Effect to reset hero check when exiting preview mode
+  // === ALL HOOKS IN AppCore MUST BE AT THE TOP ===
+  // Hook 1: For redirect logic
   useEffect(() => {
-    if (!isPreviewingAsUser) {
-      setHasCheckedHero(false);
+    if (isUidCheckLogicComplete && !uidFromParams) {
+      const homeUrl = process.env.NEXT_PUBLIC_HOME_URL;
+      if (homeUrl) {
+        console.log(`AppCore: uidFromParams not found. Redirecting to NEXT_PUBLIC_HOME_URL: ${homeUrl}`);
+        window.location.href = homeUrl;
+      } else {
+        console.warn('AppCore: uidFromParams not found, and NEXT_PUBLIC_HOME_URL is not set. Cannot redirect.');
+      }
     }
-  }, [isPreviewingAsUser]);
+  }, [isUidCheckLogicComplete, uidFromParams]);
 
-  // Display loading indicator
-  // Update core loading check to use userWizards loading state
-  const isCoreLoading = isInitializing || isLoadingAdminStatus || !activeSection || (isAuthenticating && !jwt) || isLoadingUserWizards || isLoadingCompletions || isLoadingCommunityInfo || pluginContextAssignableRoleIds === undefined; 
-  const coreError = initError || adminStatusError || authError || userInfoError || communityInfoError || userWizardsError; 
+  // Hook 2: Memoizing linksToShow
+  const linksToShow = React.useMemo(() => {
+    if (isAdmin && !isPreviewingAsUser) return adminLinks;
+    return userLinks;
+  }, [isAdmin, isPreviewingAsUser]);
+  
+  // Hook 3: Effect to set initial active section
+  // AppCore needs its own useTransition if startTransition is to be used within its effects directly
+  const [isAppCoreTransitionPending, startAppCoreTransition] = React.useTransition();
 
-  // Display loading indicator
-  if (isCoreLoading) {
-    // Use communityInfo for logo in loading screen
+  React.useEffect(() => {
+    if (!isLoadingAdminStatus && !activeSection) {
+      startAppCoreTransition(() => {
+        const defaultView = isPreviewingAsUser ? 'wizards' : (isAdmin ? 'dashboard' : 'wizards');
+        setActiveSectionState(defaultView);
+      });
+    }
+    if (!isLoadingAdminStatus && activeSection) {
+      const currentViewIsAdminOnly = adminLinks.some(link => link.id === activeSection);
+      const currentViewIsUserOnly = userLinks.some(link => link.id === activeSection);
+      if (isPreviewingAsUser && currentViewIsAdminOnly) {
+        startAppCoreTransition(() => setActiveSectionState('wizards'));
+      } else if (!isPreviewingAsUser && isAdmin && currentViewIsUserOnly) {
+        startAppCoreTransition(() => setActiveSectionState('dashboard'));
+      }
+    }
+  }, [isAdmin, isLoadingAdminStatus, activeSection, isPreviewingAsUser, setActiveSectionState, startAppCoreTransition]);
+
+  // === Conditional Rendering Logic (now checks happen AFTER all AppCore hooks) ===
+  if (!isUidCheckLogicComplete || (isUidCheckLogicComplete && !uidFromParams && process.env.NEXT_PUBLIC_HOME_URL)) {
+    // Show loading if UID check isn't complete OR if we are about to redirect (and homeUrl is set)
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="mt-2">Verifying plugin session...</p>
+      </div>
+    );
+  }
+
+  // === APP-SPECIFIC LOADING AND ERROR STATES (using props from PluginContent) ===
+  const isAppLoading = 
+    isLoadingAdminStatus || 
+    !activeSection || 
+    (isAuthenticating && !jwt) || 
+    isLoadingUserInfo || 
+    isLoadingCommunityInfo || 
+    pluginContextAssignableRoleIds === undefined ||
+    isLoadingUserWizards || // Now included in app loading check
+    isLoadingCompletions;   // Now included in app loading check
+
+  const appSpecificError = 
+    adminStatusError || 
+    authError || 
+    userInfoError || 
+    communityInfoError ||
+    userWizardsError; // Now included in app error check
+
+  if (isAppLoading) {
     const displayLogoUrl = communityInfo?.smallLogoUrl;
+    // This is the original "Loading Plugin..." screen
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground">
         {isLoadingCommunityInfo && !displayLogoUrl ? (
@@ -339,44 +261,66 @@ const PluginContent = () => {
             className="w-auto h-20 mb-4 object-contain animate-pulse"
           />
         ) : (
-           <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" /> // Fallback if still no logo and not loading
+           <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" /> 
         )}
         <p className="text-lg font-medium">Loading Plugin...</p>
-        {/* Removed logoError display */}
       </div>
     );
   }
 
-  // Display error messages
-  if (coreError) {
-    return <div className='text-red-500 p-4'>Error loading plugin: {coreError.message}</div>;
+  if (appSpecificError) {
+    return <div className='text-red-500 p-4'>Error loading plugin data: {appSpecificError.message}</div>;
+  }
+  
+  // Check CgLib initialization status (using props from PluginContent)
+  if (isCgLibInitializing) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background text-foreground">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p>Initializing Common Ground Library...</p>
+      </div>
+    );
+  }
+  if (cgLibError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen text-red-500 p-4">
+        <p>Error initializing Common Ground Library: {cgLibError.message}</p>
+      </div>
+    );
+  }
+  if (!cgLibIframeUid) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen text-yellow-500 p-4">
+        <p>Common Ground context not available (missing iframeUid after init attempt).</p>
+      </div>
+    );
   }
 
-  // This check might be redundant now given the combined loading state, but keep for safety
-  if (!iframeUid || !activeSection) {
-    return <div className='text-yellow-500 p-4'>Initializing...</div>;
-  }
-
-  // Check if JWT is missing after attempting login (could indicate login failure)
-  // Only gate essential functionality if JWT is strictly required for *all* backend calls
-  // If only needed for admin actions, this check might be too strict here.
-  // Let's comment out for now, admin checks can happen within AdminView.
-  // if (!jwt) {
-  //   return <div className='text-red-500 p-4'>Error: Could not establish secure session.</div>;
-  // }
-
-  const handleAssignRoleClick = (roleId: string | undefined) => {
-    if (!roleId) {
-      console.error("Role ID is missing.");
-      return;
-    }
-    if (userInfo?.id) {
-      assignRole({ roleId: roleId, userId: userInfo.id });
-    } else {
-      console.error("User ID is missing, cannot assign role.");
+  // Custom section setter using the passed-down state setter
+  const handleSetActiveSection = (section: string) => {
+    if (section !== activeSection) {
+      setPreviousSectionState(activeSection);
+      startAppCoreTransition(() => { 
+        setActiveSectionState(section);
+      });
     }
   };
-
+  
+  // Define handleAssignRoleClick within AppCore, using the passed assignRole mutate function
+  const handleAssignRoleClick = (roleId: string | undefined) => {
+    if (!roleId) {
+      console.error("AppCore: Role ID is missing for assignRole.");
+      return;
+    }
+    // userInfo is from props, make sure it's available and has an id
+    if (props.userInfo?.id) {
+      assignRole({ roleId: roleId, userId: props.userInfo.id });
+    } else {
+      console.error("AppCore: User ID is missing, cannot assign role.");
+    }
+  };
+  
+  // Construct viewProps for the actual view components
   const viewProps = {
     userInfo,
     isLoadingUserInfo,
@@ -393,96 +337,395 @@ const PluginContent = () => {
     handleAssignRoleClick,
     isAssigningRole,
     assignRoleError,
-    activeSection,
-    authError,
-    setActiveSection: handleSetActiveSection
+    activeSection: activeSection ?? '', 
+    authError, 
+    setActiveSection: handleSetActiveSection,
+    authFetch,
+    userWizardsData,
+    isLoadingUserWizards,
+    userWizardsError,
+    completionsData,
+    isLoadingCompletions,
+    hasCheckedHero,
+    login,
   };
 
-  // Render appropriate view based on active section AND preview mode
   const renderView = () => {
-    if (isPending && previousSection === activeSection) {
-      return null;
+    if (isAppCoreTransitionPending && previousSection === activeSection && activeSection !== null) return null;
+    if (!activeSection) {
+      return (
+        <div className="flex items-center justify-center h-full p-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" /><p className="ml-2">Determining view...</p>
+        </div>
+      );
     }
-    
-    let view;
-    if (activeSection === 'help') {
-      view = <HelpView isAdmin={isAdmin && !isPreviewingAsUser} />;
-    } else if (activeSection === 'contact') {
-      view = <ContactView />;
-    } else if (activeSection === 'debug') { // Moved debug view rendering outside admin check
-      view = <DebugSettingsView />;
-    } else if (isAdmin && !isPreviewingAsUser) {
-      // Admin views (excluding debug, which is handled above)
-      view = <AdminView {...viewProps} activeSection={activeSection} />;
-    } else {
-      switch (activeSection) {
-        case 'wizards':
-          view = <WizardView />;
-          break;
-        case 'profile':
-          view = <UserView {...viewProps} />; 
-          break;
-        default:
-          view = <WizardView />; 
-      }
+    // Instantiate actual view components
+    switch (activeSection) {
+      case 'dashboard': 
+      case 'config': 
+      case 'connections':
+        // AdminView might need more specific props or logic to differentiate dashboard/config/connections
+        // For now, passing the generic viewProps and activeSection for it to handle.
+        // Ensure isAdmin is treated as boolean for this condition
+        return (isAdmin === true) && !isPreviewingAsUser ? <AdminView {...viewProps} activeSection={activeSection} /> : <WizardView />; // Fallback to WizardView if not admin
+      case 'wizards': 
+        return <WizardView /* {...viewProps} if WizardView needs them */ />;
+      case 'profile': 
+        // Ensure isAdmin is treated as boolean for this condition
+        return !(isAdmin === true) || isPreviewingAsUser ? <UserView {...viewProps} /> : <AdminView {...viewProps} activeSection={'dashboard'} />; // Fallback to Admin dashboard if admin not previewing
+      case 'debug': 
+        return <DebugSettingsView />;
+      case 'help': 
+        // Pass isAdmin as a strict boolean
+        return <HelpView isAdmin={isAdmin === true && !isPreviewingAsUser} />;
+      case 'contact': 
+        return <ContactView />;
+      default: 
+        return <div className="p-4">Unknown Section: {activeSection}</div>;
     }
-
-    return (
-      <div className="view-transition">
-        {view}
-      </div>
-    );
   };
 
+  // Use live data for Sidebar, with fallbacks
+  // const mockUserInfo = { name: (jwt ? 'Logged In User' : 'Guest User'), imageUrl: undefined, id: 'mock-user-id' }; // DELETE THIS LINE
+  // const mockCommunityInfo = { smallLogoUrl: undefined, title: 'Community' }; // DELETE THIS LINE
+
+  // Use live data if available, otherwise fall back to simple mocks or loading text
+  const sidebarUserName = isLoadingUserInfo ? 'Loading user...' : (userInfo?.name ?? 'User');
+  const sidebarUserImageUrl = userInfo?.imageUrl;
+  const sidebarUserId = isLoadingUserInfo ? '' : (userInfo?.id ?? 'user-id');
+  const sidebarLogoUrl = isLoadingCommunityInfo ? undefined : communityInfo?.smallLogoUrl;
+
+  // NOTE: The full AppLayout with data fetching, modals, etc., would be restored here.
+  // For now, a minimal representation based on the diagnostic step:
   return (
     <>
       <AppLayout
         sidebar={(
           <Sidebar 
-            links={linksToShow}
-            debugLink={debugLink} // Pass the debugLink here
-            activeSection={activeSection ?? ''}
+            links={linksToShow} 
+            debugLink={debugLink} 
+            activeSection={activeSection ?? ''} 
             setActiveSection={handleSetActiveSection} 
             isAdmin={isAdmin ?? false}
             isPreviewingAsUser={isPreviewingAsUser}
-            setIsPreviewingAsUser={setIsPreviewingAsUser}
-            userName={userInfo?.name}
-            userImageUrl={userInfo?.imageUrl}
-            userId={userInfo?.id}
-            logoUrl={communityInfo?.smallLogoUrl} // Pass only smallLogoUrl from communityInfo
+            setIsPreviewingAsUser={setIsPreviewingAsUserState}
+            userName={sidebarUserName}       
+            userImageUrl={sidebarUserImageUrl} 
+            userId={sidebarUserId}           
+            logoUrl={sidebarLogoUrl} 
             onProfileClick={() => {
-              const targetSection = (isAdmin && !isPreviewingAsUser) ? 'account' : 'profile';
+              const targetSection = (isAdmin && !isPreviewingAsUser) ? 'dashboard' : 'profile';
               handleSetActiveSection(targetSection);
             }}
           />
         )}
       >
-        {activeSection && renderView()}
+        {renderView()} 
         <Toaster />
       </AppLayout>
-
+      
+      {/* --- UNCOMMENTING MODALS --- */}
       {/* Global modals */}
       {activeSlideshowWizardId && (
         <WizardSlideshowModal
-          wizardId={activeSlideshowWizardId}
-          open={!!activeSlideshowWizardId} 
-          onClose={() => setActiveSlideshowWizardId(null)} 
+          wizardId={activeSlideshowWizardId} // from props
+          open={!!activeSlideshowWizardId} // from props
+          onClose={() => setActiveSlideshowWizardId(null)} // setActiveSlideshowWizardId from props
         />
       )}
 
-      {/* Wizard Editor Modal */}
+      {/* Wizard Editor Modal - Assuming it manages its own open state via Zustand/Jotai or context */}
       <WizardEditorModal />
 
       {/* Stripe Modal */}
       {isWaitingModalOpen && (
-         <StripeWaitingModal communityId={communityId} />
+         <StripeWaitingModal communityId={communityInfo?.id} /> // communityInfo from props
       )}
 
-      {/* == Render Global Upgrade Modal == */}
+      {/* Render Global Upgrade Modal - Assuming it manages its own open state */}
       <UpgradeModal />
     </>
   );
-}
+};
+
+// Inner component to access StripeWaitContext after provider
+const PluginContent = () => {
+  // === ALL HOOKS ARE CALLED UNCONDITIONALLY AT THE TOP OF PluginContent ===
+  const [isUidCheckLogicComplete, setIsUidCheckLogicComplete] = useState(false);
+  const searchParams = useSearchParams();
+  
+  // Memoize uidFromParams so it's stable for AppCore's useEffect dependency array
+  const uidFromParams = React.useMemo(() => searchParams.get('iframeUid'), [searchParams]);
+
+  // Existing application hooks
+  const { isInitializing: isCgLibInitializing, initError: cgLibError, iframeUid: cgLibIframeUid } = useCgLib();
+  const { isAdmin, isLoading: isLoadingAdminStatus, error: adminStatusError } = useAdminStatus();
+  const { jwt, login, isAuthenticating, authError, pluginContextAssignableRoleIds } = useAuth();
+  const { authFetch } = useAuthFetch();
+  const { activeSlideshowWizardId, setActiveSlideshowWizardId } = useWizardSlideshow();
+  // These transition hooks are unused in this component but may be needed later
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [_isTransitionPending, _startTransition] = useTransition();
+  const { isWaitingModalOpen } = useStripeWaitContext();
+
+  // Existing state declarations
+  const [activeSection, setActiveSectionState] = useState<string | null>(null);
+  const [previousSection, setPreviousSectionState] = useState<string | null>(null);
+  const [isPreviewingAsUser, setIsPreviewingAsUserState] = useState<boolean>(false);
+  const [hasCheckedHero, setHasCheckedHeroState] = useState<boolean>(false);
+
+  // --- UNCOMMENTING DATA FETCHING FOR USER AND COMMUNITY --- 
+  const { data: userInfoResponse, isLoading: isLoadingUserInfo, error: userInfoError } = useCgQuery<
+    UserInfoResponsePayload,
+    Error
+  >(
+    ['userInfo', cgLibIframeUid], // Use cgLibIframeUid from useCgLib()
+    async (instance) => (await instance.getUserInfo()).data,
+    { enabled: !!cgLibIframeUid } // Ensure CgLib is ready
+  );
+  const userInfo = userInfoResponse;
+
+  const { data: communityInfoResponse, isLoading: isLoadingCommunityInfo, error: communityInfoError } = useCgQuery<
+    CommunityInfoResponsePayload,
+    Error
+  >(
+    ['communityInfo', cgLibIframeUid], // Use cgLibIframeUid
+    async (instance) => (await instance.getCommunityInfo()).data,
+    { enabled: !!cgLibIframeUid } // Ensure CgLib is ready
+  );
+  const communityInfo = communityInfoResponse;
+  // const communityId = communityInfo?.id; // Will be used later
+  // const communityTitle = communityInfo?.title; // Will be used later
+
+  // --- UNCOMMENTING FRIENDS DATA FETCHING --- 
+  const { data: friendsResponse, isLoading: isLoadingFriends, error: friendsError } = useCgQuery<
+    UserFriendsResponsePayload,
+    Error
+  >(
+    ['userFriends', cgLibIframeUid, 10, 0], // Assuming default limit/offset
+    async (instance) => (await instance.getUserFriends(10, 0)).data,
+    { enabled: !!cgLibIframeUid }
+  );
+  const friends = friendsResponse;
+
+  // --- UNCOMMENTING ROLES LOGIC --- 
+  // Env var is named _IDS, but we treat its content as titles
+  const ignoredRoleTitlesFromEnv = process.env.NEXT_PUBLIC_IGNORED_ROLE_IDS || '';
+  // Split the string from env var (which contains titles) into an array of titles
+  const titlesToIgnore = ignoredRoleTitlesFromEnv.split(',').map(title => title.trim().toLowerCase()).filter(title => title);
+
+  const { pluginControlledDisplayRoles, otherDisplayRoles } = React.useMemo(() => {
+    if (!communityInfo?.roles || pluginContextAssignableRoleIds === undefined) {
+      return { pluginControlledDisplayRoles: [], otherDisplayRoles: [] };
+    }
+    const actualIdsToFilterOutByTitle = new Set<string>();
+    if (titlesToIgnore.length > 0) {
+      communityInfo.roles.forEach(role => {
+        if (titlesToIgnore.includes(role.title.toLowerCase())) {
+          actualIdsToFilterOutByTitle.add(role.id);
+        }
+      });
+    }
+    const allNonIgnoredRoles = communityInfo.roles.filter(role => !actualIdsToFilterOutByTitle.has(role.id));
+    const group1_pluginControlledAndDisplayable = allNonIgnoredRoles.filter(role => 
+      pluginContextAssignableRoleIds.includes(role.id) &&
+      (
+        (role.assignmentRules?.type === 'free' || role.assignmentRules === null) ||
+        role.type === 'CUSTOM_AUTO_ASSIGN'
+      )
+    );
+    const group1Ids = new Set(group1_pluginControlledAndDisplayable.map(r => r.id));
+    const group2_otherCommunityRoles = allNonIgnoredRoles.filter(role => !group1Ids.has(role.id));
+    return {
+      pluginControlledDisplayRoles: group1_pluginControlledAndDisplayable,
+      otherDisplayRoles: group2_otherCommunityRoles
+    };
+  }, [communityInfo, titlesToIgnore, pluginContextAssignableRoleIds]);
+
+  const selectableRolesForWizardConfig = React.useMemo(() => {
+    // Ensure pluginControlledDisplayRoles is not undefined before filtering
+    return pluginControlledDisplayRoles?.filter(role => role.type === 'CUSTOM_MANUAL_ASSIGN') ?? [];
+  }, [pluginControlledDisplayRoles]);
+
+  // --- UNCOMMENTING EFFECT TO TRIGGER JWT LOGIN --- 
+  useEffect(() => {
+    // Only attempt login if CgLib is initialized (isCgLibInitializing is false), 
+    // basic info (userInfo, communityInfo) is loaded (their isLoading flags are false),
+    // admin status is known (isLoadingAdminStatus is false),
+    // and not already authenticated/authenticating.
+    if (!isCgLibInitializing && !isLoadingUserInfo && !isLoadingCommunityInfo && !isLoadingAdminStatus && 
+        userInfo && communityInfo && !jwt && !isAuthenticating) {
+        console.log('[PluginContent] Attempting JWT login for user:', userInfo.id, 'Admin status:', isAdmin);
+        login(); // login function from useAuth()
+    }
+  }, [
+    isCgLibInitializing, isLoadingUserInfo, isLoadingCommunityInfo, isLoadingAdminStatus, 
+    userInfo, communityInfo, jwt, isAuthenticating, login, isAdmin
+  ]);
+
+  // Effect to determine if the initial UID check phase is logically complete
+  useEffect(() => {
+    // The decision to redirect or not is based on uidFromParams and HOME_URL.
+    // This effect just signals that this initial check can be considered "done".
+    // AppCore will handle the actual redirect if needed based on uidFromParams.
+    setIsUidCheckLogicComplete(true);
+  }, [uidFromParams]); // Runs when uidFromParams is resolved
+
+  // --- UNCOMMENTING SYNC COMMUNITY MUTATION & EFFECT --- 
+  const { mutate: syncCommunity } = useMutation<unknown, Error, { communityTitle: string }>({
+    mutationFn: async (payload) => {
+      // Ensure authFetch is available here. It's from useAuthFetch() called at the top of PluginContent.
+      return await authFetch('/api/community/sync', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+    },
+    onError: (error) => {
+      console.error('Failed to sync community data:', error);
+    },
+  });
+
+  useEffect(() => {
+      // communityInfo, jwt, isAuthenticating are all from hooks at the top of PluginContent
+      if (communityInfo?.id && communityInfo?.title && jwt && !isAuthenticating) {
+          syncCommunity({ communityTitle: communityInfo.title });
+      }
+  }, [communityInfo, jwt, isAuthenticating, syncCommunity]); // communityInfo itself is a dependency
+
+  // --- UNCOMMENTING ASSIGN ROLE MUTATION --- 
+  const { mutate: assignRole, isPending: isAssigningRole, error: assignRoleError } = useCgMutation<
+    unknown,
+    Error,
+    { roleId: string; userId: string }
+  >(
+    async (instance, { roleId, userId }) => {
+      if (!roleId) throw new Error("Role ID is missing or invalid.");
+      // instance is CgPluginLib instance, managed by useCgMutation
+      await instance.giveRole(roleId, userId);
+    },
+    {
+      // Invalidate queries that might be affected by role assignment
+      invalidateQueryKeys: [['userInfo', cgLibIframeUid], ['communityInfo', cgLibIframeUid], ['userWizards']]
+      // Added 'userWizards' as role changes might affect wizard accessibility
+    }
+  );
+
+  // --- RE-ADDING USER WIZARDS & COMPLETIONS DATA FETCHING IN PluginContent --- 
+  const { data: userWizardsData, isLoading: isLoadingUserWizards, error: userWizardsError } = useUserWizardsQuery(
+      { enabled: !!jwt } // Enable once JWT is available
+  );
+  const { data: completionsData, isLoading: isLoadingCompletions } = useUserWizardCompletionsQuery(
+      { enabled: !!jwt } // Enable once JWT is available
+  );
+
+  // --- RE-ACTIVATING HERO WIZARD AUTO-LAUNCH EFFECT & RELATED LOGIC IN PluginContent --- 
+  useEffect(() => {
+    // Conditions to run:
+    // - Not loading essential data (admin status, *user* wizards, completions)
+    // - User is definitively NOT an admin (or admin is previewing as user)
+    // - We haven't already checked/launched the hero wizard
+    // - Slideshow isn't already open
+    // - User wizards data is loaded
+    if (
+      !isLoadingAdminStatus && 
+      !isLoadingUserWizards && 
+      !isLoadingCompletions && 
+      (!isAdmin || isPreviewingAsUser) && 
+      !hasCheckedHero && 
+      !activeSlideshowWizardId && // from useWizardSlideshow hook
+      userWizardsData // Ensure user wizard data is present
+    ) {
+      console.log("[PluginContent] Checking for Hero Wizard...");
+      setHasCheckedHeroState(true); // Mark as checked using state setter from PluginContent
+
+      const heroWizardId = userWizardsData.heroWizardId; // Assuming this path exists on your data type
+      const completedWizardIds = completionsData?.completed_wizard_ids ?? []; // Assuming this path
+
+      if (heroWizardId) {
+          console.log(`[PluginContent] Found active Hero Wizard ID: ${heroWizardId}`);
+          if (!completedWizardIds.includes(heroWizardId)) {
+              console.log('[PluginContent] User has not completed Hero Wizard. Auto-launching...');
+              setTimeout(() => {
+                 setActiveSlideshowWizardId(heroWizardId); // from useWizardSlideshow hook
+              }, 100); 
+          } else {
+              console.log('[PluginContent] User has already completed Hero Wizard.');
+          }
+      } else {
+          console.log('[PluginContent] No active Hero Wizard found for this community.');
+      }
+    }
+  }, [
+    isAdmin, isLoadingAdminStatus, 
+    userWizardsData, isLoadingUserWizards, 
+    completionsData, isLoadingCompletions, 
+    hasCheckedHero, activeSlideshowWizardId,
+    setActiveSlideshowWizardId, // from useWizardSlideshow hook
+    setHasCheckedHeroState,     // state setter from PluginContent
+    isPreviewingAsUser
+  ]);
+
+  // Effect to reset hero check when exiting preview mode
+  useEffect(() => {
+    if (!isPreviewingAsUser) {
+      setHasCheckedHeroState(false);
+    }
+  }, [isPreviewingAsUser, setHasCheckedHeroState]);
+
+  return (
+    <AppCore
+      isUidCheckLogicComplete={isUidCheckLogicComplete}
+      uidFromParams={uidFromParams} // Pass the memoized uidFromParams
+      isCgLibInitializing={isCgLibInitializing}
+      cgLibError={cgLibError}
+      cgLibIframeUid={cgLibIframeUid}
+      isAdmin={isAdmin}
+      isLoadingAdminStatus={isLoadingAdminStatus}
+      adminStatusError={adminStatusError}
+      jwt={jwt}
+      login={login}
+      isAuthenticating={isAuthenticating}
+      authError={authError}
+      pluginContextAssignableRoleIds={pluginContextAssignableRoleIds}
+      authFetch={authFetch}
+      activeSlideshowWizardId={activeSlideshowWizardId}
+      setActiveSlideshowWizardId={setActiveSlideshowWizardId}
+      isWaitingModalOpen={isWaitingModalOpen}
+      activeSection={activeSection}
+      setActiveSectionState={setActiveSectionState}
+      previousSection={previousSection}
+      setPreviousSectionState={setPreviousSectionState}
+      isPreviewingAsUser={isPreviewingAsUser}
+      setIsPreviewingAsUserState={setIsPreviewingAsUserState}
+      userInfo={userInfo}
+      isLoadingUserInfo={isLoadingUserInfo}
+      userInfoError={userInfoError}
+      communityInfo={communityInfo}
+      isLoadingCommunityInfo={isLoadingCommunityInfo}
+      communityInfoError={communityInfoError}
+      // Pass Friends data
+      friends={friends}
+      isLoadingFriends={isLoadingFriends}
+      friendsError={friendsError}
+      // Pass Roles data
+      pluginControlledDisplayRoles={pluginControlledDisplayRoles}
+      otherDisplayRoles={otherDisplayRoles}
+      selectableRolesForWizardConfig={selectableRolesForWizardConfig}
+      // Pass assignRole mutation and its states
+      assignRole={assignRole}
+      isAssigningRole={isAssigningRole}
+      assignRoleError={assignRoleError}
+      // Pass new loading/error states to AppCore
+      isLoadingUserWizards={isLoadingUserWizards}
+      userWizardsError={userWizardsError}
+      isLoadingCompletions={isLoadingCompletions}
+      // Pass actual data for wizards/completions to AppCore
+      userWizardsData={userWizardsData}
+      completionsData={completionsData}
+      hasCheckedHero={hasCheckedHero} // Pass hasCheckedHero to AppCore
+    />
+  );
+};
 
 // Main export wraps the content in the provider
 export default function PluginContainer() {
