@@ -13,6 +13,7 @@ interface AnimatedTextDisplayProps {
 const DEFAULT_FONT_SIZE = 72; // Font size for path generation
 const DEFAULT_STROKE_WIDTH = 2;
 const DEFAULT_STROKE_COLOR = '#FFFFFF';
+const DEFAULT_ANIMATION_DURATION = 3; // seconds
 
 const AnimatedTextDisplay: React.FC<AnimatedTextDisplayProps> = ({ step, onComplete }) => {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -114,6 +115,36 @@ const AnimatedTextDisplay: React.FC<AnimatedTextDisplayProps> = ({ step, onCompl
     return () => { isMounted = false; };
   }, [fontRef.current, textToAnimate, isLoadingFont, fontError]); // Rerun if font, text, or loading states change
 
+  // 3. Animate Path when pathData is ready
+  useEffect(() => {
+    if (!pathData || !pathRef.current || pathError || fontError) {
+      return; // Don't animate if no path, or errors
+    }
+    const pathElement = pathRef.current;
+    const length = pathElement.getTotalLength();
+
+    if (length === 0) {
+        console.warn("Path length is 0, skipping animation for text:", textToAnimate);
+        // Ensure path is visible if it's a dot or very short, non-animatable path
+        pathElement.style.strokeDasharray = 'none';
+        pathElement.style.strokeDashoffset = '0';
+        pathElement.style.transition = 'none';
+        return;
+    }
+
+    pathElement.style.strokeDasharray = `${length}`;
+    pathElement.style.strokeDashoffset = `${length}`;
+    pathElement.style.transition = 'none'; // Reset any previous transition
+
+    // Force reflow to apply initial dash styles before starting the animation
+    pathElement.getBoundingClientRect();
+
+    // Start the animation
+    pathElement.style.transition = `stroke-dashoffset ${DEFAULT_ANIMATION_DURATION}s ease-in-out`;
+    pathElement.style.strokeDashoffset = '0';
+
+    // No cleanup needed for CSS transitions applied directly to style properties in this manner
+  }, [pathData, pathError, fontError, textToAnimate]); // Rerun animation if pathData changes (or errors clear)
 
   // Render logic
   if (isLoadingFont) {
