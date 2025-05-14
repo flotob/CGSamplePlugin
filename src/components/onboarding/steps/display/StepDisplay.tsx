@@ -20,6 +20,7 @@ import QuizmasterAiDisplay from './QuizmasterAiDisplay';
 // import { InfoStepDisplay } from './InfoStepDisplay'; // Commented out potentially incorrect import
 // import { MultipleChoiceStepDisplay } from './MultipleChoiceStepDisplay';
 import LuksoConnectProfileDisplay from './LuksoConnectProfileDisplay'; // Added import
+import AnimatedTextDisplay from './AnimatedTextDisplay'; // Added import for AnimatedTextDisplay
 
 interface StepDisplayProps {
   step: UserStepProgress;
@@ -104,6 +105,9 @@ export const StepDisplay: React.FC<StepDisplayProps> = ({
       break;
     case 'lukso_connect_profile':
       stepContentElement = <LuksoConnectProfileDisplay step={step} onComplete={onComplete} />;
+      break;
+    case 'animated_text':
+      stepContentElement = <AnimatedTextDisplay step={step} onComplete={onComplete} />;
       break;
     default:
       stepContentElement = (

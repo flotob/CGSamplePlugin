@@ -83,4 +83,12 @@ export interface LuksoConnectProfileSpecificConfig {
 export interface LuksoConnectProfileVerifiedData {
   upAddress: string;
   [key: string]: unknown; // Changed from any to unknown
+}
+
+export interface AnimatedTextSpecificConfig {
+  text?: string | null;
+  // Future considerations:
+  // strokeColor?: string;
+  // animationDuration?: number; // in seconds
+  // fontFileName?: string; // if we support multiple bundled fonts
 } 

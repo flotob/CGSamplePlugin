@@ -38,6 +38,8 @@ import { ColorPicker } from '../../color-picker';
 import { Input } from "@/components/ui/input";
 import { extractYouTubeVideoId, isValidYouTubeUrl } from "@/lib/utils";
 import { SidequestsManager } from './SidequestsManager';
+import AnimatedTextConfig from './AnimatedTextConfig';
+import type { AnimatedTextSpecificConfig } from '@/types/onboarding-steps';
 
 interface CommunityRole {
   id: string;
@@ -141,7 +143,7 @@ export const StepEditor: React.FC<StepEditorProps> = ({
     });
   }
 
-  const handleSpecificConfigChange = useCallback((newSpecificConfig: Record<string, unknown> | ContentSpecificConfigType | EnsSpecificConfig | QuizmasterBasicSpecificConfig | QuizmasterAiSpecificConfig | LuksoConnectProfileSpecificConfig) => {
+  const handleSpecificConfigChange = useCallback((newSpecificConfig: Record<string, unknown> | ContentSpecificConfigType | EnsSpecificConfig | QuizmasterBasicSpecificConfig | QuizmasterAiSpecificConfig | LuksoConnectProfileSpecificConfig | AnimatedTextSpecificConfig) => {
     setStepConfig(prev => ({ ...prev, specific: newSpecificConfig as Record<string, unknown> }));
   }, []);
 
@@ -583,6 +585,20 @@ export const StepEditor: React.FC<StepEditorProps> = ({
                 initialData={stepConfig.specific as Partial<LuksoConnectProfileSpecificConfig>}
                 onChange={handleSpecificConfigChange}
                 disabled={currentMutation.isPending}
+              />
+            </AccordionContent>
+          </AccordionItem>
+        )}
+
+        {stepTypeInfo?.name === 'animated_text' && (
+          <AccordionItem value="specific-config-animated-text">
+            <AccordionTrigger className="text-sm font-medium text-muted-foreground uppercase tracking-wide hover:no-underline py-2">
+               Animated Text Configuration
+            </AccordionTrigger>
+            <AccordionContent className="pt-1">
+              <AnimatedTextConfig
+                initialData={stepConfig.specific as AnimatedTextSpecificConfig}
+                onChange={handleSpecificConfigChange}
               />
             </AccordionContent>
           </AccordionItem>
