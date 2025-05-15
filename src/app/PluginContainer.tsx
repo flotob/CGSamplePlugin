@@ -31,6 +31,8 @@ import { useUserWizardsQuery } from '@/hooks/useUserWizardsQuery';
 import { UpgradeModal } from '@/components/billing/UpgradeModal';
 import { useSearchParams } from 'next/navigation';
 import WelcomeAnimation from '@/components/WelcomeAnimation';
+import { useAtom } from 'jotai';
+import { hasSeenWelcomeAnimationAtom } from '@/stores/welcomeAnimationStore';
 
 // Removed targetRoleIdFromEnv constant
 // const targetRoleIdFromEnv = process.env.NEXT_PUBLIC_TARGET_ROLE_ID;
@@ -508,6 +510,8 @@ const PluginContent = () => {
 
   // State for welcome animation
   const [showWelcomeAnimation, setShowWelcomeAnimation] = useState<boolean | null>(null);
+  // Get and update the persisted state of whether user has seen the animation
+  const [hasSeenWelcomeAnimation, setHasSeenWelcomeAnimation] = useAtom(hasSeenWelcomeAnimationAtom);
 
   // Existing application hooks
   const { isInitializing: isCgLibInitializing, initError: cgLibError, iframeUid: cgLibIframeUid } = useCgLib();
@@ -736,6 +740,7 @@ const PluginContent = () => {
     // 2. No errors detected
     // 3. We have the necessary initialization data
     // 4. Not currently showing any slideshow wizard
+    // 5. User hasn't seen the welcome animation before
     if (
       !isCgLibInitializing &&
       !isLoadingAdminStatus &&
@@ -749,10 +754,15 @@ const PluginContent = () => {
       !userInfoError &&
       !communityInfoError &&
       !userWizardsError &&
-      !activeSlideshowWizardId
+      !activeSlideshowWizardId &&
+      !hasSeenWelcomeAnimation // Only show if user hasn't seen it before
     ) {
       // Immediately set to true when all conditions are met
       setShowWelcomeAnimation(true);
+    } else {
+      // If we're not showing the animation (either due to loading issues or user has seen it before)
+      // make sure we exit the loading state by setting to false
+      setShowWelcomeAnimation(false);
     }
   }, [
     isCgLibInitializing,
@@ -767,7 +777,8 @@ const PluginContent = () => {
     userInfoError,
     communityInfoError,
     userWizardsError,
-    activeSlideshowWizardId
+    activeSlideshowWizardId,
+    hasSeenWelcomeAnimation
   ]);
 
   return (
@@ -823,7 +834,13 @@ const PluginContent = () => {
       hasCheckedHero={hasCheckedHero} // Pass hasCheckedHero to AppCore
       isSuperAdmin={isSuperAdminUser} // Pass isSuperAdminUser to AppCore
       showWelcomeAnimation={showWelcomeAnimation}
-      setShowWelcomeAnimation={setShowWelcomeAnimation}
+      setShowWelcomeAnimation={(show) => {
+        // When turning off the animation, also mark as seen
+        if (show === false) {
+          setHasSeenWelcomeAnimation(true);
+        }
+        setShowWelcomeAnimation(show);
+      }}
     />
   );
 };
