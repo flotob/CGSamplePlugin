@@ -12,6 +12,9 @@ const ALL_TRACKED_FEATURES = [
   'image_generation'
 ] as const;
 
+// List of features that are resource-based (counted as totals, not time-windowed for this leaderboard)
+const RESOURCE_FEATURES: FeatureEnum[] = ['active_wizard'];
+
 type FeatureEnum = typeof ALL_TRACKED_FEATURES[number];
 
 interface FeatureUsageDetails {
@@ -155,7 +158,7 @@ export const GET = withAuth(async (req: AuthenticatedRequest): Promise<NextRespo
             utilizationPercentage = Infinity; // Or some other indicator for exceeding a zero limit
         }
 
-        const timeWindowDisplay = featureName === 'active_wizard' ? "Total" : "Last 30 Days";
+        const timeWindowDisplay = RESOURCE_FEATURES.includes(featureName) ? "Total" : "Last 30 Days";
 
         features[featureName] = {
           usage,
