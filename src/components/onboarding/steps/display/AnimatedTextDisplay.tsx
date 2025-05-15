@@ -12,7 +12,7 @@ interface AnimatedTextDisplayProps {
 // Default styling parameters (can be props later)
 const DEFAULT_FONT_SIZE = 72; // Font size for path generation
 const DEFAULT_STROKE_WIDTH = 2;
-const DEFAULT_STROKE_COLOR = '#FFFFFF';
+// Removed hard-coded stroke colour constant; the SVG now derives its colour from the current theme.
 const DEFAULT_ANIMATION_DURATION = 3; // seconds
 
 // Constants for the hardcoded "hello" animation
@@ -240,7 +240,8 @@ const AnimatedTextDisplay: React.FC<AnimatedTextDisplayProps> = ({ step, onCompl
     >
       <svg 
         ref={svgRef} 
-        viewBox={viewBox} 
+        viewBox={viewBox}
+        className="text-foreground" 
         style={{
           width: 'auto',
           maxWidth: '1200px',
@@ -257,7 +258,7 @@ const AnimatedTextDisplay: React.FC<AnimatedTextDisplayProps> = ({ step, onCompl
           ref={pathRef}
           d={pathData}
           fill="none"
-          stroke={DEFAULT_STROKE_COLOR}
+          stroke="currentColor"
           strokeWidth={effectiveStrokeWidth}
           strokeLinecap="round"
           strokeLinejoin="round"
