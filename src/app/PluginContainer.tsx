@@ -19,7 +19,8 @@ import { HelpView } from '../components/HelpView';
 import { WizardView } from '../components/WizardView';
 import { ContactView } from '../components/ContactView';
 import { DebugSettingsView } from '../components/DebugSettingsView';
-import { LayoutDashboard, Settings, Plug, User, Wand2, Loader2, Terminal } from 'lucide-react';
+import { SuperAdminDashboardView } from '../components/super-admin/SuperAdminDashboardView';
+import { LayoutDashboard, Settings, Plug, User, Wand2, Loader2, Terminal, ShieldAlert } from 'lucide-react';
 import { Toaster } from "@/components/ui/toaster";
 import { useWizardSlideshow } from '../context/WizardSlideshowContext';
 import { WizardSlideshowModal } from '../components/onboarding/WizardSlideshowModal';
@@ -44,6 +45,10 @@ const adminLinks = [
 const userLinks = [
   { id: 'wizards', label: 'Wizards', icon: Wand2 },
   { id: 'profile', label: 'Profile', icon: User },
+];
+
+const superAdminLinks = [
+  { id: 'super-admin', label: 'Super Admin', icon: ShieldAlert },
 ];
 
 const debugLink = { id: 'debug', label: 'Debug Settings', icon: Terminal };
@@ -99,6 +104,7 @@ interface AppCoreProps {
   completionsData: CompletionData | undefined;
   isLoadingCompletions: boolean;
   hasCheckedHero: boolean;
+  isSuperAdmin: boolean;
 }
 
 // Define the interface for DisplayRole
@@ -172,6 +178,7 @@ const AppCore: React.FC<AppCoreProps> = (props) => {
     userWizardsError,
     isLoadingCompletions,
     hasCheckedHero,
+    isSuperAdmin,
   } = props;
 
   // === ALL HOOKS IN AppCore MUST BE AT THE TOP ===
@@ -190,9 +197,18 @@ const AppCore: React.FC<AppCoreProps> = (props) => {
 
   // Hook 2: Memoizing linksToShow
   const linksToShow = React.useMemo(() => {
-    if (isAdmin && !isPreviewingAsUser) return adminLinks;
-    return userLinks;
-  }, [isAdmin, isPreviewingAsUser]);
+    let links = userLinks; // Default to user links
+    if (isAdmin && !isPreviewingAsUser) {
+      links = adminLinks;
+    }
+    if (isSuperAdmin) {
+      // If super admin, prepend the super admin link to the current set of links (which would be adminLinks if also an admin)
+      // If for some reason a super admin isn't a regular admin (which shouldn't be the case based on current roles), 
+      // this would still add the super admin link.
+      links = [...superAdminLinks, ...links.filter(link => !superAdminLinks.find(saLink => saLink.id === link.id))];
+    }
+    return links;
+  }, [isSuperAdmin, isAdmin, isPreviewingAsUser]);
   
   // Hook 3: Effect to set initial active section
   // AppCore needs its own useTransition if startTransition is to be used within its effects directly
@@ -201,20 +217,34 @@ const AppCore: React.FC<AppCoreProps> = (props) => {
   React.useEffect(() => {
     if (!isLoadingAdminStatus && !activeSection) {
       startAppCoreTransition(() => {
-        const defaultView = isPreviewingAsUser ? 'wizards' : (isAdmin ? 'dashboard' : 'wizards');
+        let defaultView = 'wizards'; // Default for normal users
+        if (isSuperAdmin) {
+          defaultView = 'super-admin'; // Super admin defaults to their dashboard
+        } else if (isAdmin && !isPreviewingAsUser) {
+          defaultView = 'dashboard';
+        }
         setActiveSectionState(defaultView);
       });
     }
     if (!isLoadingAdminStatus && activeSection) {
       const currentViewIsAdminOnly = adminLinks.some(link => link.id === activeSection);
       const currentViewIsUserOnly = userLinks.some(link => link.id === activeSection);
-      if (isPreviewingAsUser && currentViewIsAdminOnly) {
+      const currentViewIsSuperAdminOnly = superAdminLinks.some(link => link.id === activeSection);
+
+      // This condition specifically handles non-superadmins landing on the super-admin page.
+      if (!isSuperAdmin && currentViewIsSuperAdminOnly) {
+        const fallbackView = isAdmin && !isPreviewingAsUser ? 'dashboard' : 'wizards';
+        startAppCoreTransition(() => setActiveSectionState(fallbackView));
+      } 
+      // These conditions handle admin/user view mismatches when not dealing with super-admin specific views.
+      // And also ensure that if a super-admin is previewing as user, they are treated as user.
+      else if (isPreviewingAsUser && currentViewIsAdminOnly && !currentViewIsSuperAdminOnly) { // Ensure not to redirect if it IS a super_admin page
         startAppCoreTransition(() => setActiveSectionState('wizards'));
-      } else if (!isPreviewingAsUser && isAdmin && currentViewIsUserOnly) {
+      } else if (!isPreviewingAsUser && isAdmin && currentViewIsUserOnly && !currentViewIsSuperAdminOnly) { // Ensure not to redirect if it IS a super_admin page
         startAppCoreTransition(() => setActiveSectionState('dashboard'));
       }
     }
-  }, [isAdmin, isLoadingAdminStatus, activeSection, isPreviewingAsUser, setActiveSectionState, startAppCoreTransition]);
+  }, [isSuperAdmin, isAdmin, isLoadingAdminStatus, activeSection, isPreviewingAsUser, setActiveSectionState, startAppCoreTransition]);
 
   // === Conditional Rendering Logic (now checks happen AFTER all AppCore hooks) ===
   if (!isUidCheckLogicComplete || (isUidCheckLogicComplete && !uidFromParams && process.env.NEXT_PUBLIC_HOME_URL)) {
@@ -361,6 +391,8 @@ const AppCore: React.FC<AppCoreProps> = (props) => {
     }
     // Instantiate actual view components
     switch (activeSection) {
+      case 'super-admin':
+        return isSuperAdmin ? <SuperAdminDashboardView /> : (<div>Access Denied</div>);
       case 'dashboard': 
       case 'config': 
       case 'connections':
@@ -460,7 +492,7 @@ const PluginContent = () => {
   // Existing application hooks
   const { isInitializing: isCgLibInitializing, initError: cgLibError, iframeUid: cgLibIframeUid } = useCgLib();
   const { isAdmin, isLoading: isLoadingAdminStatus, error: adminStatusError } = useAdminStatus();
-  const { jwt, login, isAuthenticating, authError, pluginContextAssignableRoleIds } = useAuth();
+  const { jwt, login, isAuthenticating, authError, pluginContextAssignableRoleIds, decodedPayload } = useAuth();
   const { authFetch } = useAuthFetch();
   const { activeSlideshowWizardId, setActiveSlideshowWizardId } = useWizardSlideshow();
   // These transition hooks are unused in this component but may be needed later
@@ -473,6 +505,11 @@ const PluginContent = () => {
   const [previousSection, setPreviousSectionState] = useState<string | null>(null);
   const [isPreviewingAsUser, setIsPreviewingAsUserState] = useState<boolean>(false);
   const [hasCheckedHero, setHasCheckedHeroState] = useState<boolean>(false);
+
+  // Determine if current user is Super Admin
+  const superAdminIdFromEnv = process.env.NEXT_PUBLIC_SUPERADMIN_ID;
+  const currentUserId = decodedPayload?.sub;
+  const isSuperAdminUser = !!currentUserId && !!superAdminIdFromEnv && currentUserId === superAdminIdFromEnv;
 
   // --- UNCOMMENTING DATA FETCHING FOR USER AND COMMUNITY --- 
   const { data: userInfoResponse, isLoading: isLoadingUserInfo, error: userInfoError } = useCgQuery<
@@ -723,6 +760,7 @@ const PluginContent = () => {
       userWizardsData={userWizardsData}
       completionsData={completionsData}
       hasCheckedHero={hasCheckedHero} // Pass hasCheckedHero to AppCore
+      isSuperAdmin={isSuperAdminUser} // Pass isSuperAdminUser to AppCore
     />
   );
 };
