@@ -30,6 +30,7 @@ import { useUserWizardCompletionsQuery } from '@/hooks/useUserWizardCompletionsQ
 import { useUserWizardsQuery } from '@/hooks/useUserWizardsQuery';
 import { UpgradeModal } from '@/components/billing/UpgradeModal';
 import { useSearchParams } from 'next/navigation';
+import WelcomeAnimation from '@/components/WelcomeAnimation';
 
 // Removed targetRoleIdFromEnv constant
 // const targetRoleIdFromEnv = process.env.NEXT_PUBLIC_TARGET_ROLE_ID;
@@ -105,6 +106,8 @@ interface AppCoreProps {
   isLoadingCompletions: boolean;
   hasCheckedHero: boolean;
   isSuperAdmin: boolean;
+  showWelcomeAnimation: boolean | null;
+  setShowWelcomeAnimation: (show: boolean) => void;
 }
 
 // Define the interface for DisplayRole
@@ -179,6 +182,8 @@ const AppCore: React.FC<AppCoreProps> = (props) => {
     isLoadingCompletions,
     hasCheckedHero,
     isSuperAdmin,
+    showWelcomeAnimation,
+    setShowWelcomeAnimation,
   } = props;
 
   // === ALL HOOKS IN AppCore MUST BE AT THE TOP ===
@@ -266,7 +271,9 @@ const AppCore: React.FC<AppCoreProps> = (props) => {
     isLoadingCommunityInfo || 
     pluginContextAssignableRoleIds === undefined ||
     isLoadingUserWizards || // Now included in app loading check
-    isLoadingCompletions;   // Now included in app loading check
+    isLoadingCompletions ||   // Now included in app loading check
+    // Keep in loading state until we've decided whether to show welcome animation
+    showWelcomeAnimation === null;
 
   const appSpecificError = 
     adminStatusError || 
@@ -323,6 +330,16 @@ const AppCore: React.FC<AppCoreProps> = (props) => {
       <div className="flex flex-col items-center justify-center min-h-screen text-yellow-500 p-4">
         <p>Common Ground context not available (missing iframeUid after init attempt).</p>
       </div>
+    );
+  }
+
+  // Show the welcome animation after all loading states are cleared
+  if (showWelcomeAnimation) {
+    return (
+      <WelcomeAnimation 
+        onComplete={() => setShowWelcomeAnimation(false)} 
+        duration={3}
+      />
     );
   }
 
@@ -488,6 +505,9 @@ const PluginContent = () => {
   
   // Memoize uidFromParams so it's stable for AppCore's useEffect dependency array
   const uidFromParams = React.useMemo(() => searchParams.get('iframeUid'), [searchParams]);
+
+  // State for welcome animation
+  const [showWelcomeAnimation, setShowWelcomeAnimation] = useState<boolean | null>(null);
 
   // Existing application hooks
   const { isInitializing: isCgLibInitializing, initError: cgLibError, iframeUid: cgLibIframeUid } = useCgLib();
@@ -709,6 +729,47 @@ const PluginContent = () => {
     }
   }, [isPreviewingAsUser, setHasCheckedHeroState]);
 
+  // Effect to trigger the welcome animation once loading is complete
+  useEffect(() => {
+    // Show the welcome animation when:
+    // 1. Not loading essential data
+    // 2. No errors detected
+    // 3. We have the necessary initialization data
+    // 4. Not currently showing any slideshow wizard
+    if (
+      !isCgLibInitializing &&
+      !isLoadingAdminStatus &&
+      !isLoadingUserInfo &&
+      !isLoadingCommunityInfo &&
+      !isLoadingUserWizards &&
+      !isLoadingCompletions &&
+      cgLibIframeUid &&
+      !adminStatusError &&
+      !authError &&
+      !userInfoError &&
+      !communityInfoError &&
+      !userWizardsError &&
+      !activeSlideshowWizardId
+    ) {
+      // Immediately set to true when all conditions are met
+      setShowWelcomeAnimation(true);
+    }
+  }, [
+    isCgLibInitializing,
+    isLoadingAdminStatus,
+    isLoadingUserInfo,
+    isLoadingCommunityInfo,
+    isLoadingUserWizards,
+    isLoadingCompletions,
+    cgLibIframeUid,
+    adminStatusError,
+    authError,
+    userInfoError,
+    communityInfoError,
+    userWizardsError,
+    activeSlideshowWizardId
+  ]);
+
   return (
     <AppCore
       isUidCheckLogicComplete={isUidCheckLogicComplete}
@@ -761,6 +822,8 @@ const PluginContent = () => {
       completionsData={completionsData}
       hasCheckedHero={hasCheckedHero} // Pass hasCheckedHero to AppCore
       isSuperAdmin={isSuperAdminUser} // Pass isSuperAdminUser to AppCore
+      showWelcomeAnimation={showWelcomeAnimation}
+      setShowWelcomeAnimation={setShowWelcomeAnimation}
     />
   );
 };
