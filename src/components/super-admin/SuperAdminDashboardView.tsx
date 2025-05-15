@@ -1,13 +1,13 @@
 'use client';
 
 import React from 'react';
+// import Image from 'next/image'; // Removed as it's unused
 import {
-  useSuperAdminStatsQuery,
-  SuperAdminDashboardStatsResponse
+  useSuperAdminStatsQuery
 } from '@/hooks/useSuperAdminStatsQuery';
+// import { CommunityFeatureUtilization } from '@/hooks/useSuperAdminCommunityUtilizationQuery'; // Removed as it's unused
 import {
   useSuperAdminCommunityUtilizationQuery,
-  CommunityFeatureUtilization,
   ALL_TRACKED_FEATURES_FRONTEND,
   FeatureEnumFrontend
 } from '@/hooks/useSuperAdminCommunityUtilizationQuery';
@@ -15,7 +15,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Loader2, AlertCircle, ShieldAlert, BarChart3, Users, Layers, Activity, Percent, Columns } from 'lucide-react';
+// import { Building } from 'lucide-react'; // Removed as it's unused
+import { Loader2, AlertCircle, ShieldAlert, BarChart3, Users, Layers, Activity, Percent } from 'lucide-react'; // Removed Building from here too
 
 // A simple StatCard-like component for this view
 interface SimpleStatCardProps {

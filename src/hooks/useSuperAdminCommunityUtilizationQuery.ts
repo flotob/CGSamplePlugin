@@ -13,17 +13,18 @@ const ALL_POSSIBLE_FEATURES = [
 ] as const;
 
 // Features to ignore in the utilization leaderboard display
-const IGNORED_LEADERBOARD_FEATURES: readonly string[] = [
+const IGNORED_LEADERBOARD_FEATURES = [
   'wizard_step_completion',
   'api_call_generic'
-];
+] as const;
+
+type IgnoredFeatureLiterals = typeof IGNORED_LEADERBOARD_FEATURES[number];
 
 // Filtered list of features to actually display columns for
 export const ALL_TRACKED_FEATURES_FRONTEND = ALL_POSSIBLE_FEATURES.filter(
-  feature => !IGNORED_LEADERBOARD_FEATURES.includes(feature)
-) as unknown as Exclude<typeof ALL_POSSIBLE_FEATURES[number], typeof IGNORED_LEADERBOARD_FEATURES[number]>[];
-// The `as unknown as ...` part is a type assertion to get a more precise string literal union type after filtering.
-// A simpler `as const` might also work depending on TS version and strictness, but this is more robust for type derivation.
+  (feature): feature is Exclude<typeof ALL_POSSIBLE_FEATURES[number], IgnoredFeatureLiterals> => 
+    !(IGNORED_LEADERBOARD_FEATURES as readonly string[]).includes(feature)
+);
 
 export type FeatureEnumFrontend = typeof ALL_TRACKED_FEATURES_FRONTEND[number];
 

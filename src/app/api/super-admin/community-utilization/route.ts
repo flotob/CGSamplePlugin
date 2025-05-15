@@ -47,18 +47,6 @@ interface RawCommunityPlanInfo {
   plan_name: string | null;
 }
 
-interface RawResourceUsage {
-  community_id: string;
-  feature: FeatureEnum; // To make it generic if more resources are added
-  current_usage: number;
-}
-
-interface RawEventUsage {
-  community_id: string;
-  feature: FeatureEnum;
-  current_usage: number;
-}
-
 export const GET = withAuth(async (req: AuthenticatedRequest): Promise<NextResponse<CommunityFeatureUtilization[] | { error: string }>> => {
   const user = req.user as JwtPayload | undefined;
 
