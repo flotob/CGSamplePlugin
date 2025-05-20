@@ -20,7 +20,8 @@ import { WizardView } from '../components/WizardView';
 import { ContactView } from '../components/ContactView';
 import { DebugSettingsView } from '../components/DebugSettingsView';
 import { SuperAdminDashboardView } from '../components/super-admin/SuperAdminDashboardView';
-import { LayoutDashboard, Settings, Plug, User, Wand2, Loader2, Terminal, ShieldAlert } from 'lucide-react';
+import { LayoutDashboard, Settings, Plug, User, Wand2, Loader2, Terminal, ShieldAlert, FileCode2 } from 'lucide-react';
+import ApiDocsView from '../components/ApiDocsView';
 import { Toaster } from "@/components/ui/toaster";
 import { useWizardSlideshow } from '../context/WizardSlideshowContext';
 import { WizardSlideshowModal } from '../components/onboarding/WizardSlideshowModal';
@@ -42,6 +43,7 @@ const adminLinks = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'config', label: 'Wizard Config', icon: Settings },
   { id: 'connections', label: 'Connections', icon: Plug },
+  { id: 'api-docs', label: 'API Docs', icon: FileCode2 },
   // { id: 'account', label: 'Account', icon: Building }, // Removed Account link
   // { id: 'debug', label: 'Debug Settings', icon: Terminal }, // Already removed and handled separately
 ];
@@ -429,9 +431,11 @@ const AppCore: React.FC<AppCoreProps> = (props) => {
       case 'help': 
         // Pass isAdmin as a strict boolean
         return <HelpView isAdmin={isAdmin === true && !isPreviewingAsUser} />;
-      case 'contact': 
+      case 'contact':
         return <ContactView />;
-      default: 
+      case 'api-docs':
+        return <ApiDocsView />;
+      default:
         return <div className="p-4">Unknown Section: {activeSection}</div>;
     }
   };

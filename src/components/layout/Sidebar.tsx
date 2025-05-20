@@ -3,7 +3,7 @@
 import React from 'react';
 import Image from 'next/image'; // Re-add Image import
 import { Button } from "@/components/ui/button";
-import { BookOpen, Eye, Undo, Mail, SparklesIcon } from 'lucide-react'; // Removed Loader2 import
+import { BookOpen, Eye, Undo, Mail, SparklesIcon, FileCode2 } from 'lucide-react'; // Removed Loader2 import
 // import { useQuery } from '@tanstack/react-query'; // Removed
 import { SidebarUserProfile } from './SidebarUserProfile';
 import { useAdminAIChatModalStore } from '@/stores/useAdminAIChatModalStore'; // Added store import
@@ -167,13 +167,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="py-2 px-3 border-t border-border">
         <p className="text-xs font-medium text-muted-foreground px-2 mb-2">SUPPORT</p>
         <div className="space-y-1.5">
-          <Button 
-            variant="ghost" 
+          <Button
+            variant="ghost"
             className="w-full justify-start text-muted-foreground hover:text-foreground transition-all duration-200 hover:bg-secondary/40"
             onClick={() => setActiveSection('help')}
           >
             <BookOpen className="w-4 h-4 mr-2" />
             Help & Documentation
+          </Button>
+          <Button
+            variant="ghost"
+            className="w-full justify-start text-muted-foreground hover:text-foreground transition-all duration-200 hover:bg-secondary/40"
+            onClick={() => setActiveSection('api-docs')}
+          >
+            <FileCode2 className="w-4 h-4 mr-2" />
+            API Docs
           </Button>
           {/* Render Debug Settings Link if provided - MOVED HERE */}
           {debugLink && (
