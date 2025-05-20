@@ -1,0 +1,62 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "CG Sample Plugin API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/auth/session": {
+      "post": {
+        "summary": "Create a JWT session",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "iframeUid": { "type": "string" },
+                  "userId": { "type": "string" },
+                  "communityId": { "type": "string" },
+                  "isAdmin": { "type": "boolean" }
+                },
+                "required": ["iframeUid", "userId", "communityId", "isAdmin"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "JWT issued" }
+        }
+      }
+    },
+    "/api/step_types": {
+      "get": {
+        "summary": "List available step types",
+        "responses": { "200": { "description": "Array of step types" } }
+      }
+    },
+    "/api/admin/api-keys": {
+      "get": {
+        "summary": "List API keys for the current community",
+        "responses": { "200": { "description": "Array of keys" } }
+      },
+      "post": {
+        "summary": "Create a new API key",
+        "responses": { "201": { "description": "Key created" } }
+      }
+    },
+    "/api/admin/api-keys/{id}": {
+      "delete": {
+        "summary": "Delete an API key",
+        "parameters": [{
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string" }
+        }],
+        "responses": { "200": { "description": "Key deleted" } }
+      }
+    }
+  }
+}
